@@ -57,9 +57,9 @@ allprojects {
     tasks.named('test') {
         useJUnitPlatform()
     }
-
-    // Temporary workaround for IDEs requesting a removed task
-    if (tasks.findByName('prepareKotlinBuildScriptModel') == null) {
-        tasks.register('prepareKotlinBuildScriptModel') { }
-    }
+//
+//    // Temporary workaround for IDEs requesting a removed task
+//    if (tasks.findByName('prepareKotlinBuildScriptModel') == null) {
+//        tasks.register('prepareKotlinBuildScriptModel') { }
+//    }
 }
