@@ -23,7 +23,7 @@ public class Order {
   private Instant deliveredAt;
   private Instant cancelledAt;
 
-  private Order(
+  public Order(
       Long id,
       String orderNumber,
       OrderStatus status,
@@ -34,10 +34,24 @@ public class Order {
       Instant orderedAt,
       Instant deliveredAt,
       Instant cancelledAt) {
+    // 필수 값 체크
+    if (orderNumber == null || orderNumber.isBlank()) {
+      throw new IllegalArgumentException("주문번호는 필수입니다");
+    }
+    if (origin == null) {
+      throw new IllegalArgumentException("출발지는 필수입니다");
+    }
+    if (destination == null) {
+      throw new IllegalArgumentException("도착지는 필수입니다");
+    }
+    if (deliveryPolicy == null) {
+      throw new IllegalArgumentException("배송 정책은 필수입니다");
+    }
+
     this.id = id;
     this.orderNumber = orderNumber;
     this.status = status;
-    this.items = new ArrayList<>(items);
+    this.items = items != null ? new ArrayList<>(items) : new ArrayList<>();
     this.origin = origin;
     this.destination = destination;
     this.deliveryPolicy = deliveryPolicy;
@@ -66,31 +80,6 @@ public class Order {
         Instant.now(),
         null,
         null);
-  }
-
-  // 재구성 팩토리 메서드 (Repository에서 복원 시 사용)
-  public static Order reconstitute(
-      Long id,
-      String orderNumber,
-      OrderStatus status,
-      List<OrderItem> items,
-      Origin origin,
-      Destination destination,
-      DeliveryPolicy deliveryPolicy,
-      Instant orderedAt,
-      Instant deliveredAt,
-      Instant cancelledAt) {
-    return new Order(
-        id,
-        orderNumber,
-        status,
-        items,
-        origin,
-        destination,
-        deliveryPolicy,
-        orderedAt,
-        deliveredAt,
-        cancelledAt);
   }
 
   // 배송 완료 처리 (배송 서비스 이벤트 수신)
@@ -143,21 +132,8 @@ public class Order {
       Origin origin,
       Destination destination,
       DeliveryPolicy deliveryPolicy) {
-    if (orderNumber == null || orderNumber.isBlank()) {
-      throw new IllegalArgumentException("주문번호는 필수입니다");
-    }
-    if (items == null || items.isEmpty()) {
-      throw new IllegalArgumentException("주문 아이템은 최소 1개 이상이어야 합니다");
-    }
-    if (origin == null) {
-      throw new IllegalArgumentException("출발지는 필수입니다");
-    }
-    if (destination == null) {
-      throw new IllegalArgumentException("도착지는 필수입니다");
-    }
-    if (deliveryPolicy == null) {
-      throw new IllegalArgumentException("배송 정책은 필수입니다");
-    }
+    // 생성자에서 기본 검증을 하므로 추가 비즈니스 규칙만 검증
+    // 현재는 추가 규칙 없음
   }
 }
 

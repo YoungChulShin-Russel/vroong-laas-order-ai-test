@@ -34,7 +34,7 @@ public class OrderFixtures {
 
   /** 기본 주문 (CREATED 상태) */
   public Order order() {
-    return Order.reconstitute(
+    return new Order(
         null, // id
         generateOrderNumber(),
         OrderStatus.CREATED,
@@ -50,7 +50,7 @@ public class OrderFixtures {
 
   /** 특정 주문번호로 생성 */
   public Order order(String orderNumber) {
-    return Order.reconstitute(
+    return new Order(
         null,
         orderNumber,
         OrderStatus.CREATED,
@@ -65,7 +65,7 @@ public class OrderFixtures {
 
   /** 배송완료 주문 */
   public Order deliveredOrder() {
-    return Order.reconstitute(
+    return new Order(
         fixtureMonkey.giveMeOne(Long.class),
         generateOrderNumber(),
         OrderStatus.DELIVERED,
@@ -80,7 +80,7 @@ public class OrderFixtures {
 
   /** 취소된 주문 */
   public Order cancelledOrder() {
-    return Order.reconstitute(
+    return new Order(
         fixtureMonkey.giveMeOne(Long.class),
         generateOrderNumber(),
         OrderStatus.CANCELLED,
@@ -96,7 +96,7 @@ public class OrderFixtures {
 
   /** 특정 ID로 생성 */
   public Order orderWithId(Long id) {
-    return Order.reconstitute(
+    return new Order(
         id,
         generateOrderNumber(),
         OrderStatus.CREATED,
@@ -114,7 +114,7 @@ public class OrderFixtures {
     Instant deliveredAt = status == OrderStatus.DELIVERED ? Instant.now() : null;
     Instant cancelledAt = status == OrderStatus.CANCELLED ? Instant.now() : null;
 
-    return Order.reconstitute(
+    return new Order(
         null,
         generateOrderNumber(),
         status,

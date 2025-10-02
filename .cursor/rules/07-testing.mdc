@@ -1,21 +1,6 @@
-# 테스트 작성 규칙
-
-이 문서는 테스트 코드 작성 시 따라야 할 규칙과 가이드라인을 정의합니다.
-
 ---
-
-## 🚨 핵심 원칙
-
-### ⛔ 절대 규칙: 테스트 없는 코드는 완료가 아님
-
-**모든 작업에는 테스트가 필수입니다.**
-
-- ✅ 프로덕션 코드 작성 → 테스트 코드 작성
-- ✅ 테스트가 통과해야 작업 완료
-- ❌ "나중에 테스트 추가" 금지
-
+alwaysApply: true
 ---
-
 ## 🛠 기술 스택
 
 ### 필수 라이브러리
@@ -112,6 +97,465 @@ class OrderTest {
         assertThatThrownBy(() -> order.cancel("재취소"))
             .isInstanceOf(OrderAlreadyCancelledException.class)
             .hasMessage("이미 취소된 주문입니다");
+    }
+}
+```
+
+---
+
+### 📌 Domain Layer 테스트 실전 가이드
+
+#### 1. Spring Context 사용 금지 ⭐⭐⭐
+
+**Domain Layer는 순수 Java 테스트여야 합니다. Spring 의존성 절대 금지!**
+
+```java
+// ❌ 잘못된 예 - Spring Context 사용
+@Component  // 금지!
+public class OrderFixtures {
+    @Autowired
+    private FixtureMonkey fixtureMonkey;  // 금지!
+}
+
+@SpringBootTest  // Domain Layer에서 금지!
+class OrderTest {
+    @Autowired
+    private OrderFixtures fixtures;
+}
+
+// ✅ 올바른 예 - 순수 Java
+public class OrderFixtures {
+    private final FixtureMonkey fixtureMonkey;
+    
+    public OrderFixtures(FixtureMonkey fixtureMonkey) {
+        this.fixtureMonkey = fixtureMonkey;
+    }
+}
+
+class OrderTest {
+    private OrderFixtures orderFixtures;
+    
+    @BeforeEach
+    void setUp() {
+        FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
+            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
+            .defaultNotNull(true)
+            .build();
+        
+        orderFixtures = new OrderFixtures(fixtureMonkey);
+    }
+}
+```
+
+**왜 중요한가?**
+- Domain Layer는 Infrastructure에 의존하지 않음
+- 빠른 테스트 실행 (Spring Context 로딩 없음)
+- 순수한 비즈니스 로직 검증
+
+---
+
+#### 2. 생성자 vs 팩토리 메서드 패턴 ⭐⭐⭐
+
+**생성자에서 필수 값 체크, create()는 비즈니스 규칙용**
+
+```java
+public class Order {
+    
+    // 생성자 - 필수 값 체크 (항상 실행)
+    public Order(
+        Long id,
+        String orderNumber,
+        OrderStatus status,
+        List<OrderItem> items,
+        Origin origin,
+        Destination destination,
+        DeliveryPolicy deliveryPolicy,
+        Instant orderedAt,
+        Instant deliveredAt,
+        Instant cancelledAt
+    ) {
+        // 필수 값 체크
+        if (orderNumber == null || orderNumber.isBlank()) {
+            throw new IllegalArgumentException("주문번호는 필수입니다");
+        }
+        if (items == null || items.isEmpty()) {
+            throw new IllegalArgumentException("주문 아이템은 최소 1개 이상이어야 합니다");
+        }
+        if (origin == null) {
+            throw new IllegalArgumentException("출발지는 필수입니다");
+        }
+        if (destination == null) {
+            throw new IllegalArgumentException("도착지는 필수입니다");
+        }
+        
+        // 할당
+        this.id = id;
+        this.orderNumber = orderNumber;
+        this.status = status;
+        this.items = new ArrayList<>(items);
+        this.origin = origin;
+        this.destination = destination;
+        this.deliveryPolicy = deliveryPolicy;
+        this.orderedAt = orderedAt;
+        this.deliveredAt = deliveredAt;
+        this.cancelledAt = cancelledAt;
+    }
+    
+    // create() - 비즈니스 규칙 + 초기 상태로 생성
+    public static Order create(
+        String orderNumber,
+        List<OrderItem> items,
+        Origin origin,
+        Destination destination,
+        DeliveryPolicy deliveryPolicy
+    ) {
+        // 추가 비즈니스 검증 (선택적)
+        validateBusinessRules(items, origin, destination);
+        
+        // 초기 상태로 생성
+        return new Order(
+            null,                  // id는 나중에 할당
+            orderNumber,
+            OrderStatus.CREATED,   // 초기 상태
+            items,
+            origin,
+            destination,
+            deliveryPolicy,
+            Instant.now(),         // 현재 시간
+            null,                  // deliveredAt
+            null                   // cancelledAt
+        );
+    }
+}
+```
+
+**사용 구분:**
+
+| 방법 | 용도 | 검증 | 사용처 |
+|------|------|------|--------|
+| **`create()`** | 새 주문 생성 | 비즈니스 규칙 ✅ | 프로덕션 (UseCase) |
+| **생성자** | 객체 복원/테스트 | 필수 값만 ✅ | 테스트, Infrastructure |
+
+```java
+// 프로덕션 - create() 사용
+Order order = Order.create(
+    "ORD-001", items, origin, destination, policy
+);
+
+// 테스트 - 생성자 직접 사용 (다양한 상태)
+Order deliveredOrder = new Order(
+    1L, "ORD-001", OrderStatus.DELIVERED, items, 
+    origin, destination, policy,
+    Instant.now().minusSeconds(3600),
+    Instant.now(),  // deliveredAt
+    null
+);
+
+// Infrastructure - 생성자 사용 (DB → Domain)
+public Order toDomain() {
+    return new Order(
+        this.id, this.orderNumber, this.status,
+        this.items.stream()...
+    );
+}
+```
+
+---
+
+#### 3. ConstructorPropertiesArbitraryIntrospector 필수 ⭐⭐⭐
+
+**record, 불변 객체를 위해 반드시 설정!**
+
+```java
+// ✅ 필수 설정
+FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
+    .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)  // ⭐
+    .defaultNotNull(true)  // null 방지
+    .build();
+
+// record에서 작동
+public record Contact(String name, String phoneNumber) { }
+
+Contact contact = fixtureMonkey.giveMeOne(Contact.class);  // ✅ 작동!
+
+// 불변 객체에서 작동
+@Getter
+@AllArgsConstructor
+public class Order {
+    private final String orderNumber;
+    // ...
+}
+
+Order order = fixtureMonkey.giveMeOne(Order.class);  // ✅ 작동!
+```
+
+**없으면?**
+```java
+// ❌ ConstructorPropertiesArbitraryIntrospector 없이
+FixtureMonkey fixtureMonkey = FixtureMonkey.builder().build();
+
+Contact contact = fixtureMonkey.giveMeOne(Contact.class);
+// → 에러! record는 기본 생성자가 없음
+```
+
+---
+
+#### 4. Arbitraries와 FixtureMonkey 조합 ⭐⭐
+
+**범위가 있는 랜덤 값 생성**
+
+```java
+import net.jqwik.api.Arbitraries;
+
+public class OrderFixtures {
+    
+    private final FixtureMonkey fixtureMonkey;
+    
+    // Arbitraries로 범위 지정
+    public OrderItem randomOrderItem() {
+        String itemName = "상품" + fixtureMonkey.giveMeOne(Integer.class);
+        int quantity = Arbitraries.integers().between(1, 10).sample();
+        Money price = new Money(
+            BigDecimal.valueOf(Arbitraries.longs().between(1000L, 100000L).sample())
+        );
+        String category = Arbitraries.of("식품", "생활용품", "의류", "전자제품").sample();
+        
+        return new OrderItem(itemName, quantity, price, category, null, null);
+    }
+    
+    // FixtureMonkey.giveMeBuilder()와 Arbitraries 조합
+    public Contact randomContact() {
+        return fixtureMonkey.giveMeBuilder(Contact.class)
+            .set("name", "테스터" + fixtureMonkey.giveMeOne(Integer.class))
+            .set("phoneNumber", 
+                "010-" + 
+                Arbitraries.strings().numeric().ofLength(4).sample() + 
+                "-" + 
+                Arbitraries.strings().numeric().ofLength(4).sample())
+            .sample();
+    }
+    
+    public LatLng randomLatLng() {
+        return fixtureMonkey.giveMeBuilder(LatLng.class)
+            .set("latitude", 
+                Arbitraries.doubles().between(37.0, 38.0)
+                    .map(BigDecimal::valueOf))
+            .set("longitude", 
+                Arbitraries.doubles().between(126.0, 127.0)
+                    .map(BigDecimal::valueOf))
+            .sample();
+    }
+}
+```
+
+**주요 Arbitraries 메서드:**
+
+```java
+// 정수 범위
+Arbitraries.integers().between(1, 10).sample()
+
+// Long 범위
+Arbitraries.longs().between(1000L, 100000L).sample()
+
+// Double 범위
+Arbitraries.doubles().between(37.0, 38.0).sample()
+
+// 목록에서 선택
+Arbitraries.of("A", "B", "C", "D").sample()
+
+// 숫자 문자열
+Arbitraries.strings().numeric().ofLength(4).sample()  // "1234"
+
+// 알파벳 문자열
+Arbitraries.strings().alpha().ofLength(10).sample()  // "abcdEFGHij"
+```
+
+---
+
+#### 5. 실전 Fixture 패턴 ⭐⭐
+
+**상태별 Fixture 메서드 제공**
+
+```java
+public class OrderFixtures {
+    
+    private final FixtureMonkey fixtureMonkey;
+    
+    public OrderFixtures(FixtureMonkey fixtureMonkey) {
+        this.fixtureMonkey = fixtureMonkey;
+    }
+    
+    // 기본 주문 (CREATED 상태)
+    public Order order() {
+        return new Order(
+            null,
+            generateOrderNumber(),
+            OrderStatus.CREATED,
+            randomOrderItems(),
+            randomOrigin(),
+            randomDestination(),
+            randomDeliveryPolicy(),
+            Instant.now(),
+            null,
+            null
+        );
+    }
+    
+    // 특정 주문번호로 생성
+    public Order order(String orderNumber) {
+        return new Order(
+            null,
+            orderNumber,
+            OrderStatus.CREATED,
+            randomOrderItems(),
+            randomOrigin(),
+            randomDestination(),
+            randomDeliveryPolicy(),
+            Instant.now(),
+            null,
+            null
+        );
+    }
+    
+    // 배송완료 주문
+    public Order deliveredOrder() {
+        return new Order(
+            fixtureMonkey.giveMeOne(Long.class),
+            generateOrderNumber(),
+            OrderStatus.DELIVERED,
+            randomOrderItems(),
+            randomOrigin(),
+            randomDestination(),
+            randomDeliveryPolicy(),
+            Instant.now().minusSeconds(3600),
+            Instant.now(),  // deliveredAt
+            null
+        );
+    }
+    
+    // 취소된 주문
+    public Order cancelledOrder() {
+        return new Order(
+            fixtureMonkey.giveMeOne(Long.class),
+            generateOrderNumber(),
+            OrderStatus.CANCELLED,
+            randomOrderItems(),
+            randomOrigin(),
+            randomDestination(),
+            randomDeliveryPolicy(),
+            Instant.now().minusSeconds(3600),
+            null,
+            Instant.now()  // cancelledAt
+        );
+    }
+    
+    // 특정 ID로 생성
+    public Order orderWithId(Long id) {
+        return new Order(
+            id,
+            generateOrderNumber(),
+            OrderStatus.CREATED,
+            randomOrderItems(),
+            randomOrigin(),
+            randomDestination(),
+            randomDeliveryPolicy(),
+            Instant.now(),
+            null,
+            null
+        );
+    }
+    
+    // 특정 상태로 생성
+    public Order orderWithStatus(OrderStatus status) {
+        Instant deliveredAt = status == OrderStatus.DELIVERED ? Instant.now() : null;
+        Instant cancelledAt = status == OrderStatus.CANCELLED ? Instant.now() : null;
+        
+        return new Order(
+            null,
+            generateOrderNumber(),
+            status,
+            randomOrderItems(),
+            randomOrigin(),
+            randomDestination(),
+            randomDeliveryPolicy(),
+            Instant.now().minusSeconds(3600),
+            deliveredAt,
+            cancelledAt
+        );
+    }
+    
+    // Value Object 랜덤 생성 헬퍼
+    public List<OrderItem> randomOrderItems() {
+        int count = Math.abs(fixtureMonkey.giveMeOne(Integer.class) % 3) + 1;
+        return List.of(
+            randomOrderItem(),
+            randomOrderItem(),
+            randomOrderItem()
+        ).subList(0, count);
+    }
+    
+    public OrderItem randomOrderItem() {
+        // Arbitraries 활용
+        String itemName = "상품" + Math.abs(fixtureMonkey.giveMeOne(Integer.class) % 1000);
+        int quantity = Arbitraries.integers().between(1, 10).sample();
+        Money price = new Money(
+            BigDecimal.valueOf(Arbitraries.longs().between(1000L, 100000L).sample())
+        );
+        String category = Arbitraries.of("식품", "생활용품", "의류", "전자제품").sample();
+        
+        return new OrderItem(itemName, quantity, price, category, null, null);
+    }
+    
+    public Contact randomContact() {
+        return fixtureMonkey.giveMeBuilder(Contact.class)
+            .set("name", "테스터" + fixtureMonkey.giveMeOne(Integer.class))
+            .set("phoneNumber", 
+                "010-" + 
+                Arbitraries.strings().numeric().ofLength(4).sample() + 
+                "-" + 
+                Arbitraries.strings().numeric().ofLength(4).sample())
+            .sample();
+    }
+    
+    private String generateOrderNumber() {
+        return "ORD-" + System.currentTimeMillis();
+    }
+}
+```
+
+**테스트에서 사용:**
+
+```java
+class OrderTest {
+    
+    private OrderFixtures orderFixtures;
+    
+    @BeforeEach
+    void setUp() {
+        FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
+            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
+            .defaultNotNull(true)
+            .build();
+        
+        orderFixtures = new OrderFixtures(fixtureMonkey);
+    }
+    
+    @Test
+    void test_with_created_order() {
+        Order order = orderFixtures.order();
+        // 테스트...
+    }
+    
+    @Test
+    void test_with_delivered_order() {
+        Order order = orderFixtures.deliveredOrder();
+        // 테스트...
+    }
+    
+    @Test
+    void test_with_specific_status() {
+        Order order = orderFixtures.orderWithStatus(OrderStatus.CANCELLED);
+        // 테스트...
     }
 }
 ```

@@ -57,19 +57,19 @@ class OrderTest {
   }
 
   @Test
-  @DisplayName("주문 아이템이 없으면 예외가 발생한다")
-  void createWithoutItems() {
+  @DisplayName("배송 정책이 없으면 예외가 발생한다")
+  void createWithoutDeliveryPolicy() {
     // when & then
     assertThatThrownBy(
             () ->
                 Order.create(
                     "ORD-20251002-001",
-                    List.of(),
+                    orderFixtures.randomOrderItems(),
                     orderFixtures.randomOrigin(),
                     orderFixtures.randomDestination(),
-                    orderFixtures.randomDeliveryPolicy()))
+                    null))
         .isInstanceOf(IllegalArgumentException.class)
-        .hasMessage("주문 아이템은 최소 1개 이상이어야 합니다");
+        .hasMessage("배송 정책은 필수입니다");
   }
 
   @Test
