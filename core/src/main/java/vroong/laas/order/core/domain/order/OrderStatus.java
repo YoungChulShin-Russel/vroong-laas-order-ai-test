@@ -1,4 +1,4 @@
-package vroong.laas.order.infrastructure.storage.db.order;
+package vroong.laas.order.core.domain.order;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
