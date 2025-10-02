@@ -7,7 +7,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum OrderStatus {
   CREATED("생성"),
-  DELIVERING("배송중"),
   DELIVERED("배송완료"),
   CANCELLED("취소");
 

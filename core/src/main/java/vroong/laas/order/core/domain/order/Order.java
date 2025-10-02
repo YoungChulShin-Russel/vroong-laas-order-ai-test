@@ -93,18 +93,13 @@ public class Order {
         cancelledAt);
   }
 
-  // 배송 시작
-  public void startDelivery() {
-    if (status != OrderStatus.CREATED) {
-      throw new IllegalStateException("생성된 주문만 배송을 시작할 수 있습니다");
+  // 배송 완료 처리 (배송 서비스 이벤트 수신)
+  public void markAsDelivered() {
+    if (status == OrderStatus.CANCELLED) {
+      throw new IllegalStateException("취소된 주문은 배송 완료 처리할 수 없습니다");
     }
-    this.status = OrderStatus.DELIVERING;
-  }
-
-  // 배송 완료
-  public void completeDelivery() {
-    if (status != OrderStatus.DELIVERING) {
-      throw new IllegalStateException("배송 중인 주문만 완료할 수 있습니다");
+    if (status == OrderStatus.DELIVERED) {
+      throw new IllegalStateException("이미 배송 완료된 주문입니다");
     }
     this.status = OrderStatus.DELIVERED;
     this.deliveredAt = Instant.now();
