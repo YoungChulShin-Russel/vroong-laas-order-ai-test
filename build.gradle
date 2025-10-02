@@ -44,22 +44,26 @@ allprojects {
     }
 
     dependencies {
+        // Lombok - 보일러플레이트 코드 제거 (@Getter, @Builder 등)
+        // https://projectlombok.org/
         compileOnly 'org.projectlombok:lombok'
         annotationProcessor 'org.projectlombok:lombok'
 
         testCompileOnly 'org.projectlombok:lombok'
         testAnnotationProcessor 'org.projectlombok:lombok'
 
+        // Spring Boot Test - JUnit 5, AssertJ, Mockito 포함
+        // https://spring.io/projects/spring-boot
         testImplementation 'org.springframework.boot:spring-boot-starter-test'
+        
+        // Fixture Monkey - 테스트 데이터 자동 생성 (jqwik 기반)
+        // https://github.com/naver/fixture-monkey
+        testImplementation "com.navercorp.fixturemonkey:fixture-monkey-starter:${fixtureMonkeyVersion}"
+        
         testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     }
 
     tasks.named('test') {
         useJUnitPlatform()
     }
-//
-//    // Temporary workaround for IDEs requesting a removed task
-//    if (tasks.findByName('prepareKotlinBuildScriptModel') == null) {
-//        tasks.register('prepareKotlinBuildScriptModel') { }
-//    }
 }
