@@ -1,0 +1,644 @@
+# Interfaces Layer 규칙
+
+## 위치
+`api/`, `admin/`, `worker/`
+
+## 책임
+- 외부 진입점 (Controller, gRPC Service, Batch Job)
+- Use Case 호출
+- DTO 변환 (Request → Command, Domain → Response)
+- 예외 처리
+
+## Web Controller 규칙 (api/web/)
+
+### 위치
+`api/web/*/`
+
+### 책임
+- HTTP API 제공
+- Use Case만 호출
+- Request → Command 변환
+- Domain → Response 변환
+
+### 반드시 해야 할 것
+1. @RestController 사용
+2. Use Case만 의존
+3. Request DTO에서 Command 변환
+4. Domain에서 Response DTO 변환
+5. Bean Validation 사용
+
+### 절대 하지 말 것
+1. 비즈니스 로직 작성 금지
+2. Domain Service 직접 호출 금지
+3. Store/Reader 직접 의존 금지
+4. 트랜잭션 관리 금지 (Use Case에서)
+
+### Web Controller 템플릿
+
+```java
+// api/web/order/OrderController.java
+@RestController
+@RequestMapping("/api/v1/orders")
+@RequiredArgsConstructor
+public class OrderController {
+    
+    private final CreateOrderUseCase createOrderUseCase;
+    private final CancelOrderUseCase cancelOrderUseCase;
+    private final GetOrderUseCase getOrderUseCase;
+    
+    @PostMapping
+    public ResponseEntity<OrderResponse> createOrder(
+        @RequestBody @Valid CreateOrderRequest request,
+        @AuthenticationPrincipal User user
+    ) {
+        // Request → Command 변환
+        CreateOrderCommand command = CreateOrderCommand.builder()
+            .userId(user.getId())
+            .items(request.items().stream()
+                .map(item -> new CreateOrderCommand.OrderItemCommand(
+                    item.productId(),
+                    item.quantity()
+                ))
+                .toList())
+            .deliveryAddress(request.deliveryAddress())
+            .couponId(request.couponId())
+            .build();
+        
+        // Use Case 실행
+        Order order = createOrderUseCase.execute(command);
+        
+        // Domain → Response 변환
+        return ResponseEntity.ok(OrderResponse.from(order));
+    }
+    
+    @GetMapping("/{orderId}")
+    public ResponseEntity<OrderDetailResponse> getOrder(
+        @PathVariable Long orderId,
+        @AuthenticationPrincipal User user
+    ) {
+        GetOrderQuery query = new GetOrderQuery(orderId, user.getId());
+        
+        Order order = getOrderUseCase.execute(query);
+        
+        return ResponseEntity.ok(OrderDetailResponse.from(order));
+    }
+    
+    @DeleteMapping("/{orderId}")
+    public ResponseEntity<Void> cancelOrder(
+        @PathVariable Long orderId,
+        @RequestBody @Valid CancelOrderRequest request,
+        @AuthenticationPrincipal User user
+    ) {
+        CancelOrderCommand command = CancelOrderCommand.builder()
+            .orderId(orderId)
+            .userId(user.getId())
+            .reason(request.reason())
+            .cancelType(CancelType.CUSTOMER)
+            .build();
+        
+        cancelOrderUseCase.execute(command);
+        
+        return ResponseEntity.noContent().build();
+    }
+    
+    @GetMapping
+    public ResponseEntity<Page<OrderSummaryResponse>> getMyOrders(
+        @AuthenticationPrincipal User user,
+        Pageable pageable
+    ) {
+        GetMyOrdersQuery query = new GetMyOrdersQuery(user.getId(), pageable);
+        
+        Page<OrderSummary> orders = getMyOrdersUseCase.execute(query);
+        
+        Page<OrderSummaryResponse> response = orders.map(OrderSummaryResponse::from);
+        
+        return ResponseEntity.ok(response);
+    }
+}
+```
+
+## Request DTO 규칙
+
+### 위치
+`api/web/*/dto/request/`
+
+### 책임
+- HTTP 요청 데이터 수신
+- Bean Validation으로 형식 검증
+
+### Request DTO 템플릿
+
+```java
+// api/web/order/dto/request/CreateOrderRequest.java
+public record CreateOrderRequest(
+    @NotNull(message = "상품 목록은 필수입니다")
+    @Size(min = 1, message = "최소 1개 이상의 상품이 필요합니다")
+    List<OrderItemRequest> items,
+    
+    @NotBlank(message = "배송지는 필수입니다")
+    @Size(max = 500, message = "배송지는 500자 이내로 입력해주세요")
+    String deliveryAddress,
+    
+    Long couponId
+) {
+    public record OrderItemRequest(
+        @NotNull(message = "상품 ID는 필수입니다")
+        @Positive(message = "상품 ID는 양수여야 합니다")
+        Long productId,
+        
+        @Min(value = 1, message = "수량은 최소 1개 이상이어야 합니다")
+        @Max(value = 100, message = "수량은 최대 100개까지 가능합니다")
+        int quantity
+    ) {}
+}
+```
+
+```java
+// api/web/order/dto/request/CancelOrderRequest.java
+public record CancelOrderRequest(
+    @NotBlank(message = "취소 사유는 필수입니다")
+    @Size(max = 1000, message = "취소 사유는 1000자 이내로 입력해주세요")
+    String reason
+) {}
+```
+
+```java
+// api/web/order/dto/request/ChangeAddressRequest.java
+public record ChangeAddressRequest(
+    @NotBlank(message = "우편번호는 필수입니다")
+    String zipCode,
+    
+    @NotBlank(message = "주소는 필수입니다")
+    String street,
+    
+    String detail
+) {}
+```
+
+## Response DTO 규칙
+
+### 위치
+`api/web/*/dto/response/`
+
+### 책임
+- HTTP 응답 데이터 반환
+- Domain에서 DTO 변환
+
+### Response DTO 템플릿
+
+```java
+// api/web/order/dto/response/OrderResponse.java
+public record OrderResponse(
+    Long id,
+    String orderNumber,
+    String status,
+    BigDecimal totalAmount,
+    String deliveryAddress,
+    List<OrderItemResponse> items,
+    LocalDateTime createdAt
+) {
+    public static OrderResponse from(Order order) {
+        return new OrderResponse(
+            order.getId(),
+            order.getOrderNumber(),
+            order.getStatus().name(),
+            order.getTotalAmount().value(),
+            order.getDeliveryAddress().getFullAddress(),
+            order.getItems().stream()
+                .map(OrderItemResponse::from)
+                .toList(),
+            order.getCreatedAt()
+        );
+    }
+    
+    public record OrderItemResponse(
+        Long productId,
+        String productName,
+        int quantity,
+        BigDecimal unitPrice,
+        BigDecimal subtotal
+    ) {
+        public static OrderItemResponse from(OrderItem item) {
+            return new OrderItemResponse(
+                item.getProductId(),
+                item.getProductName(),
+                item.getQuantity(),
+                item.getUnitPrice().value(),
+                item.getSubtotal().value()
+            );
+        }
+    }
+}
+```
+
+```java
+// api/web/order/dto/response/OrderSummaryResponse.java
+public record OrderSummaryResponse(
+    Long id,
+    String orderNumber,
+    String status,
+    BigDecimal totalAmount,
+    int itemCount,
+    LocalDateTime createdAt
+) {
+    public static OrderSummaryResponse from(OrderSummary summary) {
+        return new OrderSummaryResponse(
+            summary.id(),
+            summary.orderNumber(),
+            summary.status(),
+            summary.totalAmount(),
+            summary.itemCount(),
+            summary.createdAt()
+        );
+    }
+}
+```
+
+## Exception Handler 규칙
+
+### 위치
+`api/web/config/`
+
+### Exception Handler 템플릿
+
+```java
+// api/web/config/ApiExceptionHandler.java
+@RestControllerAdvice
+@Slf4j
+public class ApiExceptionHandler {
+    
+    // Domain 예외
+    @ExceptionHandler(OrderNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleOrderNotFound(
+        OrderNotFoundException e
+    ) {
+        log.warn("Order not found: {}", e.getMessage());
+        
+        ErrorResponse response = ErrorResponse.of(
+            "ORDER_NOT_FOUND",
+            e.getMessage()
+        );
+        
+        return ResponseEntity
+            .status(HttpStatus.NOT_FOUND)
+            .body(response);
+    }
+    
+    @ExceptionHandler(OrderNotCancellableException.class)
+    public ResponseEntity<ErrorResponse> handleOrderNotCancellable(
+        OrderNotCancellableException e
+    ) {
+        log.warn("Order not cancellable: {}", e.getMessage());
+        
+        ErrorResponse response = ErrorResponse.of(
+            "ORDER_NOT_CANCELLABLE",
+            e.getMessage()
+        );
+        
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(response);
+    }
+    
+    // Validation 예외
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidation(
+        MethodArgumentNotValidException e
+    ) {
+        Map<String, String> errors = new HashMap<>();
+        
+        e.getBindingResult().getFieldErrors().forEach(error ->
+            errors.put(error.getField(), error.getDefaultMessage())
+        );
+        
+        ErrorResponse response = ErrorResponse.of(
+            "VALIDATION_ERROR",
+            "입력값 검증 실패",
+            errors
+        );
+        
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(response);
+    }
+    
+    // 일반 예외
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleException(Exception e) {
+        log.error("Unexpected error", e);
+        
+        ErrorResponse response = ErrorResponse.of(
+            "INTERNAL_SERVER_ERROR",
+            "서버 오류가 발생했습니다"
+        );
+        
+        return ResponseEntity
+            .status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(response);
+    }
+}
+```
+
+```java
+// api/web/config/ErrorResponse.java
+public record ErrorResponse(
+    String code,
+    String message,
+    Map<String, String> errors,
+    LocalDateTime timestamp
+) {
+    public static ErrorResponse of(String code, String message) {
+        return new ErrorResponse(
+            code,
+            message,
+            Collections.emptyMap(),
+            LocalDateTime.now()
+        );
+    }
+    
+    public static ErrorResponse of(
+        String code,
+        String message,
+        Map<String, String> errors
+    ) {
+        return new ErrorResponse(
+            code,
+            message,
+            errors,
+            LocalDateTime.now()
+        );
+    }
+}
+```
+
+## gRPC Service 규칙 (api/grpc/)
+
+### 위치
+`api/grpc/*/`
+
+### gRPC Service 템플릿
+
+```java
+// api/grpc/order/OrderGrpcService.java
+@GrpcService
+@RequiredArgsConstructor
+public class OrderGrpcService extends OrderServiceGrpc.OrderServiceImplBase {
+    
+    private final CreateOrderUseCase createOrderUseCase;
+    private final GetOrderUseCase getOrderUseCase;
+    private final OrderGrpcMapper mapper;
+    
+    @Override
+    public void createOrder(
+        CreateOrderGrpcRequest request,
+        StreamObserver<OrderGrpcResponse> responseObserver
+    ) {
+        try {
+            // gRPC Request → Command
+            CreateOrderCommand command = mapper.toCommand(request);
+            
+            // Use Case 실행
+            Order order = createOrderUseCase.execute(command);
+            
+            // Domain → gRPC Response
+            OrderGrpcResponse response = mapper.toResponse(order);
+            
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+            
+        } catch (Exception e) {
+            responseObserver.onError(
+                Status.INTERNAL
+                    .withDescription(e.getMessage())
+                    .asRuntimeException()
+            );
+        }
+    }
+    
+    @Override
+    public void getOrder(
+        GetOrderGrpcRequest request,
+        StreamObserver<OrderGrpcResponse> responseObserver
+    ) {
+        try {
+            GetOrderQuery query = new GetOrderQuery(
+                request.getOrderId(),
+                request.getUserId()
+            );
+            
+            Order order = getOrderUseCase.execute(query);
+            
+            OrderGrpcResponse response = mapper.toResponse(order);
+            
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+            
+        } catch (OrderNotFoundException e) {
+            responseObserver.onError(
+                Status.NOT_FOUND
+                    .withDescription(e.getMessage())
+                    .asRuntimeException()
+            );
+        } catch (Exception e) {
+            responseObserver.onError(
+                Status.INTERNAL
+                    .withDescription(e.getMessage())
+                    .asRuntimeException()
+            );
+        }
+    }
+}
+```
+
+```java
+// api/grpc/order/mapper/OrderGrpcMapper.java
+@Component
+public class OrderGrpcMapper {
+    
+    public CreateOrderCommand toCommand(CreateOrderGrpcRequest request) {
+        List<CreateOrderCommand.OrderItemCommand> items = request.getItemsList()
+            .stream()
+            .map(item -> new CreateOrderCommand.OrderItemCommand(
+                item.getProductId(),
+                item.getQuantity()
+            ))
+            .toList();
+        
+        return CreateOrderCommand.builder()
+            .userId(request.getUserId())
+            .items(items)
+            .deliveryAddress(request.getDeliveryAddress())
+            .couponId(request.hasCouponId() ? request.getCouponId() : null)
+            .build();
+    }
+    
+    public OrderGrpcResponse toResponse(Order order) {
+        List<OrderItemGrpcResponse> items = order.getItems().stream()
+            .map(item -> OrderItemGrpcResponse.newBuilder()
+                .setProductId(item.getProductId())
+                .setProductName(item.getProductName())
+                .setQuantity(item.getQuantity())
+                .setUnitPrice(item.getUnitPrice().value().doubleValue())
+                .build())
+            .toList();
+        
+        return OrderGrpcResponse.newBuilder()
+            .setOrderId(order.getId())
+            .setOrderNumber(order.getOrderNumber())
+            .setStatus(order.getStatus().name())
+            .setTotalAmount(order.getTotalAmount().value().doubleValue())
+            .addAllItems(items)
+            .build();
+    }
+}
+```
+
+## Admin Controller 규칙 (admin/web/)
+
+### 위치
+`admin/web/*/`
+
+### Admin Controller 템플릿
+
+```java
+// admin/web/order/OrderAdminController.java
+@RestController
+@RequestMapping("/admin/api/v1/orders")
+@RequiredArgsConstructor
+public class OrderAdminController {
+    
+    private final OrderAdminQueryService orderAdminQueryService;
+    private final OrderAdminCommandService orderAdminCommandService;
+    
+    @GetMapping
+    public ResponseEntity<Page<OrderAdminResponse>> searchOrders(
+        @ModelAttribute OrderSearchRequest request,
+        Pageable pageable
+    ) {
+        OrderSearchCondition condition = OrderSearchCondition.builder()
+            .userId(request.userId())
+            .status(request.status())
+            .startDate(request.startDate())
+            .endDate(request.endDate())
+            .build();
+        
+        Page<Order> orders = orderAdminQueryService.searchOrders(condition, pageable);
+        
+        Page<OrderAdminResponse> response = orders.map(OrderAdminResponse::from);
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    @PostMapping("/{orderId}/force-cancel")
+    public ResponseEntity<Void> forceCancel(
+        @PathVariable Long orderId,
+        @RequestBody @Valid AdminCancelRequest request
+    ) {
+        CancelOrderCommand command = CancelOrderCommand.builder()
+            .orderId(orderId)
+            .reason(request.reason())
+            .cancelType(CancelType.ADMIN)
+            .adminId(request.adminId())
+            .adminMemo(request.adminMemo())
+            .build();
+        
+        orderAdminCommandService.forceCancel(command);
+        
+        return ResponseEntity.noContent().build();
+    }
+    
+    @GetMapping("/statistics")
+    public ResponseEntity<OrderStatisticsResponse> getStatistics(
+        @RequestParam LocalDate startDate,
+        @RequestParam LocalDate endDate
+    ) {
+        OrderStatistics statistics = orderAdminQueryService.getStatistics(
+            startDate,
+            endDate
+        );
+        
+        return ResponseEntity.ok(OrderStatisticsResponse.from(statistics));
+    }
+}
+```
+
+## Batch Job 규칙 (worker/job/)
+
+### 위치
+`worker/job/*/`
+
+### Batch Job 템플릿
+
+```java
+// worker/job/order/OrderCleanupJob.java
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class OrderCleanupJob {
+    
+    private final OrderReader orderReader;
+    private final OrderStore orderStore;
+    
+    @Scheduled(cron = "0 0 2 * * *")  // 매일 새벽 2시
+    public void cleanupExpiredOrders() {
+        log.info("Starting order cleanup job");
+        
+        LocalDate cutoffDate = LocalDate.now().minusDays(30);
+        
+        OrderSearchCondition condition = OrderSearchCondition.builder()
+            .status(OrderStatus.CANCELLED)
+            .endDate(cutoffDate)
+            .build();
+        
+        Page<Order> orders = orderReader.searchOrders(
+            condition,
+            PageRequest.of(0, 100)
+        );
+        
+        orders.forEach(order -> {
+            orderStore.delete(order);
+            log.info("Deleted expired order: {}", order.getOrderNumber());
+        });
+        
+        log.info("Order cleanup job completed. Deleted {} orders", orders.getSize());
+    }
+}
+```
+
+```java
+// worker/job/order/OrderStatisticsJob.java
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class OrderStatisticsJob {
+    
+    private final OrderReader orderReader;
+    private final StatisticsStore statisticsStore;
+    
+    @Scheduled(cron = "0 30 0 * * *")  // 매일 0시 30분
+    public void calculateDailyStatistics() {
+        log.info("Starting daily statistics calculation");
+        
+        LocalDate yesterday = LocalDate.now().minusDays(1);
+        
+        OrderStatistics statistics = orderReader.calculateStatistics(
+            yesterday,
+            yesterday
+        );
+        
+        statisticsStore.save(statistics);
+        
+        log.info("Daily statistics calculated for {}", yesterday);
+    }
+}
+```
+
+## 중요 원칙
+1. Controller는 Use Case만 호출
+2. Request → Command, Domain → Response 변환
+3. 비즈니스 로직 절대 금지
+4. Bean Validation으로 형식 검증
+5. Exception Handler로 통일된 오류 응답
+</artifact>
+
+---

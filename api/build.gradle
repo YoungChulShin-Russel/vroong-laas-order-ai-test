@@ -1,7 +1,7 @@
 apply plugin: "org.springframework.boot"
 
 springBoot {
-    mainClass = 'vroong.laas.order.webapi.WebApiApplication'
+    mainClass = 'vroong.laas.order.api.ApiApplication'
 }
 
 dependencies {

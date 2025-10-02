@@ -84,12 +84,6 @@ order-service/
 │               │       ├── GetMyOrdersQuery.java
 │               │       └── SearchOrdersQuery.java
 │               │
-│               ├── support/
-│               │   ├── OrderRetriever.java
-│               │   ├── OrderPreparationService.java
-│               │   ├── OrderCompletionService.java
-│               │   └── OrderCancellationService.java
-│               │
 │               ├── port/
 │               │   └── out/
 │               │       ├── OrderQueryPort.java
@@ -254,19 +248,259 @@ order-service/
 - 특징:
   - UseCase별 파일 분리 (하나의 파일 = 하나의 execute())
   - Port(인터페이스)만 의존
-  - 트랜잭션은 Support Service에서 관리
   - Domain과 Infrastructure 연결
+  - 트랜잭션 관리는 UseCase에서 직접 처리
 - 포함 요소:
   - usecase/command/ - 명령 Use Case
   - usecase/query/ - 조회 Use Case
-  - support/ - Application 지원 서비스 (트랜잭션 관리)
   - port/out/ - 외부 의존성 인터페이스
   - dto/ - Application 계층 DTO
   - admin/ - 관리자용 서비스
 - 예시:
   - CreateOrderUseCase.java - 주문 생성 Use Case
-  - OrderPreparationService.java - 주문 준비 Support Service
+  - CancelOrderUseCase.java - 주문 취소 Use Case
   - OrderQueryPort.java - 조회 Port 인터페이스
+
+### 트랜잭션 전략
+
+**기본 원칙**: Repository Adapter에서 트랜잭션 관리, 여러 Aggregate 수정 시에만 UseCase에서 TransactionTemplate 사용
+
+#### 1) 기본 - Repository Adapter에 @Transactional
+
+**적용 조건:**
+- 단일 Aggregate만 수정하는 대부분의 경우
+- 가장 일반적인 패턴
+
+**예시:**
+```java
+// Infrastructure - Repository Adapter
+@Repository
+@RequiredArgsConstructor
+public class OrderRepositoryAdapter implements OrderRepository {
+    
+    private final OrderJpaRepository jpaRepository;
+    
+    @Transactional  // ⭐ Repository Adapter에서 트랜잭션
+    @Override
+    public Order save(Order order) {
+        OrderJpaEntity entity = OrderJpaEntity.from(order);
+        OrderJpaEntity saved = jpaRepository.save(entity);
+        return saved.toDomain();
+    }
+    
+    @Transactional(readOnly = true)
+    @Override
+    public Optional<Order> findById(Long id) {
+        return jpaRepository.findById(id)
+            .map(OrderJpaEntity::toDomain);
+    }
+}
+
+// UseCase - 트랜잭션 없음
+@UseCase
+@RequiredArgsConstructor
+public class CancelOrderUseCase {
+    
+    private final OrderRepository orderRepository;
+    
+    public void execute(CancelOrderCommand command) {
+        // Repository에서 트랜잭션 처리
+        Order order = orderRepository.findById(command.getOrderId())
+            .orElseThrow(() -> new OrderNotFoundException());
+        
+        order.cancel(command.getReason());
+        
+        orderRepository.save(order);  // 여기서 짧은 트랜잭션
+    }
+}
+```
+
+**특징:**
+- ✅ 짧은 트랜잭션 (메서드 단위)
+- ✅ DB 커넥션 최소 점유
+- ✅ UseCase 코드 단순
+- ✅ 외부 API 호출 시 트랜잭션 걱정 없음
+- ⚠️ 낙관적 락(@Version) 필수
+
+---
+
+#### 2) 여러 Aggregate 수정 - TransactionTemplate
+
+**적용 조건:**
+- **여러 Aggregate를 동시에 수정해야 하는 경우 (가장 중요)**
+- 원자성이 필요한 비즈니스 로직
+- 예: Order + Coupon, Order + Customer 동시 수정
+
+**예시:**
+```java
+@UseCase
+@RequiredArgsConstructor
+public class CreateOrderUseCase {
+    
+    private final TransactionTemplate transactionTemplate;
+    private final OrderRepository orderRepository;
+    private final CouponRepository couponRepository;
+    
+    public Order execute(CreateOrderCommand command) {
+        
+        // ===== 여러 Aggregate를 하나의 트랜잭션으로 =====
+        Order order = transactionTemplate.execute(status -> {
+            
+            // 1. Coupon 사용 (Aggregate 1)
+            Coupon coupon = null;
+            if (command.getCouponId() != null) {
+                coupon = couponRepository.findById(command.getCouponId())
+                    .orElseThrow(() -> new CouponNotFoundException());
+                coupon.use();
+                couponRepository.save(coupon);  // Coupon 수정
+            }
+            
+            // 2. Order 생성 (Aggregate 2)
+            Order o = Order.create(
+                command.getUserId(),
+                command.getItems(),
+                command.getDeliveryAddress(),
+                coupon
+            );
+            
+            // 3. 모두 한 트랜잭션으로 커밋
+            return orderRepository.save(o);  // Order 수정
+        });
+        
+        return order;
+    }
+}
+```
+
+**특징:**
+- ✅ Order와 Coupon을 동시에 수정
+- ✅ 원자성 보장 (둘 다 성공 or 둘 다 실패)
+- ✅ 일관성 유지
+- ⚠️ 낙관적 락(@Version) 필수
+
+---
+
+#### 3) 외부 API 호출 사이 - TransactionTemplate 분리
+
+외부 API 호출이 필요한 경우, 트랜잭션을 분리해서 DB 커넥션 점유 최소화
+
+**예시:**
+```java
+@UseCase
+@RequiredArgsConstructor
+public class ProcessOrderPaymentUseCase {
+    
+    private final TransactionTemplate transactionTemplate;
+    private final OrderRepository orderRepository;
+    private final PaymentPort paymentPort;  // 외부 API
+    
+    public void execute(ProcessPaymentCommand command) {
+        
+        // ===== 트랜잭션 1: 주문 조회/검증 =====
+        Order order = transactionTemplate.execute(status -> {
+            Order o = orderRepository.findById(command.getOrderId())
+                .orElseThrow();
+            
+            if (!o.isPayable()) {
+                throw new OrderNotPayableException();
+            }
+            
+            return o;
+        });
+        
+        // ===== 외부 API (트랜잭션 밖) =====
+        PaymentResult payment = paymentPort.process(
+            order.getId(),
+            order.getTotalAmount()
+        );
+        
+        // ===== 트랜잭션 2: 결제 완료 처리 =====
+        transactionTemplate.executeWithoutResult(status -> {
+            Order o = orderRepository.findById(order.getId())
+                .orElseThrow();
+            o.completePayment(payment);
+            orderRepository.save(o);
+        });
+    }
+}
+```
+
+**특징:**
+- ✅ 트랜잭션 경계가 코드에서 명확히 보임
+- ✅ 외부 API 호출 시 DB 커넥션 점유 안 함
+- ✅ 성능 최적화 가능
+
+**트랜잭션 흐름:**
+```
+TX1: 주문 조회/검증 (0.01초) → 커밋
+  ↓
+외부 API: 결제 처리 (3초) - DB 커넥션 점유 안 함
+  ↓
+TX2: 주문 완료 처리 (0.01초) → 커밋
+
+총 DB 커넥션 점유: 0.02초 (vs @Transactional: 3.02초)
+```
+
+---
+
+#### 주의사항:
+
+**1) RuntimeException 사용**
+- Domain Exception은 RuntimeException을 상속해야 함
+- TransactionTemplate은 CheckedException을 던질 수 없음
+
+```java
+// ✅ 올바른 예외 정의
+public class OrderNotFoundException extends RuntimeException {
+    public OrderNotFoundException(String message) {
+        super(message);
+    }
+}
+
+// ❌ CheckedException 사용 불가
+public class OrderNotFoundException extends Exception {  // 컴파일 에러
+}
+```
+
+**2) 보상 트랜잭션 필수**
+- 트랜잭션이 분리되면 부분 실패 가능
+- 실패 시 이미 커밋된 작업을 취소하는 로직 필요
+
+**3) 낙관적 락 권장**
+- 트랜잭션이 분리되면 동시성 이슈 발생 가능
+- @Version을 사용한 낙관적 락 권장
+
+```java
+// Domain
+public class Order {
+    private Long id;
+    private Long version;  // 동시성 제어
+    // ...
+}
+
+// JpaEntity
+@Entity
+public class OrderJpaEntity {
+    @Id
+    private Long id;
+    
+    @Version  // 낙관적 락
+    private Long version;
+}
+```
+
+---
+
+#### 선택 가이드:
+
+| 조건 | 방법 |
+|------|------|
+| 외부 API 호출 없음 | @Transactional |
+| 외부 API가 트랜잭션 전/후에만 | @Transactional |
+| 외부 API가 트랜잭션 사이에 | TransactionTemplate |
+| DB 커넥션 최적화 필요 | TransactionTemplate |
+| 단순한 CRUD | @Transactional |
+| 복잡한 Saga 패턴 | TransactionTemplate |
 
 ## infrastructure/storage/db/
 - 역할: 데이터베이스 접근 (JPA)
@@ -395,15 +629,33 @@ order-service/
   - BatchConfig.java - Batch 설정
 
 ## 핵심 원칙
-- core/:
+
+### core/ (Domain & Application)
+- **Domain Layer:**
   - 순수 Java만 사용
   - JPA, Spring 어노테이션 금지
   - Infrastructure 의존 금지
-- infrastructure/:
-  - JpaEntity with from/toDomain 메서드
-  - Adapter 패턴 사용
-  - Port 인터페이스 구현
-- api/, admin/, worker/:
-  - Use Case만 호출
-  - DTO 변환
-  - 비즈니스 로직 금지
+  - 비즈니스 규칙과 로직만 포함
+  - RuntimeException 사용 (CheckedException 금지)
+
+- **Application Layer:**
+  - UseCase별 파일 분리 (1 UseCase = 1 execute())
+  - Port 인터페이스만 의존
+  - 트랜잭션 관리:
+    - 간단한 경우: `@Transactional`
+    - 복잡한 경우: `TransactionTemplate`
+  - Domain 로직 호출만 (직접 구현 금지)
+
+### infrastructure/
+- JpaEntity with from/toDomain 메서드
+- Adapter 패턴으로 Port 구현
+- Domain ↔ JpaEntity 변환 책임
+- 외부 시스템 연동 구현
+- 기술 관심사만 포함
+
+### api/, admin/, worker/
+- UseCase만 호출
+- Request ↔ Command/Query 변환
+- Domain ↔ Response 변환
+- 비즈니스 로직 금지
+- 트랜잭션 관리 금지 (UseCase에 위임)

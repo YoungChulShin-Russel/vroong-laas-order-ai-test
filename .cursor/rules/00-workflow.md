@@ -1,0 +1,271 @@
+# AI 작업 흐름 가이드
+
+이 문서는 AI가 코드를 작성하고 수정할 때 따라야 할 작업 흐름을 정의합니다.
+
+---
+
+## 🚨 핵심 원칙
+
+### ⛔ 절대 규칙: 코드부터 수정하지 말 것
+
+**코드를 먼저 수정하면 안 됩니다.**
+
+사용자의 요청을 받으면:
+1. ✅ **먼저** 작업 계획을 설명
+2. ✅ **그 다음** 코드 수정
+
+❌ **잘못된 예시:**
+```
+[즉시 파일 수정 시작]
+파일을 수정했습니다.
+```
+
+✅ **올바른 예시:**
+```
+다음과 같이 작업하겠습니다:
+
+1. Order.java - 주문 생성 로직 추가
+2. OrderService.java - UseCase 구현
+3. OrderController.java - API 엔드포인트 추가
+
+진행할까요?
+
+[사용자 확인 후 작업 시작]
+```
+
+---
+
+## 📋 작업 흐름
+
+### 1단계: 요구사항 분석 및 계획 수립
+
+사용자의 요청을 받으면:
+
+1. **요구사항 파악**
+   - 무엇을 만들어야 하는가?
+   - 어떤 파일들이 필요한가?
+   - 기존 코드에 영향은?
+
+2. **작업 계획 공유**
+   ```
+   다음과 같이 작업하겠습니다:
+   
+   📁 생성할 파일:
+   - core/domain/order/Order.java
+   - core/application/order/CreateOrderUseCase.java
+   
+   📝 수정할 파일:
+   - infrastructure/storage/db/order/OrderJpaEntity.java (매핑 추가)
+   
+   🔧 작업 내용:
+   - Order Domain Entity 생성 (상태, 금액, 배송지 포함)
+   - 주문 생성 UseCase 구현
+   - JPA Entity 매핑
+   
+   진행할까요?
+   ```
+
+3. **사용자 확인 대기**
+   - 사용자가 "좋아요", "네", "진행해주세요" 등으로 응답하면 시작
+   - 사용자가 수정 요청하면 계획 조정
+
+---
+
+### 2단계: 코드 작성/수정
+
+1. **파일 단위로 작업**
+   - 한 번에 하나씩 또는 관련된 파일들을 묶어서
+   - 너무 많은 파일을 동시에 수정하지 말 것 (최대 5개 정도)
+
+2. **작업 순서**
+   - Domain → Application → Infrastructure → Interface 순서 권장
+   - 의존성 방향을 고려
+
+3. **진행 상황 알림**
+   ```
+   1/3 Order Domain Entity 생성 중...
+   2/3 CreateOrderUseCase 구현 중...
+   3/3 OrderController 추가 중...
+   ```
+
+---
+
+### 3단계: 결과 확인 및 보고
+
+1. **수정 내용 요약**
+   ```
+   ✅ 작업 완료:
+   
+   📄 생성된 파일:
+   - Order.java (주문 도메인 엔티티)
+   - CreateOrderUseCase.java (주문 생성 유스케이스)
+   
+   🔧 주요 기능:
+   - 주문 생성, 취소 기능
+   - 금액 계산 로직
+   - 상태 관리 (PENDING, CONFIRMED, CANCELLED)
+   ```
+
+2. **에러 확인**
+   - 린터 에러 확인 (`read_lints`)
+   - 에러가 있으면 즉시 수정
+
+3. **다음 단계 제안**
+   ```
+   다음 작업:
+   - 테스트 코드 작성
+   - API 문서 업데이트
+   
+   어떻게 진행할까요?
+   ```
+
+---
+
+## 💬 커뮤니케이션 원칙
+
+### 1. 언어
+- **한국어로 대화**
+- 기술 용어는 영어 그대로 사용
+  - ✅ "UseCase를 만들겠습니다"
+  - ✅ "Domain Entity에 비즈니스 로직을 추가합니다"
+  - ❌ "사용 사례를 만들겠습니다" (번역 X)
+
+### 2. 설명 방식
+- **간결하고 명확하게**
+- 불필요한 설명 최소화
+- 중요한 결정 사항은 이유와 함께 설명
+
+### 3. 질문하기
+의사결정이 필요한 경우 사용자에게 질문:
+```
+❓ 선택이 필요합니다:
+
+Option 1: Repository Adapter에 @Transactional (간단)
+Option 2: TransactionTemplate 사용 (세밀한 제어)
+
+어떤 방식으로 진행할까요?
+```
+
+---
+
+## 🔄 반복 작업 시
+
+같은 패턴의 작업을 여러 번 해야 할 때:
+
+1. **첫 번째는 상세히 설명**
+   ```
+   Customer Domain Entity를 만들겠습니다:
+   - 고객 ID, 이름, 연락처
+   - 활성/비활성 상태
+   - 등급 관리
+   ```
+
+2. **두 번째부터는 간략히**
+   ```
+   동일한 패턴으로 Product, Coupon Entity도 만들겠습니다.
+   진행할까요?
+   ```
+
+---
+
+## ⚠️ 주의사항
+
+### 하지 말아야 할 것
+
+❌ **코드부터 수정**
+- 계획 없이 바로 파일 수정
+
+❌ **과도한 설명**
+- 너무 장황한 설명으로 시간 낭비
+
+❌ **독단적 결정**
+- 중요한 아키텍처 결정을 혼자 하기
+
+❌ **에러 무시**
+- 린터 에러를 확인하지 않고 넘어가기
+
+### 해야 할 것
+
+✅ **계획 먼저**
+- 무엇을 할지 먼저 설명
+
+✅ **확인 요청**
+- 중요한 결정은 사용자 확인
+
+✅ **에러 즉시 수정**
+- 린터 에러 발생 시 바로 고치기
+
+✅ **작업 단위 적절히**
+- 한 번에 너무 많이 하지 않기
+
+---
+
+## 📚 체크리스트
+
+매 작업마다 다음을 확인하세요:
+
+- [ ] 작업 계획을 먼저 공유했는가?
+- [ ] 사용자 확인을 받았는가?
+- [ ] 파일을 적절한 순서로 작성했는가?
+- [ ] 린터 에러를 확인했는가?
+- [ ] 작업 결과를 요약해서 보고했는가?
+- [ ] 다음 단계를 제안했는가?
+
+---
+
+## 예시: 전체 작업 흐름
+
+```
+[사용자 요청]
+"주문 생성 기능을 만들어줘"
+
+[AI 응답 - 1단계: 계획]
+다음과 같이 작업하겠습니다:
+
+📁 생성할 파일:
+1. core/domain/order/Order.java - 주문 도메인 Entity
+2. core/domain/order/OrderItem.java - 주문 아이템 VO
+3. core/application/order/CreateOrderUseCase.java - 주문 생성 UseCase
+4. core/application/order/command/CreateOrderCommand.java - Command DTO
+
+주요 기능:
+- 주문 생성 (고객, 상품, 수량, 배송지)
+- 금액 계산
+- 상태 관리
+
+진행할까요?
+
+[사용자 확인]
+"네, 진행해주세요"
+
+[AI 작업 - 2단계: 실행]
+1/4 Order.java 생성 중...
+2/4 OrderItem.java 생성 중...
+3/4 CreateOrderUseCase.java 생성 중...
+4/4 CreateOrderCommand.java 생성 중...
+
+[AI 보고 - 3단계: 완료]
+✅ 주문 생성 기능 구현 완료
+
+📄 생성된 파일:
+- Order.java (52 lines)
+- OrderItem.java (28 lines)
+- CreateOrderUseCase.java (35 lines)
+- CreateOrderCommand.java (15 lines)
+
+🔧 주요 기능:
+- Order.create() - 주문 생성 팩토리 메서드
+- calculateTotalAmount() - 총 금액 계산
+- 상태: PENDING, CONFIRMED, CANCELLED
+
+다음 작업:
+- Infrastructure Layer (JPA Entity, Repository Adapter)
+- API Layer (Controller, Request/Response DTO)
+
+어떻게 진행할까요?
+```
+
+---
+
+이 가이드를 따라 사용자와 효율적으로 협업하세요! 🚀
+
