@@ -13,7 +13,7 @@ import vroong.laas.order.core.domain.shared.Money;
 public class Order {
 
   private Long id;
-  private final String orderNumber;
+  private final OrderNumber orderNumber;
   private OrderStatus status;
   private final List<OrderItem> items;
   private final Origin origin;
@@ -25,7 +25,7 @@ public class Order {
 
   public Order(
       Long id,
-      String orderNumber,
+      OrderNumber orderNumber,
       OrderStatus status,
       List<OrderItem> items,
       Origin origin,
@@ -35,7 +35,7 @@ public class Order {
       Instant deliveredAt,
       Instant cancelledAt) {
     // 필수 값 체크
-    if (orderNumber == null || orderNumber.isBlank()) {
+    if (orderNumber == null) {
       throw new IllegalArgumentException("주문번호는 필수입니다");
     }
     if (origin == null) {
@@ -67,11 +67,12 @@ public class Order {
       Origin origin,
       Destination destination,
       DeliveryPolicy deliveryPolicy) {
-    validateOrderCreation(orderNumber, items, origin, destination, deliveryPolicy);
+    OrderNumber orderNumberVO = OrderNumber.of(orderNumber);
+    validateOrderCreation(orderNumberVO, items, origin, destination, deliveryPolicy);
 
     return new Order(
         null,
-        orderNumber,
+        orderNumberVO,
         OrderStatus.CREATED,
         items,
         origin,
@@ -127,7 +128,7 @@ public class Order {
   }
 
   private static void validateOrderCreation(
-      String orderNumber,
+      OrderNumber orderNumber,
       List<OrderItem> items,
       Origin origin,
       Destination destination,

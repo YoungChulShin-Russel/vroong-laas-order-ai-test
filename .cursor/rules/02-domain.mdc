@@ -1,3 +1,391 @@
+---
+alwaysApply: true
+---
+
+# Domain Layer 규칙
+
+## 위치
+`core/domain/`
+
+## 책임
+- 순수 비즈니스 규칙과 로직
+- 핵심 불변식 유지
+- 자기 검증
+
+## 반드시 해야 할 것
+1. 순수 Java, Lombok만 사용 (@Getter, @Builder, @AllArgsConstructor)
+2. 엔티티 내부에서 자기 검증 구현 (validate 메서드)
+3. 비즈니스 계산 로직 포함
+4. 팩토리 메서드 제공 (create, from 등)
+5. 비즈니스 규칙 메서드 (isCancellable, isModifiable 등)
+6. 비즈니스 로직 메서드 (cancel, changeAddress 등)
+7. Setter 사용 금지 (@Getter만, @Setter 금지)
+
+## 절대 하지 말 것
+1. @Entity, @Table, @Column, @Id 등 JPA 어노테이션 사용 금지
+2. @Repository, @Service, @Component 등 Spring 어노테이션 사용 금지
+3. @Transactional 사용 금지
+4. Repository 의존 금지
+5. Infrastructure 의존 금지
+6. Port 의존 금지
+
+## Domain Entity 템플릿
+
+```java
+// core/domain/order/model/Order.java
+@Getter
+@Builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+public class Order {
+    
+    private Long id;
+    private Long userId;
+    private String orderNumber;
+    private OrderStatus status;
+    private List<OrderItem> items;
+    private Address deliveryAddress;
+    private Money totalAmount;
+    private LocalDateTime createdAt;
+    
+    // 팩토리 메서드
+    public static Order create(
+        Long userId,
+        List<OrderItem> items,
+        Address deliveryAddress,
+        Money totalAmount
+    ) {
+        Order order = Order.builder()
+            .userId(userId)
+            .orderNumber(generateOrderNumber())
+            .status(OrderStatus.PENDING)
+            .items(new ArrayList<>(items))
+            .deliveryAddress(deliveryAddress)
+            .totalAmount(totalAmount)
+            .createdAt(LocalDateTime.now())
+            .build();
+        
+        order.validate();
+        return order;
+    }
+    
+    // 비즈니스 규칙
+    public boolean isCancellable() {
+        return status == OrderStatus.PENDING || 
+               status == OrderStatus.PAID;
+    }
+    
+    public boolean isModifiable() {
+        return status == OrderStatus.PENDING;
+    }
+    
+    public boolean isOwnedBy(Long userId) {
+        return this.userId.equals(userId);
+    }
+    
+    // 비즈니스 로직
+    public void cancel(String reason) {
+        if (!isCancellable()) {
+            throw new OrderNotCancellableException(
+                "현재 상태(" + status + ")에서는 취소할 수 없습니다"
+            );
+        }
+        this.status = OrderStatus.CANCELLED;
+    }
+    
+    public void changeAddress(Address newAddress) {
+        if (!isModifiable()) {
+            throw new OrderNotModifiableException();
+        }
+        this.deliveryAddress = newAddress;
+    }
+    
+    public void completePayment(Long paymentId) {
+        if (status != OrderStatus.PENDING) {
+            throw new InvalidOrderStatusException();
+        }
+        this.status = OrderStatus.PAID;
+    }
+    
+    // 계산 메서드
+    public Money calculateRefundAmount() {
+        if (status == OrderStatus.DELIVERED) {
+            return totalAmount.multiply(0.9); // 10% 수수료
+        }
+        return totalAmount;
+    }
+    
+    public int getTotalQuantity() {
+        return items.stream()
+            .mapToInt(OrderItem::getQuantity)
+            .sum();
+    }
+    
+    public Weight getTotalWeight() {
+        return items.stream()
+            .map(OrderItem::getWeight)
+            .reduce(Weight.ZERO, Weight::add);
+    }
+    
+    // 자기 검증
+    private void validate() {
+        if (userId == null || userId <= 0) {
+            throw new InvalidOrderException("유효하지 않은 사용자 ID입니다");
+        }
+        
+        if (items == null || items.isEmpty()) {
+            throw new EmptyOrderException("주문 상품이 없습니다");
+        }
+        
+        if (deliveryAddress == null) {
+            throw new InvalidOrderException("배송지는 필수입니다");
+        }
+        
+        if (totalAmount == null || totalAmount.isNegative()) {
+            throw new InvalidOrderException("유효하지 않은 주문 금액입니다");
+        }
+        
+        // 각 OrderItem 검증
+        items.forEach(OrderItem::validate);
+        
+        // 계산된 금액과 실제 금액 일치 검증
+        Money calculatedAmount = items.stream()
+            .map(OrderItem::getSubtotal)
+            .reduce(Money.ZERO, Money::add);
+        
+        if (!totalAmount.equals(calculatedAmount)) {
+            throw new OrderAmountMismatchException();
+        }
+    }
+    
+    private static String generateOrderNumber() {
+        return "ORD" + System.currentTimeMillis();
+    }
+}
+```
+
+## Value Object 템플릿
+
+```java
+// core/domain/order/model/Money.java
+public record Money(BigDecimal value) {
+    
+    public static final Money ZERO = new Money(BigDecimal.ZERO);
+    
+    public Money {
+        if (value == null) {
+            throw new IllegalArgumentException("금액은 null일 수 없습니다");
+        }
+    }
+    
+    public static Money of(long amount) {
+        return new Money(BigDecimal.valueOf(amount));
+    }
+    
+    public static Money of(BigDecimal amount) {
+        return new Money(amount);
+    }
+    
+    public boolean isNegative() {
+        return value.compareTo(BigDecimal.ZERO) < 0;
+    }
+    
+    public boolean isPositive() {
+        return value.compareTo(BigDecimal.ZERO) > 0;
+    }
+    
+    public boolean isLessThan(Money other) {
+        return value.compareTo(other.value) < 0;
+    }
+    
+    public boolean isGreaterThan(Money other) {
+        return value.compareTo(other.value) > 0;
+    }
+    
+    public Money add(Money other) {
+        return new Money(value.add(other.value));
+    }
+    
+    public Money subtract(Money other) {
+        return new Money(value.subtract(other.value));
+    }
+    
+    public Money multiply(double multiplier) {
+        return new Money(
+            value.multiply(BigDecimal.valueOf(multiplier))
+        );
+    }
+    
+    public Money multiply(int multiplier) {
+        return new Money(
+            value.multiply(BigDecimal.valueOf(multiplier))
+        );
+    }
+}
+
+// core/domain/order/model/Address.java
+public record Address(
+    String zipCode,
+    String street,
+    String detail
+) {
+    public Address {
+        if (zipCode == null || zipCode.isBlank()) {
+            throw new IllegalArgumentException("우편번호는 필수입니다");
+        }
+        if (street == null || street.isBlank()) {
+            throw new IllegalArgumentException("주소는 필수입니다");
+        }
+    }
+    
+    public String getFullAddress() {
+        return String.format("[%s] %s %s", 
+            zipCode, 
+            street, 
+            detail != null ? detail : ""
+        );
+    }
+}
+```
+
+## Domain Service 규칙
+
+### 위치
+`core/domain/service/`
+
+### 책임
+- 여러 Aggregate를 조합하는 순수 계산
+- 상태 없는 비즈니스 정책
+- 복잡한 비즈니스 규칙
+
+### 반드시 해야 할 것
+1. Domain 객체만 의존
+2. 순수 계산 로직만
+3. Stateless (상태 없음)
+
+### 절대 하지 말 것
+1. @Transactional 사용 금지
+2. Repository 의존 금지
+3. 저장/조회 작업 금지
+4. 이벤트 발행 금지
+5. Infrastructure 의존 금지
+
+### Domain Service 템플릿
+
+```java
+// core/domain/service/OrderPricingService.java
+@DomainService
+public class OrderPricingService {
+    
+    private final ShippingFeePolicy shippingFeePolicy;
+    
+    /**
+     * 주문 가격 계산 (순수 계산)
+     */
+    public OrderPrice calculatePrice(
+        List<OrderItem> items,
+        Coupon coupon,
+        Address address,
+        CustomerGrade customerGrade
+    ) {
+        // 1. 상품 금액
+        Money itemsTotal = items.stream()
+            .map(OrderItem::getSubtotal)
+            .reduce(Money.ZERO, Money::add);
+        
+        // 2. 쿠폰 할인
+        Money couponDiscount = coupon != null ? 
+            coupon.calculateDiscount(itemsTotal) : Money.ZERO;
+        
+        // 3. 등급 할인
+        Money gradeDiscount = calculateGradeDiscount(itemsTotal, customerGrade);
+        
+        Money totalDiscount = couponDiscount.add(gradeDiscount);
+        
+        // 4. 배송비
+        Weight totalWeight = calculateTotalWeight(items);
+        Money discountedAmount = itemsTotal.subtract(totalDiscount);
+        Money shippingFee = shippingFeePolicy.calculate(
+            discountedAmount,
+            address,
+            totalWeight
+        );
+        
+        // 5. 최종 금액
+        Money totalAmount = discountedAmount.add(shippingFee);
+        
+        return OrderPrice.builder()
+            .itemsTotal(itemsTotal)
+            .couponDiscount(couponDiscount)
+            .gradeDiscount(gradeDiscount)
+            .shippingFee(shippingFee)
+            .totalAmount(totalAmount)
+            .build();
+    }
+    
+    private Money calculateGradeDiscount(Money amount, CustomerGrade grade) {
+        return switch (grade) {
+            case VIP -> amount.multiply(0.05);
+            case GOLD -> amount.multiply(0.03);
+            case SILVER -> amount.multiply(0.01);
+            case BRONZE -> Money.ZERO;
+        };
+    }
+    
+    private Weight calculateTotalWeight(List<OrderItem> items) {
+        return items.stream()
+            .map(OrderItem::getWeight)
+            .reduce(Weight.ZERO, Weight::add);
+    }
+    
+    // 저장 없음, 조회 없음, 이벤트 없음, 트랜잭션 무관
+}
+```
+
+## Domain Service vs Application Support 구분
+
+### Domain Service (core/domain/service/)
+- 순수 계산만
+- Infrastructure 의존 없음
+
+```java
+@DomainService
+public class OrderPricingService {
+    private final ShippingFeePolicy policy;  // Domain 정책만
+    
+    public OrderPrice calculatePrice(...) {
+        // 계산 로직만
+    }
+}
+```
+
+### Application Support (core/application/order/support/)
+- 트랜잭션 관리
+- Repository, Port 사용
+- Infrastructure 의존
+
+```java
+@Service
+@RequiredArgsConstructor
+public class OrderCompletionService {
+    private final OrderRepository orderRepository;        // Repository OK
+    private final EventPublishPort eventPublisher;        // Port OK
+    private final OrderPricingService pricingService;     // Domain Service
+    
+    @Transactional  // 트랜잭션 OK
+    public Order complete(...) {
+        // 저장, 이벤트 발행
+    }
+}
+```
+
+## 중요 원칙
+1. Domain은 순수 Java만
+2. Domain Service는 계산만
+3. 저장/조회는 Application Support에서
+4. Infrastructure는 절대 의존하지 않음
+   </artifact>
+
+---
 # Domain Layer 규칙
 
 ## 위치

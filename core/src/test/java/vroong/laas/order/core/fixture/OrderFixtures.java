@@ -10,6 +10,7 @@ import vroong.laas.order.core.domain.order.Destination;
 import vroong.laas.order.core.domain.order.EntranceInfo;
 import vroong.laas.order.core.domain.order.Order;
 import vroong.laas.order.core.domain.order.OrderItem;
+import vroong.laas.order.core.domain.order.OrderNumber;
 import vroong.laas.order.core.domain.order.OrderStatus;
 import vroong.laas.order.core.domain.order.Origin;
 import vroong.laas.order.core.domain.shared.Address;
@@ -52,7 +53,7 @@ public class OrderFixtures {
   public Order order(String orderNumber) {
     return new Order(
         null,
-        orderNumber,
+        OrderNumber.of(orderNumber),
         OrderStatus.CREATED,
         randomOrderItems(),
         randomOrigin(),
@@ -220,7 +221,7 @@ public class OrderFixtures {
 
   // ===== 헬퍼 메서드 =====
 
-  private String generateOrderNumber() {
-    return "ORD-" + System.currentTimeMillis();
+  private OrderNumber generateOrderNumber() {
+    return OrderNumber.of("ORD-" + System.currentTimeMillis());
   }
 }
