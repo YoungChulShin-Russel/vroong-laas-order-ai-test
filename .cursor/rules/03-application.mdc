@@ -1,174 +1,128 @@
+---
+alwaysApply: true
+---
+
 # Application Layer 규칙
 
 ## 위치
 `core/application/`
 
-## 책임
-- Use Case 실행 및 흐름 조정
-- 트랜잭션 관리
-- Domain과 Infrastructure 연결
+## 저장소 구조
 
-## Use Case 마커 인터페이스
-
-```java
-// core/application/UseCase.java
-/**
- * Use Case 마커 인터페이스
- * 
- * 규칙:
- * 1. 반드시 execute() 메서드를 구현해야 함
- * 2. execute()는 COMMAND 타입을 파라미터로 받음
- * 3. 반환 타입은 Use Case의 필요에 따라 자유롭게 지정
- * 4. 하나의 UseCase = 하나의 파일 = 하나의 execute() 메서드
- */
-public interface UseCase<COMMAND> {
-    // 마커 인터페이스 (메서드 없음)
-}
+```
+core/application/
+└── order/
+    ├── usecase/
+    │   ├── CreateOrderUseCase.java
+    │   └── CancelOrderUseCase.java
+    ├── command/
+    │   ├── CreateOrderCommand.java
+    │   └── CancelOrderCommand.java
+    ├── query/
+    │   └── GetOrderQuery.java
+    └── support/                         # 선택 사항
+        └── OrderRetriever.java
 ```
 
-## Use Case 구현 규칙
+**중요:**
+- **모든 Port는 Domain Layer의 required/에 위치** 
+  - `core/domain/order/required/OrderStore.java` (영속성 쓰기)
+  - `core/domain/order/required/OrderReader.java` (영속성 읽기)
+  - `core/domain/order/required/EmailSender.java` (이메일)
+  - `core/domain/order/required/EventPublisher.java` (이벤트)
+- UseCase는 Domain의 Port만 의존
 
-### 반드시 해야 할 것
-1. UseCase<COMMAND> 인터페이스 구현
-2. 메서드명은 무조건 execute()
-3. 파라미터는 COMMAND 타입 하나만
-4. 반환 타입은 자유롭게 (Order, void, Page 등)
-5. @UseCase (또는 @Service) 어노테이션
-6. 하나의 UseCase = 하나의 파일
-7. 하나의 파일 = 하나의 execute() 메서드만
-8. 50줄 이내로 작성
-9. Port(인터페이스)만 의존
+## 책임
+- Use Case 실행 및 흐름 조정
+- Domain 로직 호출 (직접 구현 금지)
+- 트랜잭션 관리
 
-### 절대 하지 말 것
-1. execute() 외 다른 메서드명 사용 금지
-2. 파라미터가 여러 개인 경우 금지
-3. Infrastructure 직접 의존 금지
-4. 비즈니스 로직 포함 금지
-5. 하나의 파일에 여러 UseCase 메서드 금지
+## 반드시 해야 할 것
+1. UseCase별 파일 분리 (1 UseCase = 1 execute())
+2. Domain의 required/ Port만 의존 (Store, Reader, 기타 Port)
+3. Command/Query로 입력 받기
+4. Domain 로직 호출만 (직접 구현 금지)
 
-## 트랜잭션 관리 규칙
+## 절대 하지 말 것
+1. 비즈니스 로직 직접 구현 금지
+2. JPA, Infrastructure 직접 의존 금지
+3. Port 인터페이스를 Application에 정의하지 말 것 (Domain required/에 위치)
+
+---
+
+## 트랜잭션 전략
 
 ### 원칙 1: 기본 - Repository Adapter에 @Transactional
 
-**단일 Aggregate만 수정하는 대부분의 경우**
+**적용 조건:**
+- 단일 Aggregate만 수정
+- 가장 일반적인 패턴
 
+**예시:**
 ```java
 // Infrastructure - Repository Adapter
 @Repository
 @RequiredArgsConstructor
-public class OrderStoreAdapter implements OrderStore {
+public class OrderRepositoryAdapter implements OrderRepository {
     
     private final OrderJpaRepository jpaRepository;
     
-    @Transactional  // ⭐ Repository Adapter에 트랜잭션
+    @Transactional  // ⭐ Adapter에서 트랜잭션
     @Override
     public Order save(Order order) {
         OrderJpaEntity entity = OrderJpaEntity.from(order);
         OrderJpaEntity saved = jpaRepository.save(entity);
         return saved.toDomain();
     }
-    
-    @Transactional(readOnly = true)
-    @Override
-    public Optional<Order> findById(Long id) {
-        return jpaRepository.findById(id)
-            .map(OrderJpaEntity::toDomain);
-    }
 }
 
 // UseCase - 트랜잭션 없음
 @UseCase
 @RequiredArgsConstructor
-public class CancelOrderUseCase implements UseCase<CancelOrderCommand> {
-    
-    private final OrderStore orderStore;
-    private final EventPublisher eventPublisher;
+public class CancelOrderUseCase {
+    private final OrderRepository orderRepository;
     
     public void execute(CancelOrderCommand command) {
-        // Repository에서 트랜잭션 처리됨
-        Order order = orderStore.findById(command.orderId()).orElseThrow();
+        Order order = orderRepository.findById(command.orderId())
+            .orElseThrow();
         
         order.cancel(command.reason());
-        
-        orderStore.save(order);  // 여기서 짧은 트랜잭션
-        
-        // 이벤트는 트랜잭션 밖에서 발행
-        eventPublisher.publish(OrderCancelledEvent.from(order));
+        orderRepository.save(order);  // 여기서 짧은 트랜잭션
     }
 }
 ```
-
-**특징:**
-- ✅ 짧은 트랜잭션 (메서드 단위)
-- ✅ DB 커넥션 최소 점유
-- ✅ UseCase 코드 단순
-- ⚠️ 낙관적 락(@Version) 필수
-
----
 
 ### 원칙 2: 여러 Aggregate 수정 - TransactionTemplate
 
-**여러 Aggregate를 하나의 트랜잭션으로 묶어야 하는 경우**
+**적용 조건:**
+- 여러 Aggregate를 동시에 수정
+- 원자성이 필요한 비즈니스 로직
 
+**예시:**
 ```java
 @UseCase
 @RequiredArgsConstructor
-public class CreateOrderUseCase implements UseCase<CreateOrderCommand> {
+public class CreateOrderUseCase {
     
-    private final TransactionTemplate transactionTemplate;  // ⭐ 여러 Aggregate 수정용
-    private final OrderStore orderStore;
-    private final CustomerStore customerStore;
-    private final CouponStore couponStore;
+    private final TransactionTemplate transactionTemplate;
+    private final OrderRepository orderRepository;
+    private final CouponRepository couponRepository;
     
     public Order execute(CreateOrderCommand command) {
-        
-        // ===== 트랜잭션: 여러 Aggregate를 하나로 묶음 =====
-        Order order = transactionTemplate.execute(status -> {
+        return transactionTemplate.execute(status -> {
+            // 1. Coupon 사용
+            Coupon coupon = couponRepository.findById(command.couponId())
+                .orElseThrow();
+            coupon.use();
+            couponRepository.save(coupon);
             
-            // 1. Customer 조회 및 검증
-            Customer customer = customerStore.findById(command.userId())
-                .orElseThrow(() -> new CustomerNotFoundException());
-            
-            if (!customer.isActive()) {
-                throw new InactiveCustomerException();
-            }
-            
-            // 2. Coupon 사용 (다른 Aggregate)
-            Coupon coupon = null;
-            if (command.couponId() != null) {
-                coupon = couponStore.findById(command.couponId())
-                    .orElseThrow(() -> new CouponNotFoundException());
-                coupon.use();
-                couponStore.save(coupon);  // Coupon Aggregate 수정
-            }
-            
-            // 3. Order 생성 (또 다른 Aggregate)
-            Order o = Order.create(
-                customer.getId(),
-                command.items(),
-                command.deliveryAddress(),
-                coupon
-            );
-            
-            // 4. 모두 한 트랜잭션으로 커밋
-            return orderStore.save(o);  // Order Aggregate 수정
+            // 2. Order 생성
+            Order order = Order.create(...);
+            return orderRepository.save(order);
         });
-        
-        return order;
     }
 }
 ```
-
-**사용 시기:**
-- ✅ 여러 Aggregate를 동시에 수정 (Order + Coupon)
-- ✅ 원자성이 필요한 경우
-- ✅ 일관성이 중요한 비즈니스 로직
-
-**주의사항:**
-- ⚠️ 트랜잭션 안에 외부 API 호출 금지
-- ⚠️ 트랜잭션을 가능한 짧게 유지
-
----
 
 ### 원칙 3: 외부 API 호출 사이 - TransactionTemplate 분리
 
@@ -180,14 +134,14 @@ public class CreateOrderUseCase implements UseCase<CreateOrderCommand> {
 public class ProcessOrderPaymentUseCase implements UseCase<ProcessPaymentCommand> {
     
     private final TransactionTemplate transactionTemplate;
-    private final OrderStore orderStore;
-    private final PaymentPort paymentPort;  // 외부 API
+    private final OrderRepository orderRepository;
+    private final PaymentGateway paymentGateway;  // 외부 API
     
     public void execute(ProcessPaymentCommand command) {
         
         // ===== 트랜잭션 1: 주문 조회 및 검증 =====
         Order order = transactionTemplate.execute(status -> {
-            Order o = orderStore.findById(command.orderId()).orElseThrow();
+            Order o = orderRepository.findById(command.orderId()).orElseThrow();
             
             if (!o.isPayable()) {
                 throw new OrderNotPayableException();
@@ -197,13 +151,13 @@ public class ProcessOrderPaymentUseCase implements UseCase<ProcessPaymentCommand
         });
         
         // ===== 외부 API (트랜잭션 밖) =====
-        PaymentResult payment = paymentPort.process(order.getId(), order.getTotalAmount());
+        PaymentResult payment = paymentGateway.process(order.getId(), order.getTotalAmount());
         
         // ===== 트랜잭션 2: 결제 완료 처리 =====
         transactionTemplate.executeWithoutResult(status -> {
-            Order o = orderStore.findById(order.getId()).orElseThrow();
+            Order o = orderRepository.findById(order.getId()).orElseThrow();
             o.completePayment(payment);
-            orderStore.save(o);
+            orderRepository.save(o);
         });
     }
 }
@@ -234,14 +188,14 @@ TX2: 주문 완료 처리 (0.01초) → 커밋
 @RequiredArgsConstructor
 public class CreateOrderUseCase implements UseCase<CreateOrderCommand> {
     
-    private final OrderStore orderStore;
-    private final OrderReader orderReader;
+    private final OrderRepository orderRepository;
+    private final EmailSender emailSender;
     
     @Transactional
     public Order execute(CreateOrderCommand command) {
         
-        // Reader로 중복 체크
-        boolean exists = orderReader.existsByOrderNumber(command.orderNumber());
+        // Repository로 중복 체크
+        boolean exists = orderRepository.existsByOrderNumber(command.orderNumber());
         if (exists) {
             throw new DuplicateOrderNumberException();
         }
@@ -254,8 +208,13 @@ public class CreateOrderUseCase implements UseCase<CreateOrderCommand> {
             command.totalAmount()
         );
         
-        // Store로 저장
-        return orderStore.save(order);
+        // Repository로 저장
+        Order saved = orderRepository.save(order);
+        
+        // 기술적 요구사항
+        emailSender.sendOrderConfirmation(saved);
+        
+        return saved;
     }
 }
 ```
@@ -268,12 +227,12 @@ public class CreateOrderUseCase implements UseCase<CreateOrderCommand> {
 @RequiredArgsConstructor
 public class CancelOrderUseCase implements UseCase<CancelOrderCommand> {
     
-    private final OrderStore orderStore;
+    private final OrderRepository orderRepository;
     private final EventPublisher eventPublisher;
     
     @Transactional
     public void execute(CancelOrderCommand command) {
-        Order order = orderStore.findById(command.orderId())
+        Order order = orderRepository.findById(command.orderId())
             .orElseThrow();
         
         // 권한 체크
@@ -283,7 +242,7 @@ public class CancelOrderUseCase implements UseCase<CancelOrderCommand> {
         
         order.cancel(command.reason());
         
-        orderStore.save(order);
+        orderRepository.save(order);
         
         eventPublisher.publish(OrderCancelledEvent.from(order));
     }
@@ -298,17 +257,24 @@ public class CancelOrderUseCase implements UseCase<CancelOrderCommand> {
 @RequiredArgsConstructor
 public class GetMyOrdersUseCase implements UseCase<GetMyOrdersQuery> {
     
-    private final OrderReader orderReader;
+    private final OrderQueryRepository orderQueryRepository;  // 복잡한 조회용
     
     @Transactional(readOnly = true)
     public Page<OrderSummary> execute(GetMyOrdersQuery query) {
-        Page<Order> orders = orderReader.findByUserId(
+        Page<Order> orders = orderQueryRepository.findByUserId(
             query.userId(),
             query.pageable()
         );
         
         return orders.map(OrderSummary::from);
     }
+}
+
+// Note: OrderQueryRepository도 Domain Layer에 위치
+// core/domain/order/OrderQueryRepository.java
+public interface OrderQueryRepository {
+    Page<Order> findByUserId(Long userId, Pageable pageable);
+    Page<Order> search(OrderSearchCondition condition, Pageable pageable);
 }
 ```
 
@@ -344,10 +310,10 @@ public class GetMyOrdersUseCase implements UseCase<GetMyOrdersQuery> {
 @RequiredArgsConstructor
 public class OrderRetriever {
     
-    private final OrderStore orderStore;
+    private final OrderRepository orderRepository;
     
     public Order getOrder(Long orderId) {
-        return orderStore.findByIdWithItems(orderId)
+        return orderRepository.findByIdWithItems(orderId)
             .orElseThrow(() -> new OrderNotFoundException(orderId));
     }
     
@@ -372,7 +338,7 @@ public class OrderRetriever {
 public class CancelOrderUseCase {
     
     private final OrderRetriever orderRetriever;  // ✅ 조회 헬퍼
-    private final OrderStore orderStore;
+    private final OrderRepository orderRepository;
     
     @Transactional  // ✅ UseCase에서 트랜잭션
     public void execute(CancelOrderCommand command) {
@@ -386,7 +352,7 @@ public class CancelOrderUseCase {
         order.cancel(command.reason());
         
         // 저장
-        orderStore.save(order);
+        orderRepository.save(order);
     }
 }
 ```
@@ -501,8 +467,8 @@ public record CancelOrderCommand(
 public class CancelOrderUseCase implements UseCase<CancelOrderCommand> {
     
     private final OrderRetriever orderRetriever;
-    private final OrderStore orderStore;
-    private final PaymentPort paymentPort;
+    private final OrderRepository orderRepository;
+    private final PaymentGateway paymentGateway;
     private final EventPublisher eventPublisher;
     
     @Transactional
@@ -515,7 +481,7 @@ public class CancelOrderUseCase implements UseCase<CancelOrderCommand> {
         processCancellation(order, command);
         
         // 3. 저장 및 이벤트
-        orderStore.save(order);
+        orderRepository.save(order);
         eventPublisher.publish(OrderCancelledEvent.from(order, command.cancelType()));
     }
     
@@ -535,7 +501,7 @@ public class CancelOrderUseCase implements UseCase<CancelOrderCommand> {
             case ADMIN -> {
                 order.cancelByAdmin(command.reason(), command.adminMemo());
                 if (order.isPaid()) {
-                    paymentPort.refund(order.getPaymentId());
+                    paymentGateway.refund(order.getPaymentId());
                 }
             }
             case SYSTEM -> order.cancelBySystem(command.systemCode(), command.reason());
@@ -544,41 +510,55 @@ public class CancelOrderUseCase implements UseCase<CancelOrderCommand> {
 }
 ```
 
-## Port 규칙
+## UseCase에서 Domain Port 사용
 
-### 위치
-`core/application/*/port/out/`
+**중요:** 
+- **모든 Port는 Domain Layer의 required/에 위치**
+  - `core/domain/order/required/OrderStore.java`
+  - `core/domain/order/required/OrderReader.java`
+  - `core/domain/order/required/EmailSender.java`
+  - `core/domain/order/required/EventPublisher.java`
 
-### Store vs Reader 구분
-
-#### OrderStore (쓰기)
-
-```java
-// core/application/order/port/out/OrderStore.java
-public interface OrderStore {
-    Order save(Order order);
-    Optional<Order> findById(Long id);
-    Optional<Order> findByIdWithItems(Long id);  // Aggregate 로드
-    void delete(Order order);
-}
-```
-
-#### OrderReader (읽기)
+### UseCase 예시
 
 ```java
-// core/application/order/port/out/OrderReader.java
-public interface OrderReader {
-    Page<Order> findByUserId(Long userId, Pageable pageable);
-    Page<Order> searchOrders(OrderSearchCondition condition, Pageable pageable);
-    OrderStatistics calculateStatistics(LocalDate start, LocalDate end);
-    boolean existsByOrderNumber(String orderNumber);
+@UseCase
+@RequiredArgsConstructor
+public class CreateOrderUseCase {
+    
+    // 모든 Port는 Domain required/에서 가져옴
+    private final OrderStore orderStore;                     // Domain Port
+    private final OrderReader orderReader;                   // Domain Port
+    private final EmailSender emailSender;                   // Domain Port
+    private final EventPublisher eventPublisher;             // Domain Port
+    
+    @Transactional
+    public Order execute(CreateOrderCommand command) {
+        // 1. 중복 체크 (Reader)
+        boolean exists = orderReader.existsByOrderNumber(command.orderNumber());
+        if (exists) {
+            throw new DuplicateOrderNumberException();
+        }
+        
+        // 2. Domain으로 주문 생성
+        Order order = Order.create(...);
+        
+        // 3. Store로 저장
+        Order saved = orderStore.save(order);
+        
+        // 4. Required Port 사용
+        emailSender.sendOrderConfirmation(saved);
+        eventPublisher.publish(new OrderCreatedEvent(saved));
+        
+        return saved;
+    }
 }
 ```
 
 ### 규칙
-- UseCase는 Store/Reader(인터페이스)에 의존
-- Infrastructure에서 Adapter로 구현
-- 쓰기는 Store, 읽기는 Reader로 명확히 구분
+- ✅ 모든 Port는 Domain required/에 위치
+- ✅ UseCase는 Domain의 Port(인터페이스)만 의존
+- ✅ Infrastructure에서 모든 Port를 Adapter로 구현
 
 ## 중요 원칙
 
@@ -601,9 +581,10 @@ public interface OrderReader {
 - 트랜잭션을 여러 개로 쪼개기
 - DB 커넥션 최소 점유
 
-### 3. Store/Reader 구분
-- Store: 쓰기 작업 (save, delete)
-- Reader: 읽기 작업 (find, search, exists)
+### 3. Store/Reader 분리 (CQRS)
+- **OrderStore**: 쓰기 작업 (save, delete)
+- **OrderReader**: 읽기 작업 (find, search, exists)
+- 트랜잭션 최적화 (readOnly = true)
 
 ### 4. Support Service
 - 조회/검증 헬퍼만

@@ -6,15 +6,18 @@ order-service/
 │   └── src/main/java/com/company/order/
 │       ├── domain/                          # Domain Layer
 │       │   ├── order/
-│       │   │   ├── model/
-│       │   │   │   ├── Order.java
-│       │   │   │   ├── OrderItem.java
-│       │   │   │   ├── OrderStatus.java
-│       │   │   │   ├── Money.java
-│       │   │   │   ├── Address.java
-│       │   │   │   └── Weight.java
-│       │   │   ├── repository/
-│       │   │   │   └── OrderRepository.java
+│       │   │   ├── Order.java
+│       │   │   ├── OrderItem.java
+│       │   │   ├── OrderStatus.java
+│       │   │   ├── Origin.java
+│       │   │   ├── Destination.java
+│       │   │   ├── DeliveryPolicy.java
+│       │   │   └── required/                   # ⭐ 모든 외부 의존성 Port
+│       │   │       ├── OrderStore.java          # 영속성 (쓰기)
+│       │   │       ├── OrderReader.java         # 영속성 (읽기)
+│       │   │       ├── EmailSender.java
+│       │   │       ├── EventPublisher.java
+│       │   │       └── PaymentGateway.java
 │       │   │   ├── event/
 │       │   │   │   ├── OrderCreatedEvent.java
 │       │   │   │   ├── OrderCancelledEvent.java
@@ -84,13 +87,6 @@ order-service/
 │               │       ├── GetMyOrdersQuery.java
 │               │       └── SearchOrdersQuery.java
 │               │
-│               ├── port/
-│               │   └── out/
-│               │       ├── OrderQueryPort.java
-│               │       ├── PaymentPort.java
-│               │       ├── InventoryPort.java
-│               │       └── EventPublishPort.java
-│               │
 │               ├── dto/
 │               │   ├── OrderPreparationResult.java
 │               │   ├── OrderSummary.java
@@ -109,12 +105,9 @@ order-service/
 │       │   │   │   ├── entity/
 │       │   │   │   │   ├── OrderJpaEntity.java
 │       │   │   │   │   ├── OrderItemJpaEntity.java
-│       │   │   │   │   └── AddressEmbed.java
-│       │   │   │   ├── adapter/
-│       │   │   │   │   ├── OrderRepositoryAdapter.java
-│       │   │   │   │   └── OrderJpaRepository.java
-│       │   │   │   └── query/
-│       │   │   │       └── OrderQueryAdapter.java
+│       │   │   │   │   └── OriginEmbed.java
+│       │   │   │   ├── OrderRepositoryAdapter.java    # ⭐ Domain Repository 구현
+│       │   │   │   └── OrderJpaRepository.java        # Spring Data JPA
 │       │   │   │
 │       │   │   ├── payment/
 │       │   │   │   ├── entity/
@@ -144,19 +137,19 @@ order-service/
 │       ├── external/
 │       │   ├── client/
 │       │   │   ├── PaymentFeignClient.java
-│       │   │   ├── InventoryFeignClient.java
 │       │   │   └── DeliveryFeignClient.java
-│       │   ├── adapter/
-│       │   │   ├── PaymentAdapter.java
-│       │   │   ├── InventoryAdapter.java
+│       │   ├── adapter/                        # ⭐ Application Port 구현
+│       │   │   ├── PaymentGatewayAdapter.java
 │       │   │   └── DeliveryAdapter.java
 │       │   └── dto/
 │       │       ├── PaymentApiRequest.java
 │       │       └── PaymentApiResponse.java
 │       │
 │       ├── messaging/
-│       │   ├── adapter/
-│       │   │   ├── KafkaEventPublisher.java
+│       │   ├── adapter/                        # ⭐ Application Port 구현
+│       │   │   ├── EmailSenderAdapter.java
+│       │   │   ├── SmsSenderAdapter.java
+│       │   │   ├── EventPublisherAdapter.java
 │       │   │   └── OrderEventConsumer.java
 │       │   └── config/
 │       │       └── KafkaConfig.java
@@ -225,41 +218,54 @@ order-service/
 
 # 주요 디렉토리별 설명
 ## core/domain/
-- 역할: 순수 비즈니스 로직
+- 역할: 순수 비즈니스 로직 + Port 인터페이스 정의
 - 특징:
   - JPA, Spring 어노테이션 없음
   - 순수 Java + Lombok만 사용
   - 비즈니스 규칙과 로직 포함
   - 자기 검증 구현
+  - **Port 인터페이스 정의** (Repository + Required Port)
 - 포함 요소:
-  - model/ - Entity, Value Object
-  - repository/ - Repository 인터페이스
+  - Order.java, OrderItem.java - Entity
+  - OrderRepository.java - Repository 인터페이스 ⭐
+  - required/ - Required Port 인터페이스 ⭐
+    - EmailSender.java
+    - EventPublisher.java
+    - PaymentGateway.java
   - service/ - Domain Service (순수 계산)
   - event/ - Domain Event
   - exception/ - Domain 예외
-  - policy/ - 비즈니스 정책
 - 예시:
   - Order.java - 주문 Aggregate Root
-  - OrderPricingService.java - 가격 계산 Domain Service
-  - Money.java - 금액 Value Object
+  - OrderRepository.java - Repository 인터페이스
+  - required/EmailSender.java - Required Port 인터페이스
+
+**중요:**
+- **모든 Port는 Domain Layer에 위치** (DIP 적용)
+- Infrastructure에서 Adapter로 구현
 
 ## core/application/
 - 역할: Use Case 실행 및 흐름 조정
 - 특징:
   - UseCase별 파일 분리 (하나의 파일 = 하나의 execute())
-  - Port(인터페이스)만 의존
+  - Domain의 Port만 의존 (구체 클래스)
   - Domain과 Infrastructure 연결
   - 트랜잭션 관리는 UseCase에서 직접 처리
 - 포함 요소:
-  - usecase/command/ - 명령 Use Case
-  - usecase/query/ - 조회 Use Case
-  - port/out/ - 외부 의존성 인터페이스
+  - usecase/command/ - 명령 Use Case (구체 클래스)
+  - usecase/query/ - 조회 Use Case (구체 클래스)
+  - command/ - Command DTO
+  - query/ - Query DTO
   - dto/ - Application 계층 DTO
   - admin/ - 관리자용 서비스
 - 예시:
-  - CreateOrderUseCase.java - 주문 생성 Use Case
-  - CancelOrderUseCase.java - 주문 취소 Use Case
-  - OrderQueryPort.java - 조회 Port 인터페이스
+  - CreateOrderUseCase.java - 주문 생성 Use Case (구체 클래스)
+  - CancelOrderUseCase.java - 주문 취소 Use Case (구체 클래스)
+  - CreateOrderCommand.java - Command DTO
+
+**중요:**
+- **모든 Port는 Domain Layer에 위치** (`core/domain/order/`)
+- **UseCase는 구체 클래스** (In Port 없음)
 
 ### 트랜잭션 전략
 
@@ -636,11 +642,13 @@ public class OrderJpaEntity {
   - JPA, Spring 어노테이션 금지
   - Infrastructure 의존 금지
   - 비즈니스 규칙과 로직만 포함
+  - **모든 외부 의존성 Port는 required/에 정의**
   - RuntimeException 사용 (CheckedException 금지)
 
 - **Application Layer:**
   - UseCase별 파일 분리 (1 UseCase = 1 execute())
-  - Port 인터페이스만 의존
+  - UseCase는 구체 클래스 (In Port 없음)
+  - Domain required/의 Port 인터페이스만 의존
   - 트랜잭션 관리:
     - 간단한 경우: `@Transactional`
     - 복잡한 경우: `TransactionTemplate`
