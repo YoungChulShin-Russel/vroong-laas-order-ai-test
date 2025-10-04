@@ -8,6 +8,10 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import vroong.laas.order.core.domain.order.OrderItem;
+import vroong.laas.order.core.domain.shared.Money;
+import vroong.laas.order.core.domain.shared.Volume;
+import vroong.laas.order.core.domain.shared.Weight;
 import vroong.laas.order.infrastructure.storage.db.BaseEntity;
 
 @Entity
@@ -70,8 +74,32 @@ public class OrderItemEntity extends BaseEntity {
     this.volumeCbm = volumeCbm;
   }
 
-  // TODO: Domain 생성 후 구현
-  // public static OrderItemEntity from(OrderItem item) { }
-  // public OrderItem toDomain() { }
+  // Domain → Entity
+  public static OrderItemEntity from(OrderItem item, Long orderId) {
+    return OrderItemEntity.builder()
+        .orderId(orderId)
+        .itemName(item.itemName())
+        .quantity(item.quantity())
+        .price(item.price().amount())
+        .category(item.category())
+        .weight(item.weight() != null ? item.weight().value() : null)
+        .volumeLength(item.volume() != null ? item.volume().length() : null)
+        .volumeWidth(item.volume() != null ? item.volume().width() : null)
+        .volumeHeight(item.volume() != null ? item.volume().height() : null)
+        .volumeCbm(item.volume() != null ? item.volume().cbm() : null)
+        .build();
+  }
+
+  // Entity → Domain
+  public OrderItem toDomain() {
+    Weight weight = this.weight != null ? new Weight(this.weight) : null;
+
+    Volume volume =
+        (volumeLength != null && volumeWidth != null && volumeHeight != null)
+            ? new Volume(volumeLength, volumeWidth, volumeHeight)
+            : null;
+
+    return new OrderItem(itemName, quantity, new Money(price), category, weight, volume);
+  }
 }
 

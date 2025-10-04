@@ -7,6 +7,8 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import vroong.laas.order.core.domain.order.DeliveryPolicy;
+import vroong.laas.order.infrastructure.common.util.JsonUtil;
 import vroong.laas.order.infrastructure.storage.db.BaseEntity;
 
 @Entity
@@ -27,8 +29,15 @@ public class OrderDeliveryPolicyEntity extends BaseEntity {
     this.deliveryPolicyJson = deliveryPolicyJson;
   }
 
-  // TODO: Domain 생성 후 구현
-  // public static OrderDeliveryPolicyEntity from(OrderDeliveryPolicy policy) { }
-  // public OrderDeliveryPolicy toDomain() { }
+  // Domain → Entity
+  public static OrderDeliveryPolicyEntity from(DeliveryPolicy policy, Long orderId) {
+    String json = JsonUtil.toJson(policy);
+    return new OrderDeliveryPolicyEntity(orderId, json);
+  }
+
+  // Entity → Domain
+  public DeliveryPolicy toDomain() {
+    return JsonUtil.fromJson(deliveryPolicyJson, DeliveryPolicy.class);
+  }
 }
 

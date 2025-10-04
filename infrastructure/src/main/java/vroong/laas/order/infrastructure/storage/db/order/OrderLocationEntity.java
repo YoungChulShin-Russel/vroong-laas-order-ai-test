@@ -8,6 +8,12 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import vroong.laas.order.core.domain.order.Destination;
+import vroong.laas.order.core.domain.order.EntranceInfo;
+import vroong.laas.order.core.domain.order.Origin;
+import vroong.laas.order.core.domain.shared.Address;
+import vroong.laas.order.core.domain.shared.Contact;
+import vroong.laas.order.core.domain.shared.LatLng;
 import vroong.laas.order.infrastructure.storage.db.BaseEntity;
 
 @Entity
@@ -127,8 +133,51 @@ public class OrderLocationEntity extends BaseEntity {
     this.destinationDetailAddress = destinationDetailAddress;
   }
 
-  // TODO: Domain 생성 후 구현
-  // public static OrderLocationEntity from(OrderLocation location) { }
-  // public OrderLocation toDomain() { }
+  // Domain → Entity
+  public static OrderLocationEntity from(Origin origin, Destination destination, Long orderId) {
+    return OrderLocationEntity.builder()
+        .orderId(orderId)
+        // Origin
+        .originContactName(origin.contact().name())
+        .originContactPhoneNumber(origin.contact().phoneNumber())
+        .originEntrancePassword(origin.entranceInfo().password())
+        .originEntranceGuide(origin.entranceInfo().guide())
+        .originRequestMessage(origin.entranceInfo().requestMessage())
+        .originLatitude(origin.latLng().latitude())
+        .originLongitude(origin.latLng().longitude())
+        .originJibnunAddress(origin.address().jibnunAddress())
+        .originRoadAddress(origin.address().roadAddress())
+        .originDetailAddress(origin.address().detailAddress())
+        // Destination
+        .destinationContactName(destination.contact().name())
+        .destinationContactPhoneNumber(destination.contact().phoneNumber())
+        .destinationEntrancePassword(destination.entranceInfo().password())
+        .destinationEntranceGuide(destination.entranceInfo().guide())
+        .destinationRequestMessage(destination.entranceInfo().requestMessage())
+        .destinationLatitude(destination.latLng().latitude())
+        .destinationLongitude(destination.latLng().longitude())
+        .destinationJibnunAddress(destination.address().jibnunAddress())
+        .destinationRoadAddress(destination.address().roadAddress())
+        .destinationDetailAddress(destination.address().detailAddress())
+        .build();
+  }
+
+  // Entity → Domain
+  public Origin toOriginDomain() {
+    return new Origin(
+        new Contact(originContactName, originContactPhoneNumber),
+        new Address(originJibnunAddress, originRoadAddress, originDetailAddress),
+        new LatLng(originLatitude, originLongitude),
+        new EntranceInfo(originEntrancePassword, originEntranceGuide, originRequestMessage));
+  }
+
+  public Destination toDestinationDomain() {
+    return new Destination(
+        new Contact(destinationContactName, destinationContactPhoneNumber),
+        new Address(destinationJibnunAddress, destinationRoadAddress, destinationDetailAddress),
+        new LatLng(destinationLatitude, destinationLongitude),
+        new EntranceInfo(
+            destinationEntrancePassword, destinationEntranceGuide, destinationRequestMessage));
+  }
 }
 
