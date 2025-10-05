@@ -72,7 +72,16 @@ class OrderEntityTest {
     List<OrderItemEntity> itemEntities = createItemEntities(1L);
 
     // when
-    Order domain = orderEntity.toDomain(locationEntity, policyEntity, itemEntities);
+    List<vroong.laas.order.core.domain.order.OrderItem> items =
+        itemEntities.stream()
+            .map(OrderItemEntity::toDomain)
+            .toList();
+    vroong.laas.order.core.domain.order.Origin origin = locationEntity.toOriginDomain();
+    vroong.laas.order.core.domain.order.Destination destination =
+        locationEntity.toDestinationDomain();
+    vroong.laas.order.core.domain.order.DeliveryPolicy policy = policyEntity.toDomain();
+
+    Order domain = orderEntity.toDomain(items, origin, destination, policy);
 
     // then
     assertThat(domain.getOrderNumber().value()).isEqualTo("ORD-20250115-002");

@@ -264,4 +264,61 @@ Option 2: TransactionTemplate 사용 (세밀한 제어)
 
 ---
 
+## 🎨 공통 코드 스타일
+
+### FQCN 대신 import 사용
+
+**모든 레이어(Domain, Application, Infrastructure, Interface)에서 적용**
+
+#### ❌ 나쁜 예 - FQCN(Fully Qualified Class Name) 사용
+```java
+public Order toDomain(
+    java.util.List<vroong.laas.order.core.domain.order.OrderItem> items,
+    vroong.laas.order.core.domain.order.Origin origin,
+    vroong.laas.order.core.domain.order.Destination destination) {
+  
+  vroong.laas.order.core.domain.order.OrderStatus domainStatus = 
+      vroong.laas.order.core.domain.order.OrderStatus.valueOf(this.status.name());
+  
+  return new Order(...);
+}
+```
+
+#### ✅ 좋은 예 - import 사용
+```java
+import java.util.List;
+import vroong.laas.order.core.domain.order.DeliveryPolicy;
+import vroong.laas.order.core.domain.order.Destination;
+import vroong.laas.order.core.domain.order.Order;
+import vroong.laas.order.core.domain.order.OrderItem;
+import vroong.laas.order.core.domain.order.OrderStatus;
+import vroong.laas.order.core.domain.order.Origin;
+
+public Order toDomain(
+    List<OrderItem> items,
+    Origin origin,
+    Destination destination) {
+  
+  OrderStatus domainStatus = OrderStatus.valueOf(this.status.name());
+  
+  return new Order(...);
+}
+```
+
+**장점:**
+- ✅ 가독성 향상
+- ✅ 코드 간결성
+- ✅ IDE 자동완성 지원
+- ✅ 리팩토링 용이
+
+**예외 상황:**
+- 같은 이름의 클래스가 여러 패키지에 있을 때만 FQCN 사용 (예: `OrderStatus`)
+  ```java
+  // Infrastructure OrderStatus vs Domain OrderStatus
+  vroong.laas.order.core.domain.order.OrderStatus domainStatus = 
+      vroong.laas.order.core.domain.order.OrderStatus.valueOf(this.status.name());
+  ```
+
+---
+
 이 가이드를 따라 사용자와 효율적으로 협업하세요! 🚀

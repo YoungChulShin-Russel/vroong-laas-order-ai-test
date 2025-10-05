@@ -11,12 +11,12 @@ import vroong.laas.order.core.domain.order.Order;
 public interface OrderStore {
 
   /**
-   * 주문을 저장합니다.
+   * 새로운 주문을 저장합니다.
    *
-   * @param order 저장할 주문 (ID가 null이면 신규, 있으면 수정)
+   * @param order 저장할 주문 (ID가 null이어야 함)
    * @return 저장된 주문 (ID가 할당됨)
    */
-  Order save(Order order);
+  Order store(Order order);
 }
 
 

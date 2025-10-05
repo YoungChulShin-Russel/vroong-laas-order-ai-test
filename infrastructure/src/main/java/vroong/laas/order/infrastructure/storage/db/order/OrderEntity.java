@@ -6,12 +6,17 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.List;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import vroong.laas.order.core.domain.order.DeliveryPolicy;
+import vroong.laas.order.core.domain.order.Destination;
 import vroong.laas.order.core.domain.order.Order;
+import vroong.laas.order.core.domain.order.OrderItem;
 import vroong.laas.order.core.domain.order.OrderNumber;
+import vroong.laas.order.core.domain.order.Origin;
 import vroong.laas.order.infrastructure.storage.db.ConcurrentEntity;
 
 // OrderStatus는 Infrastructure와 Domain 양쪽에 존재하므로 주의
@@ -65,11 +70,9 @@ public class OrderEntity extends ConcurrentEntity {
         .build();
   }
 
-  // Entity → Domain (연관 Entity 조회 필요)
+  // Entity → Domain (Domain 모델을 파라미터로 받음)
   public Order toDomain(
-      OrderLocationEntity location,
-      OrderDeliveryPolicyEntity policyEntity,
-      java.util.List<OrderItemEntity> items) {
+      List<OrderItem> items, Origin origin, Destination destination, DeliveryPolicy deliveryPolicy) {
 
     // Infrastructure OrderStatus → Domain OrderStatus 변환
     vroong.laas.order.core.domain.order.OrderStatus domainStatus =
@@ -79,10 +82,10 @@ public class OrderEntity extends ConcurrentEntity {
         this.getId(),
         OrderNumber.of(this.orderNumber),
         domainStatus,
-        items.stream().map(OrderItemEntity::toDomain).toList(),
-        location.toOriginDomain(),
-        location.toDestinationDomain(),
-        policyEntity.toDomain(),
+        items,
+        origin,
+        destination,
+        deliveryPolicy,
         this.orderedAt,
         this.deliveredAt,
         this.cancelledAt);

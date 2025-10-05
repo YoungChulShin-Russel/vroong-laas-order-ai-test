@@ -41,15 +41,12 @@ alwaysApply: true
 3. toDomain() 인스턴스 메서드로 Entity → Domain 변환
 4. @NoArgsConstructor(access = AccessLevel.PROTECTED)
 5. Getter만 사용 (Setter 금지)
-6. **공통 코드 스타일 준수** (00-workflow.mdc 참고)
-   - FQCN 대신 import 사용
 
 ### 절대 하지 말 것
 1. Entity에 비즈니스 로직 작성 금지
 2. Entity가 Domain을 상속받는 것 금지
-3. FQCN(Fully Qualified Class Name) 사용 금지
-4. EAGER fetch 사용 금지
-5. 양방향 연관관계 최소화
+3. EAGER fetch 사용 금지
+4. 양방향 연관관계 최소화
 
 ### JPA Entity 템플릿
 
