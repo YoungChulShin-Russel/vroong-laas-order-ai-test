@@ -62,17 +62,17 @@ public class Order {
 
   // 주문 생성 팩토리 메서드
   public static Order create(
-      String orderNumber,
+      OrderNumberGenerator orderNumberGenerator,
       List<OrderItem> items,
       Origin origin,
       Destination destination,
       DeliveryPolicy deliveryPolicy) {
-    OrderNumber orderNumberVO = OrderNumber.of(orderNumber);
-    validateOrderCreation(orderNumberVO, items, origin, destination, deliveryPolicy);
+    OrderNumber orderNumber = orderNumberGenerator.generate();
+    validateOrderCreation(orderNumber, items, origin, destination, deliveryPolicy);
 
     return new Order(
         null,
-        orderNumberVO,
+        orderNumber,
         OrderStatus.CREATED,
         items,
         origin,

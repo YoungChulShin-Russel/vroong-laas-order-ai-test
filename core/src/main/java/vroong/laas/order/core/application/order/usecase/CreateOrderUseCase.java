@@ -3,6 +3,7 @@ package vroong.laas.order.core.application.order.usecase;
 import vroong.laas.order.core.application.order.command.CreateOrderCommand;
 import vroong.laas.order.core.common.annotation.UseCase;
 import vroong.laas.order.core.domain.order.Order;
+import vroong.laas.order.core.domain.order.OrderNumberGenerator;
 import vroong.laas.order.core.domain.order.required.OrderStore;
 
 /**
@@ -11,17 +12,21 @@ import vroong.laas.order.core.domain.order.required.OrderStore;
  * <p>새로운 주문을 생성하고 저장합니다.
  *
  * <p>흐름:
- * 1. Order.create() 호출 (비즈니스 로직)
- * 2. OrderStore.store() 호출 (영속화)
+ * 1. OrderNumberGenerator로 주문번호 생성
+ * 2. Order.create() 호출 (비즈니스 로직)
+ * 3. OrderStore.store() 호출 (영속화)
  *
  * <p>Command는 Domain Model을 그대로 사용하므로 변환 불필요
  */
 @UseCase
 public class CreateOrderUseCase {
 
+  private final OrderNumberGenerator orderNumberGenerator;
   private final OrderStore orderStore;
 
-  public CreateOrderUseCase(OrderStore orderStore) {
+  public CreateOrderUseCase(
+      OrderNumberGenerator orderNumberGenerator, OrderStore orderStore) {
+    this.orderNumberGenerator = orderNumberGenerator;
     this.orderStore = orderStore;
   }
 
@@ -35,7 +40,7 @@ public class CreateOrderUseCase {
     // Domain Model 그대로 사용 (변환 불필요)
     Order order =
         Order.create(
-            command.orderNumber(),
+            orderNumberGenerator,
             command.items(),
             command.origin(),
             command.destination(),

@@ -14,9 +14,9 @@ import vroong.laas.order.core.domain.order.Origin;
  * <p>설계 원칙:
  * - 가능하면 Domain Model 사용 (OrderItem, Origin, Destination, DeliveryPolicy 등)
  * - Domain으로 대응이 어려운 경우에만 Command용 DTO 추가
+ * - 주문번호는 OrderNumberGenerator가 자동 생성 (사용자 입력 아님)
  */
 public record CreateOrderCommand(
-    String orderNumber,
     List<OrderItem> items,
     Origin origin,
     Destination destination,
@@ -24,9 +24,6 @@ public record CreateOrderCommand(
 
   public CreateOrderCommand {
     // 필수 값 검증
-    if (orderNumber == null || orderNumber.isBlank()) {
-      throw new IllegalArgumentException("주문번호는 필수입니다");
-    }
     if (items == null || items.isEmpty()) {
       throw new IllegalArgumentException("주문 아이템은 최소 1개 이상이어야 합니다");
     }

@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.navercorp.fixturemonkey.FixtureMonkey;
 import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
 import java.math.BigDecimal;
-import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,29 +40,13 @@ class OrderTest {
   }
 
   @Test
-  @DisplayName("주문번호가 없으면 예외가 발생한다")
-  void createWithoutOrderNumber() {
-    // when & then
-    assertThatThrownBy(
-            () ->
-                Order.create(
-                    null,
-                    orderFixtures.randomOrderItems(),
-                    orderFixtures.randomOrigin(),
-                    orderFixtures.randomDestination(),
-                    orderFixtures.randomDeliveryPolicy()))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessage("주문번호는 필수입니다");
-  }
-
-  @Test
   @DisplayName("배송 정책이 없으면 예외가 발생한다")
   void createWithoutDeliveryPolicy() {
     // when & then
     assertThatThrownBy(
             () ->
                 Order.create(
-                    "ORD-20251002-001",
+                    orderFixtures.orderNumberGenerator(),
                     orderFixtures.randomOrderItems(),
                     orderFixtures.randomOrigin(),
                     orderFixtures.randomDestination(),

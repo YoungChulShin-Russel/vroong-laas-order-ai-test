@@ -11,6 +11,7 @@ import vroong.laas.order.core.domain.order.EntranceInfo;
 import vroong.laas.order.core.domain.order.Order;
 import vroong.laas.order.core.domain.order.OrderItem;
 import vroong.laas.order.core.domain.order.OrderNumber;
+import vroong.laas.order.core.domain.order.OrderNumberGenerator;
 import vroong.laas.order.core.domain.order.OrderStatus;
 import vroong.laas.order.core.domain.order.Origin;
 import vroong.laas.order.core.domain.shared.Address;
@@ -26,9 +27,11 @@ import vroong.laas.order.core.domain.shared.Money;
 public class OrderFixtures {
 
   private final FixtureMonkey fixtureMonkey;
+  private final OrderNumberGenerator orderNumberGenerator;
 
   public OrderFixtures(FixtureMonkey fixtureMonkey) {
     this.fixtureMonkey = fixtureMonkey;
+    this.orderNumberGenerator = new OrderNumberGenerator();
   }
 
   // ===== Order 생성 =====
@@ -222,6 +225,11 @@ public class OrderFixtures {
   // ===== 헬퍼 메서드 =====
 
   private OrderNumber generateOrderNumber() {
-    return OrderNumber.of("ORD-" + System.currentTimeMillis());
+    return orderNumberGenerator.generate();
+  }
+
+  /** OrderNumberGenerator 제공 (테스트용) */
+  public OrderNumberGenerator orderNumberGenerator() {
+    return orderNumberGenerator;
   }
 }

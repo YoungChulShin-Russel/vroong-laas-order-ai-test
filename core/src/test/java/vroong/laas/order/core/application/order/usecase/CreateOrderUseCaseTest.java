@@ -21,6 +21,8 @@ import vroong.laas.order.core.domain.order.Destination;
 import vroong.laas.order.core.domain.order.EntranceInfo;
 import vroong.laas.order.core.domain.order.Order;
 import vroong.laas.order.core.domain.order.OrderItem;
+import vroong.laas.order.core.domain.order.OrderNumber;
+import vroong.laas.order.core.domain.order.OrderNumberGenerator;
 import vroong.laas.order.core.domain.order.OrderStatus;
 import vroong.laas.order.core.domain.order.Origin;
 import vroong.laas.order.core.domain.order.required.OrderStore;
@@ -36,6 +38,8 @@ class CreateOrderUseCaseTest {
 
   @InjectMocks private CreateOrderUseCase sut;
 
+  @Mock private OrderNumberGenerator orderNumberGenerator;
+
   @Mock private OrderStore orderStore;
 
   private CreateOrderCommand command;
@@ -49,6 +53,9 @@ class CreateOrderUseCaseTest {
   @DisplayName("주문을 생성하고 저장한다")
   void execute_creates_and_stores_order() {
     // given
+    given(orderNumberGenerator.generate())
+        .willReturn(OrderNumber.of("ORD-20240101123045001"));
+
     given(orderStore.store(any(Order.class)))
         .willAnswer(
             invocation -> {
@@ -64,8 +71,10 @@ class CreateOrderUseCaseTest {
     assertThat(result).isNotNull();
     assertThat(result.getId()).isEqualTo(1L);
     assertThat(result.getStatus()).isEqualTo(OrderStatus.CREATED);
+    assertThat(result.getOrderNumber().value()).isEqualTo("ORD-20240101123045001");
     assertThat(result.getItems()).hasSize(1);
 
+    verify(orderNumberGenerator).generate();
     verify(orderStore).store(any(Order.class));
   }
 
@@ -73,6 +82,9 @@ class CreateOrderUseCaseTest {
   @DisplayName("Command의 값이 Domain 객체로 올바르게 변환된다")
   void execute_converts_command_to_domain_correctly() {
     // given
+    given(orderNumberGenerator.generate())
+        .willReturn(OrderNumber.of("ORD-20240101123045001"));
+
     given(orderStore.store(any(Order.class)))
         .willAnswer(
             invocation -> {
@@ -85,7 +97,7 @@ class CreateOrderUseCaseTest {
     Order result = sut.execute(command);
 
     // then
-    assertThat(result.getOrderNumber().value()).isEqualTo("ORD-20240101-001");
+    assertThat(result.getOrderNumber().value()).isEqualTo("ORD-20240101123045001");
     assertThat(result.getOrigin().contact().name()).isEqualTo("홍길동");
     assertThat(result.getDestination().contact().name()).isEqualTo("김철수");
     assertThat(result.getDeliveryPolicy().alcoholDelivery()).isFalse();
@@ -123,7 +135,6 @@ class CreateOrderUseCaseTest {
             new Volume(
                 BigDecimal.valueOf(10), BigDecimal.valueOf(10), BigDecimal.valueOf(10)));
 
-    return new CreateOrderCommand(
-        "ORD-20240101-001", List.of(orderItem), origin, destination, deliveryPolicy);
+    return new CreateOrderCommand(List.of(orderItem), origin, destination, deliveryPolicy);
   }
 }
