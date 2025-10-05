@@ -30,4 +30,14 @@ public record DeliveryPolicyDto(
         policy.reservedDeliveryStartTime(),
         policy.pickupRequestTime());
   }
+
+  /** DeliveryPolicyDto → DeliveryPolicy Domain 변환 */
+  public DeliveryPolicy toDomain() {
+    return new DeliveryPolicy(
+        alcoholDelivery,
+        contactlessDelivery,
+        reservedDelivery,
+        reservedDeliveryStartTime,
+        pickupRequestTime);
+  }
 }

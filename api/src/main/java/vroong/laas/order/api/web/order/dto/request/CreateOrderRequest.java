@@ -7,6 +7,8 @@ import vroong.laas.order.api.web.order.dto.DeliveryPolicyDto;
 import vroong.laas.order.api.web.order.dto.DestinationDto;
 import vroong.laas.order.api.web.order.dto.OrderItemDto;
 import vroong.laas.order.api.web.order.dto.OriginDto;
+import vroong.laas.order.core.application.order.command.CreateOrderCommand;
+import vroong.laas.order.core.domain.order.OrderItem;
 
 /**
  * 주문 생성 Request
@@ -33,4 +35,19 @@ public record CreateOrderRequest(
     @NotNull(message = "배송 정책은 필수입니다")
     @Valid
     DeliveryPolicyDto deliveryPolicy
-) {}
+) {
+
+  /** CreateOrderRequest → CreateOrderCommand 변환 */
+  public CreateOrderCommand toCommand() {
+    List<OrderItem> orderItems =
+        items != null
+            ? items.stream().map(OrderItemDto::toDomain).toList()
+            : List.of();
+
+    return new CreateOrderCommand(
+        orderItems,
+        origin.toDomain(),
+        destination.toDomain(),
+        deliveryPolicy.toDomain());
+  }
+}

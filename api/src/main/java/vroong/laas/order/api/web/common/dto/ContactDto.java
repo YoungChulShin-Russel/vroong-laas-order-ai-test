@@ -1,6 +1,7 @@
 package vroong.laas.order.api.web.common.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import vroong.laas.order.core.domain.shared.Contact;
 
 /**
  * 연락처 DTO
@@ -13,4 +14,10 @@ public record ContactDto(
 
     @NotBlank(message = "전화번호는 필수입니다")
     String phoneNumber
-) {}
+) {
+
+  /** ContactDto → Contact Domain 변환 */
+  public Contact toDomain() {
+    return new Contact(name, phoneNumber);
+  }
+}

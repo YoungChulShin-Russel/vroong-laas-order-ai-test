@@ -6,6 +6,7 @@ import vroong.laas.order.api.web.common.dto.AddressDto;
 import vroong.laas.order.api.web.common.dto.ContactDto;
 import vroong.laas.order.api.web.common.dto.EntranceInfoDto;
 import vroong.laas.order.api.web.common.dto.LatLngDto;
+import vroong.laas.order.core.domain.order.EntranceInfo;
 import vroong.laas.order.core.domain.order.Origin;
 
 /**
@@ -43,5 +44,14 @@ public record OriginDto(
                 origin.entranceInfo().guide(),
                 origin.entranceInfo().requestMessage())
             : null);
+  }
+
+  /** OriginDto → Origin Domain 변환 */
+  public Origin toDomain() {
+    return new Origin(
+        contact.toDomain(),
+        address.toDomain(),
+        latLng.toDomain(),
+        entranceInfo != null ? entranceInfo.toDomain() : EntranceInfo.empty());
   }
 }

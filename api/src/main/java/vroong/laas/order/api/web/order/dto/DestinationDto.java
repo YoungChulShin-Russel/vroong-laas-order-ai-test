@@ -7,6 +7,7 @@ import vroong.laas.order.api.web.common.dto.ContactDto;
 import vroong.laas.order.api.web.common.dto.EntranceInfoDto;
 import vroong.laas.order.api.web.common.dto.LatLngDto;
 import vroong.laas.order.core.domain.order.Destination;
+import vroong.laas.order.core.domain.order.EntranceInfo;
 
 /**
  * 도착지 DTO
@@ -45,5 +46,14 @@ public record DestinationDto(
                 destination.entranceInfo().guide(),
                 destination.entranceInfo().requestMessage())
             : null);
+  }
+
+  /** DestinationDto → Destination Domain 변환 */
+  public Destination toDomain() {
+    return new Destination(
+        contact.toDomain(),
+        address.toDomain(),
+        latLng.toDomain(),
+        entranceInfo != null ? entranceInfo.toDomain() : EntranceInfo.empty());
   }
 }

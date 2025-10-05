@@ -1,6 +1,7 @@
 package vroong.laas.order.api.web.common.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import vroong.laas.order.core.domain.shared.Address;
 
 /**
  * 주소 DTO
@@ -14,4 +15,10 @@ public record AddressDto(
     String roadAddress,
 
     String detailAddress  // 선택
-) {}
+) {
+
+  /** AddressDto → Address Domain 변환 */
+  public Address toDomain() {
+    return new Address(jibnunAddress, roadAddress, detailAddress);
+  }
+}

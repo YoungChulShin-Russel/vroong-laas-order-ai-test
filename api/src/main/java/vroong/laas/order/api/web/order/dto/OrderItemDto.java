@@ -5,6 +5,9 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 import vroong.laas.order.core.domain.order.OrderItem;
+import vroong.laas.order.core.domain.shared.Money;
+import vroong.laas.order.core.domain.shared.Volume;
+import vroong.laas.order.core.domain.shared.Weight;
 
 /**
  * 주문 아이템 DTO
@@ -40,5 +43,18 @@ public record OrderItemDto(
         item.volume() != null ? item.volume().width() : null,
         item.volume() != null ? item.volume().height() : null,
         item.volume() != null ? item.volume().length() : null);
+  }
+
+  /** OrderItemDto → OrderItem Domain 변환 */
+  public OrderItem toDomain() {
+    return new OrderItem(
+        itemName,
+        quantity,
+        new Money(price),
+        category,
+        weightInKg != null ? new Weight(weightInKg) : null,
+        (widthInCm != null && heightInCm != null && depthInCm != null)
+            ? new Volume(widthInCm, heightInCm, depthInCm)
+            : null);
   }
 }
