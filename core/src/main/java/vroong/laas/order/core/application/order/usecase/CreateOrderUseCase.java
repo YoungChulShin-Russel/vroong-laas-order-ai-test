@@ -1,6 +1,7 @@
 package vroong.laas.order.core.application.order.usecase;
 
 import vroong.laas.order.core.application.order.command.CreateOrderCommand;
+import vroong.laas.order.core.common.annotation.UseCase;
 import vroong.laas.order.core.domain.order.Order;
 import vroong.laas.order.core.domain.order.required.OrderStore;
 
@@ -15,6 +16,7 @@ import vroong.laas.order.core.domain.order.required.OrderStore;
  *
  * <p>Command는 Domain Model을 그대로 사용하므로 변환 불필요
  */
+@UseCase
 public class CreateOrderUseCase {
 
   private final OrderStore orderStore;
