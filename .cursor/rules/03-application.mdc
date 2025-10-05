@@ -359,6 +359,77 @@ public class CancelOrderUseCase {
 
 ## Command/Query 설계
 
+### 📌 설계 원칙: Domain Model 우선 사용 ⭐
+
+**기본 원칙:**
+> **가능하면 Domain Model 사용, 어려운 경우에만 Command용 DTO 추가**
+
+#### ✅ Domain Model 직접 사용 (권장):
+
+**사용 대상:**
+- Value Object (Money, Weight, Volume, Contact, Address, LatLng, EntranceInfo 등)
+- Domain record (OrderItem, Origin, Destination, DeliveryPolicy 등)
+- 단순한 비즈니스 계산 메서드만 있는 경우 (예: `getTotalPrice()`)
+
+**장점:**
+- 검증 로직이 Domain에만 존재 (중복 제거)
+- UseCase에서 변환 코드 불필요
+- 코드 간결성 및 유지보수 용이
+- Domain의 의존성 방향 명확 (Application → Domain)
+
+**예시:**
+```java
+// ✅ 좋은 예 - Domain Model 직접 사용
+public record CreateOrderCommand(
+    String orderNumber,
+    List<OrderItem> items,        // Domain record
+    Origin origin,                 // Domain record
+    Destination destination,       // Domain record
+    DeliveryPolicy deliveryPolicy  // Domain record
+) {
+    // 필수 값 검증만
+}
+
+// UseCase에서 변환 불필요
+public Order execute(CreateOrderCommand command) {
+    Order order = Order.create(
+        command.orderNumber(),
+        command.items(),           // 그대로 사용
+        command.origin(),          // 그대로 사용
+        command.destination(),     // 그대로 사용
+        command.deliveryPolicy()   // 그대로 사용
+    );
+    return orderStore.store(order);
+}
+```
+
+#### ⚠️ Command DTO 추가 (필요시만):
+
+**추가해야 하는 경우:**
+- Domain과 구조가 완전히 다른 경우
+- API 통신 최적화가 필요한 경우 (대량 데이터 전송 등)
+- 보안상 Domain을 그대로 노출하면 안 되는 경우
+- ID가 있는 Entity를 생성 요청으로 받아야 하는 경우
+
+**예시:**
+```java
+// ⚠️ Command DTO가 필요한 경우
+public record UpdateOrderCommand(
+    Long orderId,
+    OrderStatus newStatus,        // Domain의 일부만 변경
+    String changeReason
+) {
+    // Domain의 Order Entity와는 구조가 다름
+}
+```
+
+**원칙 요약:**
+1. **먼저 Domain Model 사용을 고려** - 대부분의 경우 충분
+2. **정말 필요한 경우에만 DTO 추가** - 구조가 완전히 다를 때
+3. **API Layer에서 Domain Model 생성** - Controller에서 VO 생성 후 Command에 전달
+
+---
+
 ### Command 기본 템플릿
 
 ```java
