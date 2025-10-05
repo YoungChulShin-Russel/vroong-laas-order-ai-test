@@ -54,7 +54,7 @@ public record OrderItemDto(
         category,
         weightInKg != null ? new Weight(weightInKg) : null,
         (widthInCm != null && heightInCm != null && depthInCm != null)
-            ? new Volume(widthInCm, heightInCm, depthInCm)
+            ? new Volume(depthInCm, widthInCm, heightInCm)  // Volume(length, width, height)
             : null);
   }
 }
