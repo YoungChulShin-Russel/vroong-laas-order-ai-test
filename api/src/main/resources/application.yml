@@ -1,25 +1,100 @@
+# ============================================
+# 공통 설정
+# ============================================
+spring:
+  profiles:
+    active: local  # 기본 프로파일: local
+  application:
+    name: order-service
+
 server:
   port: 8080
   shutdown: graceful
 
+management:
+  tracing:
+    enabled: true
+    baggage:
+      enabled: true
+      remote-fields:
+        - x-request-id
+        - x-user-id
+      correlation:
+        enabled: true
+        fields:
+          - x-user-id
+
+app:
+  logging:
+    exclude-patterns:
+      - /actuator/**
+      - /health
+      - /favicon.ico
+
+---
+# ============================================
+# Local 환경 (개발용)
+# ============================================
 spring:
+  config:
+    activate:
+      on-profile: local
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: create-drop  # 로컬: 매번 스키마 재생성
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
-        format_sql: true
-    show-sql: false
+        format_sql: true     # 로컬: SQL 포맷팅
+    show-sql: true           # 로컬: SQL 로그 출력
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/order?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
     username: ${DB_USERNAME:order_user}
     password: ${DB_PASSWORD:order_password}
     hikari:
-      maximum-pool-size: 20
+      maximum-pool-size: 10  # 로컬: 적은 커넥션
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+logging:
+  level:
+    vroong.laas.order: DEBUG  # 로컬: 상세 로그
+    org.hibernate.SQL: DEBUG
+
+---
+# ============================================
+# Production 환경 (운영용)
+# ============================================
+spring:
+  config:
+    activate:
+      on-profile: prod
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate  # 운영: 스키마 검증만 (변경 금지)
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: false  # 운영: SQL 포맷팅 비활성화
+    show-sql: false      # 운영: SQL 로그 비활성화
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL}  # 운영: 환경변수 필수
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 20  # 운영: 많은 커넥션
       minimum-idle: 5
       connection-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
+
+logging:
+  level:
+    vroong.laas.order: INFO  # 운영: 기본 로그만
+    org.hibernate.SQL: WARN

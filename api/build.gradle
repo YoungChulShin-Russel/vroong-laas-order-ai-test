@@ -11,4 +11,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-autoconfigure'
+    
+    // Micrometer Tracing (Zipkin 제외)
+    implementation 'io.micrometer:micrometer-tracing-bridge-brave'
 }
