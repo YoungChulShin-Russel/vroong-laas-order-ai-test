@@ -16,6 +16,10 @@ import vroong.laas.order.core.domain.order.Order;
  * 주문 Controller
  *
  * <p>주문 관련 HTTP API 제공
+ *
+ * <p>응답 정책:
+ * - 성공: 객체 직접 반환 (OrderResponse 등)
+ * - 실패: ProblemDetail 반환 (WebApiControllerAdvice에서 처리)
  */
 @RestController
 @RequestMapping("/api/v1/orders")
@@ -34,7 +38,8 @@ public class OrderController {
    * @return 생성된 주문 정보 (HTTP 201 Created)
    */
   @PostMapping
-  public ResponseEntity<OrderResponse> createOrder(@RequestBody @Valid CreateOrderRequest request) {
+  public ResponseEntity<OrderResponse> createOrder(
+      @RequestBody @Valid CreateOrderRequest request) {
 
     // UseCase 실행
     Order order = createOrderUseCase.execute(request.toCommand());
@@ -42,6 +47,7 @@ public class OrderController {
     // Domain → Response DTO 변환
     OrderResponse response = OrderResponse.from(order);
 
+    // 201 Created + OrderResponse 반환
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 }

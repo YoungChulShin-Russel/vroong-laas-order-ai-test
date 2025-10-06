@@ -33,6 +33,7 @@ class WebApiControllerAdviceTest {
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().getStatus()).isEqualTo(400);
     assertThat(response.getBody().getDetail()).isEqualTo("출발지는 필수입니다");
+    assertThat(response.getBody().getProperties().get("errorCode")).isEqualTo("INVALID_INPUT");
     assertThat(response.getBody().getProperties().get("exception"))
         .isEqualTo("IllegalArgumentException");
     assertThat(response.getBody().getProperties().get("timestamp")).isNotNull();
@@ -52,6 +53,8 @@ class WebApiControllerAdviceTest {
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().getStatus()).isEqualTo(500);
     assertThat(response.getBody().getDetail()).isEqualTo("서버 오류가 발생했습니다");
+    assertThat(response.getBody().getProperties().get("errorCode"))
+        .isEqualTo("INTERNAL_SERVER_ERROR");
     assertThat(response.getBody().getProperties().get("exception")).isEqualTo("RuntimeException");
     assertThat(response.getBody().getProperties().get("timestamp")).isNotNull();
   }
@@ -69,6 +72,7 @@ class WebApiControllerAdviceTest {
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().getDetail()).isEqualTo("");
+    assertThat(response.getBody().getProperties().get("errorCode")).isEqualTo("INVALID_INPUT");
     assertThat(response.getBody().getProperties().get("exception"))
         .isEqualTo("IllegalArgumentException");
     assertThat(response.getBody().getProperties().get("timestamp")).isNotNull();
