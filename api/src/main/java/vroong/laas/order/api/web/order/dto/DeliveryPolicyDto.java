@@ -18,7 +18,9 @@ public record DeliveryPolicyDto(
     Boolean reservedDelivery,
 
     Instant reservedDeliveryStartTime,  // 선택
-    Instant pickupRequestTime           // 선택
+    
+    @NotNull(message = "픽업 요청 시간은 필수입니다")
+    Instant pickupRequestTime
 ) {
 
   /** DeliveryPolicy Domain → DeliveryPolicyDto 변환 */
