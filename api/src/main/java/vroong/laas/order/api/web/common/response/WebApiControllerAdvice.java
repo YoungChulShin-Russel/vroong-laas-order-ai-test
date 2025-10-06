@@ -1,4 +1,4 @@
-package vroong.laas.order.api.web.common.exception;
+package vroong.laas.order.api.web.common.response;
 
 import java.time.Instant;
 import java.util.HashMap;

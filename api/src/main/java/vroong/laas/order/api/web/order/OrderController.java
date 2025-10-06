@@ -2,10 +2,10 @@ package vroong.laas.order.api.web.order;
 
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import vroong.laas.order.api.web.order.request.CreateOrderRequest;
 import vroong.laas.order.api.web.order.response.OrderResponse;
@@ -38,16 +38,13 @@ public class OrderController {
    * @return 생성된 주문 정보 (HTTP 201 Created)
    */
   @PostMapping
-  public ResponseEntity<OrderResponse> createOrder(
-      @RequestBody @Valid CreateOrderRequest request) {
+  @ResponseStatus(HttpStatus.CREATED)
+  public OrderResponse createOrder(@RequestBody @Valid CreateOrderRequest request) {
 
     // UseCase 실행
     Order order = createOrderUseCase.execute(request.toCommand());
 
-    // Domain → Response DTO 변환
-    OrderResponse response = OrderResponse.from(order);
-
-    // 201 Created + OrderResponse 반환
-    return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    // Domain → Response DTO 변환 및 반환
+    return OrderResponse.from(order);
   }
 }

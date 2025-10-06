@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+
+import vroong.laas.order.api.web.common.response.WebApiControllerAdvice;
 import vroong.laas.order.core.domain.order.exception.OrderNotFoundException;
 
 @DisplayName("WebApiControllerAdvice 테스트")

@@ -667,3 +667,87 @@ public class OrderJpaEntity {
 - Domain ↔ Response 변환
 - 비즈니스 로직 금지
 - 트랜잭션 관리 금지 (UseCase에 위임)
+
+## Controller 응답 규칙
+
+### @ResponseStatus 사용 (권장) ⭐
+
+**사용 시기:**
+- 상태 코드가 고정된 경우
+- 생성(201), 삭제(204) 등
+
+**장점:**
+- 코드 간결
+- 의도 명확 (메서드 선언부에 상태 코드)
+- 불필요한 래핑 제거
+
+**예시:**
+```java
+// 생성 (201 Created)
+@PostMapping
+@ResponseStatus(HttpStatus.CREATED)
+public OrderResponse createOrder(@RequestBody @Valid CreateOrderRequest request) {
+    Order order = createOrderUseCase.execute(request.toCommand());
+    return OrderResponse.from(order);
+}
+
+// 조회 (200 OK - 기본값)
+@GetMapping("/{orderId}")
+public OrderResponse getOrder(@PathVariable Long orderId) {
+    Order order = getOrderUseCase.execute(orderId);
+    return OrderResponse.from(order);
+}
+
+// 삭제 (204 No Content)
+@DeleteMapping("/{orderId}")
+@ResponseStatus(HttpStatus.NO_CONTENT)
+public void cancelOrder(@PathVariable Long orderId) {
+    cancelOrderUseCase.execute(orderId);
+}
+```
+
+### ResponseEntity 사용 (필요시만)
+
+**사용 시기:**
+- Location 헤더 추가 필요
+- 조건부 상태 코드
+- 커스텀 헤더 추가
+
+**예시:**
+```java
+// Location 헤더 추가
+@PostMapping
+public ResponseEntity<OrderResponse> createOrder(...) {
+    Order order = createOrderUseCase.execute(...);
+    OrderResponse response = OrderResponse.from(order);
+    
+    return ResponseEntity
+        .status(HttpStatus.CREATED)
+        .header("Location", "/api/v1/orders/" + order.getId())
+        .body(response);
+}
+
+// 조건부 상태 코드
+@GetMapping("/{orderId}")
+public ResponseEntity<OrderResponse> getOrder(@PathVariable Long orderId) {
+    Optional<Order> order = getOrderUseCase.execute(orderId);
+    
+    return order
+        .map(o -> ResponseEntity.ok(OrderResponse.from(o)))
+        .orElse(ResponseEntity.notFound().build());
+}
+```
+
+### REST API 상태 코드 관례
+
+| 상황 | 상태 코드 | 권장 방법 |
+|---|---|---|
+| 조회 성공 | 200 OK | 객체 직접 반환 |
+| 생성 성공 | 201 Created | @ResponseStatus |
+| 수정 성공 | 200 OK | 객체 직접 반환 |
+| 삭제 성공 | 204 No Content | @ResponseStatus + void |
+| 유효성 검증 실패 | 400 Bad Request | 자동 (Bean Validation) |
+| 인증 실패 | 401 Unauthorized | Security 설정 |
+| 권한 없음 | 403 Forbidden | Security 설정 |
+| 리소스 없음 | 404 Not Found | Exception Handler |
+| 서버 오류 | 500 Internal Server Error | Exception Handler |
