@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    
+    <!-- ============================================ -->
+    <!-- 공통 설정 -->
+    <!-- ============================================ -->
+    
+    <!-- 로그 패턴 정의 -->
+    <property name="LOG_PATTERN" 
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{traceId:-},%X{spanId:-}]%X{x-user-id:+ [userId:%X{x-user-id}]} %-5level %logger{36} - %msg%n"/>
+    
+    <!-- Console Appender - 사람이 읽기 쉬운 형식 (Local) -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+    
+    <!-- JSON Appender - ELK 스택용 (Production) -->
+    <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>spanId</includeMdcKeyName>
+            <includeMdcKeyName>x-user-id</includeMdcKeyName>
+            <customFields>{"service":"order-service","environment":"${SPRING_PROFILES_ACTIVE:-unknown}"}</customFields>
+        </encoder>
+    </appender>
+    
+    <!-- ============================================ -->
+    <!-- Local 환경 (개발용) -->
+    <!-- ============================================ -->
+    <springProfile name="local">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+        
+        <!-- 프로젝트 로그: DEBUG -->
+        <logger name="vroong.laas.order" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
+        
+        <!-- Hibernate SQL: DEBUG -->
+        <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
+        
+        <!-- Hibernate 파라미터: TRACE -->
+        <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
+    </springProfile>
+    
+    <!-- ============================================ -->
+    <!-- Production 환경 (운영용) - K8s + ELK -->
+    <!-- ============================================ -->
+    <springProfile name="prod">
+        <root level="INFO">
+            <appender-ref ref="JSON_CONSOLE"/>
+        </root>
+        
+        <!-- 프로젝트 로그: INFO -->
+        <logger name="vroong.laas.order" level="INFO" additivity="false">
+            <appender-ref ref="JSON_CONSOLE"/>
+        </logger>
+        
+        <!-- Hibernate SQL: WARN -->
+        <logger name="org.hibernate.SQL" level="WARN" additivity="false">
+            <appender-ref ref="JSON_CONSOLE"/>
+        </logger>
+    </springProfile>
+    
+</configuration>
