@@ -26,6 +26,15 @@
             <customFields>{"service":"order-service","environment":"${SPRING_PROFILES_ACTIVE:-unknown}"}</customFields>
         </encoder>
     </appender>
+
+    <!-- Async Appender - 성능 최적화 (Production) -->
+    <appender name="ASYNC_JSON_CONSOLE" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="JSON_CONSOLE"/>
+        <queueSize>512</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <neverBlock>false</neverBlock>
+        <includeCallerData>false</includeCallerData>
+    </appender>
     
     <!-- ============================================ -->
     <!-- Local 환경 (개발용) -->
@@ -52,21 +61,21 @@
     </springProfile>
     
     <!-- ============================================ -->
-    <!-- Production 환경 (운영용) - K8s + ELK -->
+    <!-- Production 환경 (운영용) - K8s + ELK + 비동기 로깅 -->
     <!-- ============================================ -->
     <springProfile name="prod">
         <root level="INFO">
-            <appender-ref ref="JSON_CONSOLE"/>
+            <appender-ref ref="ASYNC_JSON_CONSOLE"/>
         </root>
         
         <!-- 프로젝트 로그: INFO -->
         <logger name="vroong.laas.order" level="INFO" additivity="false">
-            <appender-ref ref="JSON_CONSOLE"/>
+            <appender-ref ref="ASYNC_JSON_CONSOLE"/>
         </logger>
         
         <!-- Hibernate SQL: WARN -->
         <logger name="org.hibernate.SQL" level="WARN" additivity="false">
-            <appender-ref ref="JSON_CONSOLE"/>
+            <appender-ref ref="ASYNC_JSON_CONSOLE"/>
         </logger>
     </springProfile>
     
