@@ -4,6 +4,7 @@
 spring:
   profiles:
     active: local  # 기본 프로파일: local
+    include: infrastructure  # Infrastructure 설정 포함
   application:
     name: order-service
 
@@ -42,7 +43,7 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: create-drop  # 로컬: 매번 스키마 재생성
+      ddl-auto: none  # Flyway가 스키마 관리
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect

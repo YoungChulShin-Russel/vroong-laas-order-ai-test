@@ -1,0 +1,17 @@
+# ============================================
+# Infrastructure 모듈 설정
+# ============================================
+
+# 향후 환경별 Infrastructure 설정이 필요한 경우 아래 형식으로 추가
+#
+# ---
+# spring:
+#   config:
+#     activate:
+#       on-profile: local
+#
+# ---
+# spring:
+#   config:
+#     activate:
+#       on-profile: prod

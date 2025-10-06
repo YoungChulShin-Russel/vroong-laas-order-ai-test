@@ -4,6 +4,10 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-autoconfigure'
 
+    // Flyway (DB 마이그레이션)
+    implementation 'org.flywaydb:flyway-core'
+    runtimeOnly 'org.flywaydb:flyway-mysql'
+
     // kafka event 발행
 //    implementation 'com.vroong.msa.kafka:vroong-msa-kafka-event:1.0.7'
 //    implementation 'com.vroong.msa.kafka:vroong-msa-kafka-event-publisher:0.0.15'

@@ -7,8 +7,8 @@ services:
     restart: unless-stopped
     ports:
       - '3306:3306'
-    volumes:
-      - mysql_data:/var/lib/mysql
+#    volumes:
+#      - mysql_data:/var/lib/mysql
     command: [ '--character-set-server=utf8mb4', '--collation-server=utf8mb4_unicode_ci' ]
     environment:
       MYSQL_DATABASE: 'order'
@@ -76,5 +76,5 @@ services:
 #      - "${PWD}/localstack:/etc/localstack/init/ready.d"
 #      - "/var/run/docker.sock:/var/run/docker.sock"
 
-volumes:
-  mysql_data:
+#volumes:
+#  mysql_data:
