@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import vroong.laas.order.core.domain.order.exception.OrderNotFoundException;
 
 @DisplayName("WebApiControllerAdvice 테스트")
 class WebApiControllerAdviceTest {
@@ -17,6 +18,26 @@ class WebApiControllerAdviceTest {
   @BeforeEach
   void setUp() {
     advice = new WebApiControllerAdvice();
+  }
+
+  @Test
+  @DisplayName("BaseException 처리 - 400 Bad Request 응답")
+  void handleBaseException() {
+    // given
+    OrderNotFoundException exception = new OrderNotFoundException(1L);
+
+    // when
+    ResponseEntity<ProblemDetail> response = advice.handleBaseException(exception);
+
+    // then
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getStatus()).isEqualTo(400);
+    assertThat(response.getBody().getDetail()).contains("주문을 찾을 수 없습니다");
+    assertThat(response.getBody().getProperties().get("errorCode")).isEqualTo("ORDER_NOT_FOUND");
+    assertThat(response.getBody().getProperties().get("exception"))
+        .isEqualTo("OrderNotFoundException");
+    assertThat(response.getBody().getProperties().get("timestamp")).isNotNull();
   }
 
   @Test

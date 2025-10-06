@@ -1,12 +1,14 @@
-package vroong.laas.order.api.web.common.dto;
+package vroong.laas.order.core.common.exception;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 /**
- * API 에러 코드
+ * 에러 코드 정의
  *
- * <p>모든 에러 코드는 이 enum으로 중앙 관리합니다.
+ * <p>모든 에러 코드를 중앙에서 관리합니다.
+ *
+ * <p>HTTP 상태 코드와는 별개로, 비즈니스 로직 또는 특정 상황에 대한 상세 에러를 클라이언트에게 전달하기 위해 사용됩니다.
  */
 @Getter
 @RequiredArgsConstructor
@@ -27,6 +29,22 @@ public enum ErrorCode {
 
   /** 리소스를 찾을 수 없음 */
   NOT_FOUND("요청한 리소스를 찾을 수 없습니다"),
+
+  // 비즈니스 로직 에러 (주문)
+  /** 주문을 찾을 수 없음 */
+  ORDER_NOT_FOUND("주문을 찾을 수 없습니다"),
+
+  /** 이미 배정된 주문 */
+  ORDER_ALREADY_ASSIGNED("이미 다른 기사님이 배정된 주문입니다"),
+
+  /** 취소할 수 없는 주문 */
+  ORDER_NOT_CANCELLABLE("현재 상태에서는 취소할 수 없습니다"),
+
+  /** 수정할 수 없는 주문 */
+  ORDER_NOT_MODIFIABLE("현재 상태에서는 수정할 수 없습니다"),
+
+  /** 유효하지 않은 주문 */
+  INVALID_ORDER("유효하지 않은 주문입니다"),
 
   // 5xx: 서버 에러
   /** 알 수 없는 서버 에러 */

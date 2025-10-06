@@ -12,7 +12,8 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import vroong.laas.order.api.web.common.dto.ErrorCode;
+import vroong.laas.order.core.common.exception.BaseException;
+import vroong.laas.order.core.common.exception.ErrorCode;
 
 /**
  * Web API 전역 예외 처리기
@@ -31,6 +32,30 @@ import vroong.laas.order.api.web.common.dto.ErrorCode;
 public class WebApiControllerAdvice {
 
   private static final Logger log = LoggerFactory.getLogger(WebApiControllerAdvice.class);
+
+  /**
+   * 커스텀 예외 처리
+   *
+   * <p>Domain/Application Layer에서 발생하는 모든 커스텀 예외를 처리합니다.
+   *
+   * <p>처리 대상:
+   * - OrderNotFoundException
+   * - OrderAlreadyAssignedException
+   * - OrderNotCancellableException
+   * - InvalidOrderException 등
+   *
+   * @param e BaseException
+   * @return 400 Bad Request + ProblemDetail
+   */
+  @ExceptionHandler(BaseException.class)
+  public ResponseEntity<ProblemDetail> handleBaseException(BaseException e) {
+    log.warn("Base exception: {} - {}", e.getErrorCode().getCode(), e.getMessage());
+
+    ProblemDetail problem =
+        createProblemDetail(HttpStatus.BAD_REQUEST, e.getErrorCode(), e.getMessage(), e);
+
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+  }
 
   /**
    * Domain 검증 예외 처리

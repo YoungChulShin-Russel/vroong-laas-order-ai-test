@@ -81,6 +81,7 @@ order-service/
 - [ ] 트랜잭션이 Repository Adapter에 있는가? (@Transactional)
 - [ ] 여러 Aggregate 수정 시 TransactionTemplate 사용했는가?
 - [ ] Controller에 비즈니스 로직이 없는가?
+- [ ] 모든 커스텀 Exception이 BaseException을 상속받는가? ⭐
 
 ## 상세 규칙 문서
 
@@ -172,6 +173,7 @@ order-service/
 - [ ] 트랜잭션이 Repository Adapter에 있는가? (@Transactional)
 - [ ] 여러 Aggregate 수정 시 TransactionTemplate 사용했는가?
 - [ ] Controller에 비즈니스 로직이 없는가?
+- [ ] 모든 커스텀 Exception이 BaseException을 상속받는가? ⭐
 
 ## 상세 규칙 문서
 

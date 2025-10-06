@@ -504,10 +504,171 @@ public class OrderCompletionService {
 }
 ```
 
+## Domain Exception 규칙
+
+### 저장소 구조
+
+```
+core/
+├── common/
+│   └── exception/
+│       ├── BaseException.java      # ⭐ 모든 커스텀 예외의 기반 클래스
+│       └── ErrorCode.java          # 에러 코드 enum
+│
+└── domain/
+    └── order/
+        ├── Order.java
+        └── exception/              # ⭐ Domain Exception
+            ├── OrderNotFoundException.java
+            ├── OrderAlreadyAssignedException.java
+            ├── OrderNotCancellableException.java
+            └── InvalidOrderException.java
+```
+
+### 반드시 해야 할 것 ⭐
+
+1. **모든 커스텀 Exception은 BaseException을 상속**
+2. ErrorCode를 포함하여 구조화된 에러 정보 전달
+3. 명확한 예외 메시지 제공
+4. 생성자 오버로딩으로 다양한 사용 케이스 지원
+
+### BaseException 템플릿
+
+```java
+// core/common/exception/BaseException.java
+@Getter
+public abstract class BaseException extends RuntimeException {
+  
+  private final ErrorCode errorCode;
+  
+  protected BaseException(ErrorCode errorCode, String message) {
+    super(message);
+    this.errorCode = errorCode;
+  }
+  
+  protected BaseException(ErrorCode errorCode) {
+    super(errorCode.getMessage());
+    this.errorCode = errorCode;
+  }
+  
+  protected BaseException(ErrorCode errorCode, String message, Throwable cause) {
+    super(message, cause);
+    this.errorCode = errorCode;
+  }
+}
+```
+
+### Domain Exception 템플릿
+
+```java
+// core/domain/order/exception/OrderNotFoundException.java
+public class OrderNotFoundException extends BaseException {
+  
+  public OrderNotFoundException(Long orderId) {
+    super(ErrorCode.ORDER_NOT_FOUND, "주문을 찾을 수 없습니다. ID: " + orderId);
+  }
+  
+  public OrderNotFoundException(String orderNumber) {
+    super(ErrorCode.ORDER_NOT_FOUND, "주문을 찾을 수 없습니다. 주문번호: " + orderNumber);
+  }
+}
+
+// core/domain/order/exception/OrderNotCancellableException.java
+public class OrderNotCancellableException extends BaseException {
+  
+  public OrderNotCancellableException(Long orderId, OrderStatus currentStatus) {
+    super(
+        ErrorCode.ORDER_NOT_CANCELLABLE,
+        "현재 상태(" + currentStatus + ")에서는 취소할 수 없습니다. 주문 ID: " + orderId);
+  }
+}
+```
+
+### ErrorCode enum
+
+```java
+// core/common/exception/ErrorCode.java
+@Getter
+@RequiredArgsConstructor
+public enum ErrorCode {
+  
+  // 4xx: 클라이언트 에러
+  VALIDATION_ERROR("입력값 검증에 실패했습니다"),
+  INVALID_INPUT("잘못된 입력입니다"),
+  
+  // 비즈니스 로직 에러
+  ORDER_NOT_FOUND("주문을 찾을 수 없습니다"),
+  ORDER_ALREADY_ASSIGNED("이미 다른 기사님이 배정된 주문입니다"),
+  ORDER_NOT_CANCELLABLE("현재 상태에서는 취소할 수 없습니다"),
+  
+  // 5xx: 서버 에러
+  INTERNAL_SERVER_ERROR("서버 오류가 발생했습니다");
+  
+  private final String message;
+  
+  public String getCode() {
+    return this.name();
+  }
+}
+```
+
+### Domain에서 Exception 사용
+
+```java
+// core/domain/order/Order.java
+public class Order {
+  
+  public void cancel(String reason) {
+    if (!isCancellable()) {
+      throw new OrderNotCancellableException(this.id, this.status);  // ⭐ BaseException 상속
+    }
+    this.status = OrderStatus.CANCELLED;
+  }
+  
+  private void validate() {
+    if (items == null || items.isEmpty()) {
+      throw new InvalidOrderException("주문 상품이 없습니다");  // ⭐ BaseException 상속
+    }
+  }
+}
+```
+
+### Exception 처리 (API Layer)
+
+```java
+// api/web/common/exception/WebApiControllerAdvice.java
+@RestControllerAdvice
+public class WebApiControllerAdvice {
+  
+  @ExceptionHandler(BaseException.class)  // ⭐ BaseException으로 모든 커스텀 예외 처리
+  public ResponseEntity<ProblemDetail> handleBaseException(BaseException e) {
+    ProblemDetail problem = createProblemDetail(
+        HttpStatus.BAD_REQUEST,
+        e.getErrorCode(),  // ErrorCode 자동 연결
+        e.getMessage(),
+        e
+    );
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+  }
+}
+```
+
+**응답 예시:**
+```json
+{
+  "status": 400,
+  "detail": "주문을 찾을 수 없습니다. ID: 1",
+  "timestamp": "2025-01-06T12:00:00Z",
+  "errorCode": "ORDER_NOT_FOUND",
+  "exception": "OrderNotFoundException"
+}
+```
+
 ## 중요 원칙
 1. Domain은 순수 Java만
 2. **모든 외부 의존성 Port는 required/에 위치** (일관성)
-3. 순수 Domain 모델만 domain/ 직속
-4. Domain Service는 계산만
-5. 저장/조회는 Application Layer에서 Store/Reader를 통해
-6. Infrastructure는 절대 의존하지 않음 (인터페이스로만 의존)
+3. **모든 커스텀 Exception은 BaseException을 상속** ⭐
+4. 순수 Domain 모델만 domain/ 직속
+5. Domain Service는 계산만
+6. 저장/조회는 Application Layer에서 Store/Reader를 통해
+7. Infrastructure는 절대 의존하지 않음 (인터페이스로만 의존)
