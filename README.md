@@ -120,9 +120,13 @@ vroong-laas-order-ai-test/
 ## 🛠️ 기술 스택
 
 ### Core
-- **Java 21**
-- **Spring Boot 3.3.5**
+- **Java 25**
+- **Spring Boot 4.0.0-M3**
 - **Gradle 9.1.0**
+
+### 데이터베이스
+- **MySQL 8.0.27**
+- **Flyway 11.x** - 스키마 버전 관리 (Local 환경에서만 자동 실행)
 
 ### 라이브러리
 
@@ -130,6 +134,7 @@ vroong-laas-order-ai-test/
 |-----------|------|------|
 | **Lombok** | 보일러플레이트 코드 제거 (`@Getter`, `@Builder` 등) | [projectlombok.org](https://projectlombok.org/) |
 | **Spring Data JPA** | 데이터베이스 접근 (Infrastructure Layer) | [spring.io/projects/spring-data-jpa](https://spring.io/projects/spring-data-jpa) |
+| **Flyway** | 데이터베이스 마이그레이션 (Local 환경 자동 실행) | [flywaydb.org](https://flywaydb.org/) |
 | **JUnit 5** | 테스트 프레임워크 | [junit.org/junit5](https://junit.org/junit5/) |
 | **AssertJ** | 가독성 좋은 Assertion | [assertj.github.io](https://assertj.github.io/doc/) |
 | **Mockito** | Mock 객체 생성 (Application/Interface Layer 테스트) | [site.mockito.org](https://site.mockito.org/) |
@@ -195,6 +200,10 @@ docker-compose logs -f mysql
 
 # 컨테이너 종료
 docker-compose down
+
+# 데이터 초기화 (개발 시)
+docker-compose down -v  # 볼륨 삭제
+docker-compose up -d
 ```
 
 **서비스 정보:**
@@ -228,9 +237,26 @@ docker-compose down
 cd scripts
 docker-compose up -d
 
-# 2. 애플리케이션 실행
+# 2. 애플리케이션 실행 (Flyway 자동 마이그레이션)
 cd ..
 ./gradlew :api:bootRun
+
+# ✅ 로그에서 Flyway 마이그레이션 확인
+# INFO v.l.o.i.common.config.FlywayConfig - ===== Flyway Migration Starting =====
+# INFO o.f.core.internal.command.DbMigrate - Successfully applied 1 migration
+```
+
+### 데이터베이스 확인
+```bash
+# 테이블 목록 확인
+docker exec order-mysql mysql -u order_user -porder_password order -e "SHOW TABLES;"
+
+# 특정 테이블 구조 확인
+docker exec order-mysql mysql -u order_user -porder_password order -e "DESC orders;"
+
+# Flyway 마이그레이션 이력 확인
+docker exec order-mysql mysql -u order_user -porder_password order \
+  -e "SELECT installed_rank, version, description, installed_on FROM flyway_schema_history;"
 ```
 
 ---
@@ -238,6 +264,7 @@ cd ..
 ## 📚 문서
 
 - **[도메인 정책](./도메인정책.md)** - 핵심 비즈니스 규칙 ⭐
+- **[Flyway 마이그레이션 가이드](./documents/flyway-guide.md)** - DB 스키마 버전 관리 ⭐
 - **[아키텍처](./documents/architecture.md)** - 전체 시스템 구조
 - **[ERD](./documents/ERD.md)** - 데이터베이스 스키마
 - **[개발 가이드](./.cursor/rules/)** - 계층별 코딩 규칙
@@ -251,6 +278,12 @@ cd ..
 - `05-interface.mdc` - Interface Layer 규칙
 - `06-validation.mdc` - 유효성 검증 규칙
 - `07-testing.mdc` - 테스트 작성 가이드
+
+### Flyway 마이그레이션
+- **Entity 변경 시 반드시 Flyway 마이그레이션 파일 추가**
+- 파일 네이밍: `V{YYYYMMDD}_{NNN}__{Description}.sql`
+- 예시: `V20250106_001__Create_order_aggregate.sql`
+- **자세한 가이드는 [Flyway 마이그레이션 가이드](./documents/flyway-guide.md) 참고**
 
 ---
 
@@ -280,8 +313,17 @@ cd ..
 
 1. 새로운 기능 개발 전 [도메인정책.md](./도메인정책.md) 확인
 2. 계층별 규칙([.cursor/rules/](./.cursor/rules/)) 준수
-3. 테스트 코드 작성 필수
-4. 린터 에러 해결 후 커밋
+3. **Entity 변경 시 Flyway 마이그레이션 파일 추가** ([가이드](./documents/flyway-guide.md))
+4. 테스트 코드 작성 필수
+5. 린터 에러 해결 후 커밋
+
+### Entity 변경 시 체크리스트
+- [ ] Domain Entity 변경 완료
+- [ ] JPA Entity 변경 완료
+- [ ] Flyway 마이그레이션 파일 생성 (`V{YYYYMMDD}_{NNN}__{Description}.sql`)
+- [ ] 로컬에서 마이그레이션 테스트 완료
+- [ ] 테이블 구조 확인 완료
+- [ ] 롤백 스크립트 준비 (문서화)
 
 ---
 
