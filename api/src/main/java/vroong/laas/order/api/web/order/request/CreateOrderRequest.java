@@ -1,4 +1,4 @@
-package vroong.laas.order.api.web.order.dto.request;
+package vroong.laas.order.api.web.order.request;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;

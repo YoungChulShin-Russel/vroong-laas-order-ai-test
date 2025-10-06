@@ -7,8 +7,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import vroong.laas.order.api.web.order.dto.request.CreateOrderRequest;
-import vroong.laas.order.api.web.order.dto.response.OrderResponse;
+import vroong.laas.order.api.web.order.request.CreateOrderRequest;
+import vroong.laas.order.api.web.order.response.OrderResponse;
 import vroong.laas.order.core.application.order.usecase.CreateOrderUseCase;
 import vroong.laas.order.core.domain.order.Order;
 

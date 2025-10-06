@@ -1,4 +1,4 @@
-package vroong.laas.order.api.web.order.dto.response;
+package vroong.laas.order.api.web.order.response;
 
 import java.time.Instant;
 import java.util.List;
