@@ -12,6 +12,12 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-autoconfigure'
     
+    // Actuator (Health Check, Metrics, Kubernetes Probe)
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    
+    // Prometheus (Metrics for Production)
+    runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
+    
     // Micrometer Tracing (Zipkin 제외)
     implementation 'io.micrometer:micrometer-tracing-bridge-brave'
     

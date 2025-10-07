@@ -140,6 +140,8 @@ vroong-laas-order-ai-test/
 | **AWS Advanced JDBC Wrapper** | Aurora MySQL 최적화 (빠른 Failover, Read/Write Splitting) | [github.com/aws/aws-advanced-jdbc-wrapper](https://github.com/aws/aws-advanced-jdbc-wrapper) |
 | **HikariCP** | Connection Pool (고성능 JDBC Connection Pool) | [github.com/brettwooldridge/HikariCP](https://github.com/brettwooldridge/HikariCP) |
 | **Flyway** | 데이터베이스 마이그레이션 (Local 환경 자동 실행) | [flywaydb.org](https://flywaydb.org/) |
+| **Spring Boot Actuator** | Health Check, Metrics, Kubernetes Probe 지원 | [docs.spring.io/spring-boot/reference/actuator](https://docs.spring.io/spring-boot/reference/actuator/index.html) |
+| **Micrometer Prometheus** | Prometheus 메트릭 수집 (운영 모니터링) | [micrometer.io](https://micrometer.io/) |
 | **JUnit 5** | 테스트 프레임워크 | [junit.org/junit5](https://junit.org/junit5/) |
 | **AssertJ** | 가독성 좋은 Assertion | [assertj.github.io](https://assertj.github.io/doc/) |
 | **Mockito** | Mock 객체 생성 (Application/Interface Layer 테스트) | [site.mockito.org](https://site.mockito.org/) |
@@ -270,6 +272,7 @@ docker exec order-mysql mysql -u order_user -porder_password order \
 
 - **[도메인 정책](./도메인정책.md)** - 핵심 비즈니스 규칙 ⭐
 - **[Flyway 마이그레이션 가이드](./documents/flyway-guide.md)** - DB 스키마 버전 관리 ⭐
+- **[Actuator 가이드](./documents/actuator-guide.md)** - Health Check, Kubernetes Probe 설정 ⭐
 - **[AWS Aurora MySQL 설정 가이드](./documents/aws-aurora-setup.md)** - Production 환경 배포 ⭐
 - **[아키텍처](./documents/architecture.md)** - 전체 시스템 구조
 - **[ERD](./documents/ERD.md)** - 데이터베이스 스키마

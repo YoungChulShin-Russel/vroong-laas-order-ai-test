@@ -29,6 +29,17 @@ order:
       idle-timeout: 600000
       max-lifetime: 1800000
 
+# Actuator 설정 (Local 환경 - 개발 편의)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'  # 로컬: 모든 엔드포인트 노출 (개발/디버깅 용이)
+  
+  endpoint:
+    health:
+      show-details: always  # 로컬: 항상 Health Check 상세 정보 노출
+
 # 로그 설정
 logging:
   level:

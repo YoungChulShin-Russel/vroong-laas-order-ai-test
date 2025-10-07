@@ -51,6 +51,24 @@ order:
         read-only: true  # 읽기 전용 설정
         connection-init-sql: SELECT 1
 
+# Actuator 설정 (Production 환경 - 보안)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus  # 운영: 필요한 엔드포인트만 노출
+  
+  endpoint:
+    health:
+      show-details: never  # 운영: 상세 정보 노출 안 함 (보안)
+  
+  # Prometheus Metrics 설정
+  prometheus:
+    metrics:
+      export:
+        step: 1m
+        enabled: true
+
 # 로그 설정
 logging:
   level:
