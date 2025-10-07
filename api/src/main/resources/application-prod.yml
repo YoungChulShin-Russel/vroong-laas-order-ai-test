@@ -2,8 +2,9 @@
 # Production 환경 설정 (운영용 - AWS Aurora MySQL)
 # ============================================
 
-# JPA/Hibernate 설정
+# Spring Boot 설정
 spring:
+  # JPA/Hibernate 설정
   jpa:
     open-in-view: false
     hibernate:
@@ -13,43 +14,39 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: false  # 운영: SQL 포맷팅 비활성화
     show-sql: false      # 운영: SQL 로그 비활성화
-
-# Production DataSource (Writer/Reader 분리)
-order:
+  
+  # Production DataSource (AWS Advanced JDBC Driver)
   datasource:
-    # Writer DataSource (Aurora Writer Endpoint)
-    write:
-      driver-class-name: software.aws.rds.jdbc.Driver
-      # AWS Advanced JDBC Wrapper URL 형식
-      # wrapperPlugins: failover (빠른 Failover), efm2 (Enhanced Failure Monitoring)
-      jdbc-url: jdbc:aws-wrapper:mysql://${DB_WRITER_ENDPOINT:your-cluster.cluster-xxxxx.ap-northeast-2.rds.amazonaws.com}:3306/order?wrapperPlugins=failover,efm2&connectTimeout=3000&socketTimeout=10000&useSSL=true&requireSSL=true&serverTimezone=Asia/Seoul
-      username: ${DB_USERNAME}
-      password: ${DB_PASSWORD}
-      hikari:
-        pool-name: OrderWriterPool
-        maximum-pool-size: 20   # Writer: 쓰기 작업용 (적게)
-        minimum-idle: 5
-        connection-timeout: 3000
-        idle-timeout: 600000
-        max-lifetime: 1800000
-        connection-init-sql: SELECT 1  # Connection 유효성 검증
+    # AWS Advanced JDBC Driver 사용
+    # - Cluster Endpoint 하나로 자동 Read/Write Splitting
+    # - IAM 인증으로 비밀번호 불필요 (토큰 자동 생성/갱신)
+    # - Failover 1-2초 자동 처리
+    driver-class-name: software.amazon.jdbc.Driver
     
-    # Reader DataSource (Aurora Reader Endpoint)
-    read:
-      driver-class-name: software.aws.rds.jdbc.Driver
-      # Reader Endpoint는 자동으로 Read Replica들에 로드밸런싱
-      jdbc-url: jdbc:aws-wrapper:mysql://${DB_READER_ENDPOINT:your-cluster.cluster-ro-xxxxx.ap-northeast-2.rds.amazonaws.com}:3306/order?wrapperPlugins=failover,efm2&connectTimeout=3000&socketTimeout=10000&useSSL=true&requireSSL=true&serverTimezone=Asia/Seoul
-      username: ${DB_USERNAME}
-      password: ${DB_PASSWORD}
-      hikari:
-        pool-name: OrderReaderPool
-        maximum-pool-size: 50   # Reader: 읽기 작업용 (많이)
-        minimum-idle: 10
-        connection-timeout: 3000
-        idle-timeout: 600000
-        max-lifetime: 1800000
-        read-only: true  # 읽기 전용 설정
-        connection-init-sql: SELECT 1
+    # URL 형식: jdbc:mysql:aws://cluster-endpoint:port/database?wrapperPlugins=...
+    # wrapperPlugins:
+    #   - iam: IAM 인증 (DB 비밀번호 불필요)
+    #   - readWriteSplitting: @Transactional(readOnly=true) → Reader, @Transactional → Writer
+    #   - failover: DNS 대기 없이 1-2초 내 자동 Failover
+    url: jdbc:mysql:aws://${DB_CLUSTER_ENDPOINT:your-cluster.cluster-xxxxx.ap-northeast-2.rds.amazonaws.com}:3306/order?wrapperPlugins=iam,readWriteSplitting,failover&clusterInstanceHostPattern=?.cluster-xxxxx.ap-northeast-2.rds.amazonaws.com&useSSL=true&requireSSL=true&serverTimezone=Asia/Seoul
+    
+    # IAM 인증 사용 (username만 필요, password 불필요)
+    username: ${DB_USERNAME:order_user}
+    # password는 IAM 토큰으로 자동 생성되므로 설정 불필요
+    
+    # HikariCP 설정 (필수!)
+    # - AWS Driver는 Connection Pooling 필수 (성능 50배 차이)
+    hikari:
+      pool-name: OrderHikariPool
+      # 읽기 트래픽이 90%이므로 Pool 크게 설정
+      maximum-pool-size: 50
+      minimum-idle: 10
+      connection-timeout: 3000
+      idle-timeout: 600000
+      max-lifetime: 1800000  # 30분 (IAM 토큰 갱신 주기 고려)
+      # Connection 유효성 검증 (Failover 감지)
+      connection-test-query: SELECT 1
+      validation-timeout: 3000
 
 # Actuator 설정 (Production 환경 - 보안)
 management:
@@ -74,4 +71,5 @@ logging:
   level:
     vroong.laas.order: INFO  # 운영: 기본 로그만
     org.hibernate.SQL: WARN
-    software.aws.rds: INFO  # AWS JDBC Wrapper 로그
+    software.amazon.jdbc: INFO  # AWS Advanced JDBC Driver 로그
+    # Failover, IAM 인증, Read/Write Splitting 로그 확인 가능
