@@ -34,7 +34,7 @@ app:
 
 ---
 # ============================================
-# Local 환경 (개발용)
+# Local 환경 (개발용 - Docker MySQL)
 # ============================================
 spring:
   config:
@@ -49,15 +49,19 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true     # 로컬: SQL 포맷팅
     show-sql: true           # 로컬: SQL 로그 출력
+
+# Local DataSource (단일 DataSource)
+order:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/order?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+    jdbc-url: jdbc:mysql://localhost:3306/order?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
     username: ${DB_USERNAME:order_user}
     password: ${DB_PASSWORD:order_password}
     hikari:
+      pool-name: OrderLocalPool
       maximum-pool-size: 10  # 로컬: 적은 커넥션
       minimum-idle: 2
-      connection-timeout: 30000
+      connection-timeout: 3000
       idle-timeout: 600000
       max-lifetime: 1800000
 
@@ -68,7 +72,7 @@ logging:
 
 ---
 # ============================================
-# Production 환경 (운영용)
+# Production 환경 (운영용 - AWS Aurora MySQL)
 # ============================================
 spring:
   config:
@@ -83,19 +87,46 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: false  # 운영: SQL 포맷팅 비활성화
     show-sql: false      # 운영: SQL 로그 비활성화
+
+# Production DataSource (Writer/Reader 분리)
+order:
   datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: ${DB_URL}  # 운영: 환경변수 필수
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
-    hikari:
-      maximum-pool-size: 20  # 운영: 많은 커넥션
-      minimum-idle: 5
-      connection-timeout: 30000
-      idle-timeout: 600000
-      max-lifetime: 1800000
+    # Writer DataSource (Aurora Writer Endpoint)
+    write:
+      driver-class-name: software.aws.rds.jdbc.Driver
+      # AWS Advanced JDBC Wrapper URL 형식
+      # wrapperPlugins: failover (빠른 Failover), efm2 (Enhanced Failure Monitoring)
+      jdbc-url: jdbc:aws-wrapper:mysql://${DB_WRITER_ENDPOINT:your-cluster.cluster-xxxxx.ap-northeast-2.rds.amazonaws.com}:3306/order?wrapperPlugins=failover,efm2&connectTimeout=3000&socketTimeout=10000&useSSL=true&requireSSL=true&serverTimezone=Asia/Seoul
+      username: ${DB_USERNAME}
+      password: ${DB_PASSWORD}
+      hikari:
+        pool-name: OrderWriterPool
+        maximum-pool-size: 20   # Writer: 쓰기 작업용 (적게)
+        minimum-idle: 5
+        connection-timeout: 3000
+        idle-timeout: 600000
+        max-lifetime: 1800000
+        connection-init-sql: SELECT 1  # Connection 유효성 검증
+    
+    # Reader DataSource (Aurora Reader Endpoint)
+    read:
+      driver-class-name: software.aws.rds.jdbc.Driver
+      # Reader Endpoint는 자동으로 Read Replica들에 로드밸런싱
+      jdbc-url: jdbc:aws-wrapper:mysql://${DB_READER_ENDPOINT:your-cluster.cluster-ro-xxxxx.ap-northeast-2.rds.amazonaws.com}:3306/order?wrapperPlugins=failover,efm2&connectTimeout=3000&socketTimeout=10000&useSSL=true&requireSSL=true&serverTimezone=Asia/Seoul
+      username: ${DB_USERNAME}
+      password: ${DB_PASSWORD}
+      hikari:
+        pool-name: OrderReaderPool
+        maximum-pool-size: 50   # Reader: 읽기 작업용 (많이)
+        minimum-idle: 10
+        connection-timeout: 3000
+        idle-timeout: 600000
+        max-lifetime: 1800000
+        read-only: true  # 읽기 전용 설정
+        connection-init-sql: SELECT 1
 
 logging:
   level:
     vroong.laas.order: INFO  # 운영: 기본 로그만
     org.hibernate.SQL: WARN
+    software.aws.rds: INFO  # AWS JDBC Wrapper 로그

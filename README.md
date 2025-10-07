@@ -125,7 +125,10 @@ vroong-laas-order-ai-test/
 - **Gradle 9.1.0**
 
 ### 데이터베이스
-- **MySQL 8.0.27**
+- **MySQL 8.0.27** (Local - Docker)
+- **AWS Aurora MySQL 3.x** (Production - MySQL 8.0 호환)
+- **AWS Advanced JDBC Wrapper 2.6.4** - Aurora 최적화 (Failover 1-2초, Read/Write Splitting)
+- **HikariCP** - Connection Pool (Writer: 20, Reader: 50)
 - **Flyway 11.x** - 스키마 버전 관리 (Local 환경에서만 자동 실행)
 
 ### 라이브러리
@@ -134,6 +137,8 @@ vroong-laas-order-ai-test/
 |-----------|------|------|
 | **Lombok** | 보일러플레이트 코드 제거 (`@Getter`, `@Builder` 등) | [projectlombok.org](https://projectlombok.org/) |
 | **Spring Data JPA** | 데이터베이스 접근 (Infrastructure Layer) | [spring.io/projects/spring-data-jpa](https://spring.io/projects/spring-data-jpa) |
+| **AWS Advanced JDBC Wrapper** | Aurora MySQL 최적화 (빠른 Failover, Read/Write Splitting) | [github.com/aws/aws-advanced-jdbc-wrapper](https://github.com/aws/aws-advanced-jdbc-wrapper) |
+| **HikariCP** | Connection Pool (고성능 JDBC Connection Pool) | [github.com/brettwooldridge/HikariCP](https://github.com/brettwooldridge/HikariCP) |
 | **Flyway** | 데이터베이스 마이그레이션 (Local 환경 자동 실행) | [flywaydb.org](https://flywaydb.org/) |
 | **JUnit 5** | 테스트 프레임워크 | [junit.org/junit5](https://junit.org/junit5/) |
 | **AssertJ** | 가독성 좋은 Assertion | [assertj.github.io](https://assertj.github.io/doc/) |
@@ -265,6 +270,7 @@ docker exec order-mysql mysql -u order_user -porder_password order \
 
 - **[도메인 정책](./도메인정책.md)** - 핵심 비즈니스 규칙 ⭐
 - **[Flyway 마이그레이션 가이드](./documents/flyway-guide.md)** - DB 스키마 버전 관리 ⭐
+- **[AWS Aurora MySQL 설정 가이드](./documents/aws-aurora-setup.md)** - Production 환경 배포 ⭐
 - **[아키텍처](./documents/architecture.md)** - 전체 시스템 구조
 - **[ERD](./documents/ERD.md)** - 데이터베이스 스키마
 - **[개발 가이드](./.cursor/rules/)** - 계층별 코딩 규칙

@@ -14,7 +14,15 @@ dependencies {
 //    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
 //    implementation 'org.springframework.kafka:spring-kafka'
 
+    // MySQL Connector/J - Local 환경용 (Docker MySQL) + AWS Wrapper가 내부적으로 사용
+    // https://dev.mysql.com/downloads/connector/j/
     runtimeOnly 'com.mysql:mysql-connector-j'
+    
+    // AWS Advanced JDBC Wrapper - Production 환경용 (Aurora MySQL)
+    // https://github.com/aws/aws-advanced-jdbc-wrapper
+    // 빠른 Failover (1-2초), Read Replica 자동 로드밸런싱, Read/Write Splitting
+    implementation 'software.amazon.jdbc:aws-advanced-jdbc-wrapper:2.6.4'
+    
     testRuntimeOnly 'com.h2database:h2'
 
     implementation 'com.fasterxml.jackson.core:jackson-databind'
