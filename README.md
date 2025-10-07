@@ -127,11 +127,14 @@ vroong-laas-order-ai-test/
 ### 데이터베이스
 - **MySQL 8.0.27** (Local - Docker)
 - **AWS Aurora MySQL 3.x** (Production - MySQL 8.0 호환)
+- **CQRS 패턴** - Read/Write DataSource 분리 (Spring `ReplicationRoutingDataSource`)
+  - ✅ **Read/Write Splitting**: `@Transactional` → Writer, `@Transactional(readOnly=true)` 또는 없음 → Reader
+  - ✅ **성능 최적화**: `Propagation.SUPPORTS`로 불필요한 트랜잭션 오버헤드 제거 (조회 성능 ~50% 향상)
+  - ✅ **AWS Driver와 결합**: Writer는 Cluster Endpoint, Reader는 Reader Endpoint
 - **AWS Advanced JDBC Driver 2.6.4** - Aurora 최적화
   - ✅ **빠른 Failover**: DNS 대기 없이 1-2초 내 자동 전환
-  - ✅ **Read/Write Splitting**: `@Transactional(readOnly=true)` → Reader, `@Transactional` → Writer
-  - ✅ **LoadBalancing**: 여러 Reader 인스턴스 자동 분산
-- **HikariCP** - Connection Pool (필수, Pool Size: 50)
+  - ✅ **Reader LoadBalancing**: 여러 Reader 인스턴스 자동 분산
+- **HikariCP** - Connection Pool (Writer: 20, Reader: 50)
 - **Flyway 11.x** - 스키마 버전 관리 (Local 환경에서만 자동 실행)
 
 ### 라이브러리
@@ -140,7 +143,7 @@ vroong-laas-order-ai-test/
 |-----------|------|------|
 | **Lombok** | 보일러플레이트 코드 제거 (`@Getter`, `@Builder` 등) | [projectlombok.org](https://projectlombok.org/) |
 | **Spring Data JPA** | 데이터베이스 접근 (Infrastructure Layer) | [spring.io/projects/spring-data-jpa](https://spring.io/projects/spring-data-jpa) |
-| **AWS Advanced JDBC Driver** | Aurora MySQL 최적화 (Failover 1-2초, Read/Write Splitting, LoadBalancing) | [github.com/aws/aws-advanced-jdbc-wrapper](https://github.com/aws/aws-advanced-jdbc-wrapper) |
+| **AWS Advanced JDBC Driver** | Aurora MySQL 최적화 (빠른 Failover 1-2초, Reader LoadBalancing) | [github.com/aws/aws-advanced-jdbc-wrapper](https://github.com/aws/aws-advanced-jdbc-wrapper) |
 | **HikariCP** | Connection Pool (고성능 JDBC Connection Pool) | [github.com/brettwooldridge/HikariCP](https://github.com/brettwooldridge/HikariCP) |
 | **Flyway** | 데이터베이스 마이그레이션 (Local 환경 자동 실행) | [flywaydb.org](https://flywaydb.org/) |
 | **Spring Boot Actuator** | Health Check, Metrics, Kubernetes Probe 지원 | [docs.spring.io/spring-boot/reference/actuator](https://docs.spring.io/spring-boot/reference/actuator/index.html) |

@@ -152,7 +152,7 @@ public class SimpleJpaRepository<T, ID> {
 
 ## UseCase 작성 패턴
 
-### 패턴 1: 단순 조회 (Repository 직접 호출)
+### 패턴 1: 단순 조회 (Repository 직접 호출) - ✅ 권장
 
 ```java
 @UseCase
@@ -160,8 +160,8 @@ public class GetOrderUseCase {
     
     private final OrderRepository orderRepository;
     
-    // SimpleJpaRepository의 @Transactional(readOnly=true) 사용
-    // 추가 어노테이션 불필요
+    // ✅ @Transactional 불필요!
+    // SimpleJpaRepository가 이미 @Transactional(readOnly=true)를 가지고 있음
     public Order execute(Long orderId) {
         return orderRepository.findById(orderId)
             .orElseThrow(() -> new OrderNotFoundException(orderId));
@@ -169,9 +169,14 @@ public class GetOrderUseCase {
 }
 ```
 
-**이 경우는 괜찮습니다.** SimpleJpaRepository가 알아서 처리합니다.
+**왜 @Transactional을 붙이지 않는가?**
+- SimpleJpaRepository가 이미 `@Transactional(readOnly=true)` 보유
+- 불필요한 트랜잭션 중첩 방지
+- **카카오페이 실측: @Transactional 제거 시 52% 성능 향상!**
 
-### 패턴 2: 복잡한 조회 (여러 Repository 호출)
+참고: [카카오페이 기술 블로그 - JPA Transactional 성능 최적화](https://tech.kakaopay.com/post/jpa-transactional-bri/)
+
+### 패턴 2: 복잡한 조회 (여러 Repository 호출) - 상황에 따라
 
 ```java
 @UseCase
@@ -180,7 +185,9 @@ public class GetOrderSummaryUseCase {
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
     
-    // ⭐ @Transactional(readOnly=true) 필수 (Connection 재사용)
+    // ⚠️ @Transactional(readOnly=true) 선택적
+    // 장점: Connection 재사용 (1번 획득)
+    // 단점: set autocommit 오버헤드 발생
     @Transactional(readOnly = true)
     public OrderSummary execute(Long orderId) {
         Order order = orderRepository.findById(orderId).orElseThrow();
@@ -191,7 +198,13 @@ public class GetOrderSummaryUseCase {
 }
 ```
 
-**이 경우는 필수입니다.** Connection 재사용으로 성능 최적화.
+**트레이드오프:**
+- ✅ Connection 재사용 (Pool 효율성 ↑)
+- ❌ `SET autocommit=0/1` 오버헤드 (QPS ↓)
+
+**권장:**
+- 여러 Repository 호출이 많지 않으면 → 제거 고려
+- Connection Pool이 부족하면 → 유지
 
 ### 패턴 3: 쓰기 작업
 
@@ -239,10 +252,12 @@ public class ProcessOrderPaymentUseCase {
 
 ### UseCase 작성 시
 
-- [ ] 단순 조회 (Repository 1개) → `@Transactional` 생략 가능
-- [ ] 복잡한 조회 (Repository 2개 이상) → `@Transactional(readOnly=true)` 필수
-- [ ] 쓰기 작업 → `@Transactional` 필수
-- [ ] 여러 Aggregate 수정 → `@Transactional` 필수
+- [x] **단순 조회 (Repository 1개) → `@Transactional` 제거** (카카오페이 실측: 52% 성능 향상)
+- [ ] **복잡한 조회 (Repository 2개 이상) → 성능 테스트 후 결정**
+  - Connection Pool 부족 시 → `@Transactional(readOnly=true)` 유지
+  - QPS가 중요하면 → 제거 고려
+- [x] **쓰기 작업 → `@Transactional` 필수**
+- [x] **여러 Aggregate 수정 → `@Transactional` 필수**
 
 ### 마이그레이션 시
 
@@ -270,8 +285,46 @@ import org.springframework.transaction.annotation.Transactional;
 
 ---
 
+## 📊 실제 성능 개선 사례 (카카오페이)
+
+**출처:** [카카오페이 기술 블로그 - JPA Transactional 잘 알고 쓰고 계신가요?](https://tech.kakaopay.com/post/jpa-transactional-bri/)
+
+### 문제 상황
+- Peak Total QPS: 24K
+- 그 중 `SET autocommit` 관련 쿼리: **14K (58%!)** 😱
+- 실제 SELECT: 5K
+
+### 개선 결과
+
+| 항목 | Before | After | 개선율 |
+|-----|--------|-------|--------|
+| **단순 조회 (Repository 1개)** | ~2,500 TPS | ~3,800 TPS | **+52%** ✅ |
+| **`@Transactional` 제거** | - | - | **불필요한 트랜잭션 제거** |
+
+### 핵심 교훈
+
+1. **SimpleJpaRepository가 이미 `@Transactional` 보유**
+   ```java
+   // Spring Data JPA 내부
+   @Repository
+   @Transactional(readOnly = true)  // ⭐ 이미 있음!
+   public class SimpleJpaRepository<T, ID> { }
+   ```
+
+2. **불필요한 트랜잭션 중첩 = 성능 저하**
+   - `SET autocommit=0/1` 오버헤드
+   - Connection 획득/반환 오버헤드
+   - COMMIT 오버헤드
+
+3. **단순 조회는 `@Transactional` 제거**
+   - 52% 성능 향상 확인
+   - QPS 급증 시 필수 최적화
+
+---
+
 ## 참고 자료
 
+- [카카오페이 기술 블로그 - JPA Transactional 성능 최적화](https://tech.kakaopay.com/post/jpa-transactional-bri/) ⭐ 필독!
 - [AWS Advanced JDBC Driver Wiki](https://github.com/aws/aws-advanced-jdbc-wrapper/wiki)
 - [Spring @Transactional 공식 문서](https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/annotations.html)
 - [AWS IAM Database Authentication 가이드](./aws-iam-database-auth-guide.md) - IAM 인증이 필요한 경우 참고

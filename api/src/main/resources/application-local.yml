@@ -13,20 +13,37 @@ spring:
       hibernate:
         format_sql: true     # 로컬: SQL 포맷팅
     show-sql: true           # 로컬: SQL 로그 출력
-  
-  # Local DataSource (Spring Boot 자동 설정)
+
+# Local DataSource (Writer/Reader 동일 - localhost:3306)
+order:
   datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/order?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
-    username: ${DB_USERNAME:order_user}
-    password: ${DB_PASSWORD:order_password}
-    hikari:
-      pool-name: OrderLocalPool
-      maximum-pool-size: 10  # 로컬: 적은 커넥션
-      minimum-idle: 2
-      connection-timeout: 3000
-      idle-timeout: 600000
-      max-lifetime: 1800000
+    # Writer DataSource (Local - localhost)
+    write:
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      jdbc-url: jdbc:mysql://localhost:3306/order?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+      username: ${DB_USERNAME:order_user}
+      password: ${DB_PASSWORD:order_password}
+      hikari:
+        pool-name: OrderWriterPool
+        maximum-pool-size: 5  # 로컬: 작은 Pool
+        minimum-idle: 2
+        connection-timeout: 3000
+        idle-timeout: 600000
+        max-lifetime: 1800000
+    
+    # Reader DataSource (Local - localhost, Writer와 동일)
+    read:
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      jdbc-url: jdbc:mysql://localhost:3306/order?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+      username: ${DB_USERNAME:order_user}
+      password: ${DB_PASSWORD:order_password}
+      hikari:
+        pool-name: OrderReaderPool
+        maximum-pool-size: 10  # 로컬: 조회용으로 조금 더 크게
+        minimum-idle: 2
+        connection-timeout: 3000
+        idle-timeout: 600000
+        max-lifetime: 1800000
 
 # Actuator 설정 (Local 환경 - 개발 편의)
 management:
