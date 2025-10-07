@@ -1,0 +1,36 @@
+# ============================================
+# Local 환경 설정 (개발용 - Docker MySQL)
+# ============================================
+
+# JPA/Hibernate 설정
+spring:
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none  # Flyway가 스키마 관리
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true     # 로컬: SQL 포맷팅
+    show-sql: true           # 로컬: SQL 로그 출력
+
+# Local DataSource (단일 DataSource)
+order:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    jdbc-url: jdbc:mysql://localhost:3306/order?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+    username: ${DB_USERNAME:order_user}
+    password: ${DB_PASSWORD:order_password}
+    hikari:
+      pool-name: OrderLocalPool
+      maximum-pool-size: 10  # 로컬: 적은 커넥션
+      minimum-idle: 2
+      connection-timeout: 3000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+# 로그 설정
+logging:
+  level:
+    vroong.laas.order: DEBUG  # 로컬: 상세 로그
+    org.hibernate.SQL: DEBUG
