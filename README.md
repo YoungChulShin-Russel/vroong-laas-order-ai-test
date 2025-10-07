@@ -130,7 +130,6 @@ vroong-laas-order-ai-test/
 - **AWS Advanced JDBC Driver 2.6.4** - Aurora 최적화
   - ✅ **빠른 Failover**: DNS 대기 없이 1-2초 내 자동 전환
   - ✅ **Read/Write Splitting**: `@Transactional(readOnly=true)` → Reader, `@Transactional` → Writer
-  - ✅ **IAM 인증**: DB 비밀번호 불필요 (IAM 토큰 자동 생성/갱신)
   - ✅ **LoadBalancing**: 여러 Reader 인스턴스 자동 분산
 - **HikariCP** - Connection Pool (필수, Pool Size: 50)
 - **Flyway 11.x** - 스키마 버전 관리 (Local 환경에서만 자동 실행)
@@ -141,7 +140,7 @@ vroong-laas-order-ai-test/
 |-----------|------|------|
 | **Lombok** | 보일러플레이트 코드 제거 (`@Getter`, `@Builder` 등) | [projectlombok.org](https://projectlombok.org/) |
 | **Spring Data JPA** | 데이터베이스 접근 (Infrastructure Layer) | [spring.io/projects/spring-data-jpa](https://spring.io/projects/spring-data-jpa) |
-| **AWS Advanced JDBC Driver** | Aurora MySQL 최적화 (Failover 1-2초, Read/Write Splitting, IAM 인증) | [github.com/aws/aws-advanced-jdbc-wrapper](https://github.com/aws/aws-advanced-jdbc-wrapper) |
+| **AWS Advanced JDBC Driver** | Aurora MySQL 최적화 (Failover 1-2초, Read/Write Splitting, LoadBalancing) | [github.com/aws/aws-advanced-jdbc-wrapper](https://github.com/aws/aws-advanced-jdbc-wrapper) |
 | **HikariCP** | Connection Pool (고성능 JDBC Connection Pool) | [github.com/brettwooldridge/HikariCP](https://github.com/brettwooldridge/HikariCP) |
 | **Flyway** | 데이터베이스 마이그레이션 (Local 환경 자동 실행) | [flywaydb.org](https://flywaydb.org/) |
 | **Spring Boot Actuator** | Health Check, Metrics, Kubernetes Probe 지원 | [docs.spring.io/spring-boot/reference/actuator](https://docs.spring.io/spring-boot/reference/actuator/index.html) |

@@ -1,5 +1,12 @@
 # AWS IAM Database Authentication 설정 가이드
 
+> ⚠️ **현재 프로젝트 상태**
+> 
+> 현재는 **일반 비밀번호 방식**을 사용하고 있습니다.
+> IAM 인증이 필요한 경우 이 문서를 참고하세요.
+
+---
+
 ## 개요
 
 AWS Advanced JDBC Driver의 IAM 인증을 사용하면:

@@ -28,9 +28,8 @@ public class OrderQueryService {
 ### After (AWS Driver)
 
 ```java
-// AWS Advanced JDBC Driver (IAM, Failover, ReadWriteSplitting)
+// AWS Advanced JDBC Driver (Failover, ReadWriteSplitting)
 // - Cluster Endpoint 하나로 통합
-// - IAM 인증 (비밀번호 불필요)
 // - Failover 1-2초 자동 처리
 
 @Service
@@ -248,9 +247,9 @@ public class ProcessOrderPaymentUseCase {
 ### 마이그레이션 시
 
 - [x] `ReplicationRoutingDataSource.java` 삭제
-- [x] `ProductionDataSourceConfig.java` 단순화
+- [x] `ProductionDataSourceConfig.java` 삭제 (Spring Boot 자동 설정 사용)
+- [x] `LocalDataSourceConfig.java` 삭제 (Spring Boot 자동 설정 사용)
 - [x] `application-prod.yml` AWS Driver 설정 추가
-- [x] IAM Role/Policy 설정 (문서: `aws-iam-database-auth-guide.md`)
 - [ ] 모든 UseCase에 적절한 `@Transactional` 추가
 - [ ] 테스트 실행 (특히 조회 성능 확인)
 - [ ] Production 배포 (Canary 배포 권장)
@@ -273,6 +272,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 ## 참고 자료
 
-- [AWS IAM Database Authentication 가이드](./aws-iam-database-auth-guide.md)
 - [AWS Advanced JDBC Driver Wiki](https://github.com/aws/aws-advanced-jdbc-wrapper/wiki)
 - [Spring @Transactional 공식 문서](https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/annotations.html)
+- [AWS IAM Database Authentication 가이드](./aws-iam-database-auth-guide.md) - IAM 인증이 필요한 경우 참고

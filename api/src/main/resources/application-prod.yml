@@ -11,7 +11,6 @@ spring:
       ddl-auto: validate  # 운영: 스키마 검증만 (변경 금지)
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
         format_sql: false  # 운영: SQL 포맷팅 비활성화
     show-sql: false      # 운영: SQL 로그 비활성화
   
@@ -19,20 +18,19 @@ spring:
   datasource:
     # AWS Advanced JDBC Driver 사용
     # - Cluster Endpoint 하나로 자동 Read/Write Splitting
-    # - IAM 인증으로 비밀번호 불필요 (토큰 자동 생성/갱신)
     # - Failover 1-2초 자동 처리
     driver-class-name: software.amazon.jdbc.Driver
-    
+
     # URL 형식: jdbc:mysql:aws://cluster-endpoint:port/database?wrapperPlugins=...
     # wrapperPlugins:
-    #   - iam: IAM 인증 (DB 비밀번호 불필요)
     #   - readWriteSplitting: @Transactional(readOnly=true) → Reader, @Transactional → Writer
     #   - failover: DNS 대기 없이 1-2초 내 자동 Failover
-    url: jdbc:mysql:aws://${DB_CLUSTER_ENDPOINT:your-cluster.cluster-xxxxx.ap-northeast-2.rds.amazonaws.com}:3306/order?wrapperPlugins=iam,readWriteSplitting,failover&clusterInstanceHostPattern=?.cluster-xxxxx.ap-northeast-2.rds.amazonaws.com&useSSL=true&requireSSL=true&serverTimezone=Asia/Seoul
-    
-    # IAM 인증 사용 (username만 필요, password 불필요)
+    # clusterInstanceHostPattern: Aurora Cluster의 Instance 패턴 (Failover에 필요)
+    url: jdbc:mysql:aws://${DB_CLUSTER_ENDPOINT:your-cluster.cluster-xxxxx.ap-northeast-2.rds.amazonaws.com}:3306/order?wrapperPlugins=readWriteSplitting,failover&clusterInstanceHostPattern=?.cluster-xxxxx.ap-northeast-2.rds.amazonaws.com&useSSL=true&requireSSL=true&serverTimezone=Asia/Seoul
+
+    # 일반 인증 (username + password)
     username: ${DB_USERNAME:order_user}
-    # password는 IAM 토큰으로 자동 생성되므로 설정 불필요
+    password: ${DB_PASSWORD}
     
     # HikariCP 설정 (필수!)
     # - AWS Driver는 Connection Pooling 필수 (성능 50배 차이)
@@ -43,7 +41,7 @@ spring:
       minimum-idle: 10
       connection-timeout: 3000
       idle-timeout: 600000
-      max-lifetime: 1800000  # 30분 (IAM 토큰 갱신 주기 고려)
+      max-lifetime: 1800000  # 30분 (Connection 재활용 주기)
       # Connection 유효성 검증 (Failover 감지)
       connection-test-query: SELECT 1
       validation-timeout: 3000
