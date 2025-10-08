@@ -31,14 +31,13 @@ import vroong.laas.order.infrastructure.storage.db.order.OrderLocationJpaReposit
  * <p>트랜잭션 관리:
  *
  * <ul>
- *   <li>@ReadOnlyTransactional (readOnly = true, propagation = SUPPORTS)
+ *   <li>각 메서드에 @ReadOnlyTransactional 적용 (readOnly = true, propagation = SUPPORTS)
  *   <li>성능 최적화: 불필요한 트랜잭션 오버헤드 제거 (~50% 향상)
  *   <li>CQRS 패턴: ReplicationRoutingDataSource → Reader DataSource 라우팅
  * </ul>
  */
 @Repository
 @RequiredArgsConstructor
-@ReadOnlyTransactional
 public class OrderReaderAdapter implements OrderReader {
 
   private final OrderJpaRepository orderJpaRepository;
@@ -46,11 +45,13 @@ public class OrderReaderAdapter implements OrderReader {
   private final OrderLocationJpaRepository orderLocationJpaRepository;
   private final OrderDeliveryPolicyJpaRepository orderDeliveryPolicyJpaRepository;
 
+  @ReadOnlyTransactional
   @Override
   public Optional<Order> findById(Long orderId) {
     return orderJpaRepository.findById(orderId).map(this::toDomainWithDetails);
   }
 
+  @ReadOnlyTransactional
   @Override
   public Optional<Order> findByOrderNumber(OrderNumber orderNumber) {
     // OrderNumber → String 변환 후 JPA Repository 호출
