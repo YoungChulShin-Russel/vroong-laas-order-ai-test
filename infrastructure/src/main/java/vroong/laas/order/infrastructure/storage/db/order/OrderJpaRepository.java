@@ -29,17 +29,43 @@ public interface OrderJpaRepository extends JpaRepository<OrderEntity, Long> {
   boolean existsByOrderNumber(String orderNumber);
 
   /**
-   * 주문과 연관 Entity를 함께 조회
+   * ID로 주문과 연관 Entity를 함께 조회 (JOIN FETCH)
    *
-   * <p>N+1 문제 방지를 위해 JOIN FETCH 사용
+   * <p>성능 최적화: 1개의 쿼리로 모든 연관 데이터 조회 (4쿼리 → 1쿼리)
+   *
+   * <p>조회 데이터:
+   * - OrderEntity
+   * - OrderItemEntity (1:N)
+   * - OrderLocationEntity (1:1)
+   * - OrderDeliveryPolicyEntity (1:1)
    *
    * @param id 주문 ID
    * @return 주문 Entity (없으면 Optional.empty())
    */
   @Query(
-      "SELECT o FROM OrderEntity o "
+      "SELECT DISTINCT o FROM OrderEntity o "
+          + "LEFT JOIN FETCH o.items "
+          + "LEFT JOIN FETCH o.location "
+          + "LEFT JOIN FETCH o.deliveryPolicy "
           + "WHERE o.id = :id "
           + "AND o.entityStatus = vroong.laas.order.infrastructure.storage.db.EntityStatus.ACTIVE")
   Optional<OrderEntity> findByIdWithDetails(@Param("id") Long id);
+
+  /**
+   * 주문번호로 주문과 연관 Entity를 함께 조회 (JOIN FETCH)
+   *
+   * <p>성능 최적화: 1개의 쿼리로 모든 연관 데이터 조회 (4쿼리 → 1쿼리)
+   *
+   * @param orderNumber 주문번호
+   * @return 주문 Entity (없으면 Optional.empty())
+   */
+  @Query(
+      "SELECT DISTINCT o FROM OrderEntity o "
+          + "LEFT JOIN FETCH o.items "
+          + "LEFT JOIN FETCH o.location "
+          + "LEFT JOIN FETCH o.deliveryPolicy "
+          + "WHERE o.orderNumber = :orderNumber "
+          + "AND o.entityStatus = vroong.laas.order.infrastructure.storage.db.EntityStatus.ACTIVE")
+  Optional<OrderEntity> findByOrderNumberWithDetails(@Param("orderNumber") String orderNumber);
 }
 
