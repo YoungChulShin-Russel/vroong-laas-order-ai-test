@@ -48,7 +48,6 @@ public class OrderCreator {
 
     // 3. 도메인 이벤트 발행
     savedOrder.getDomainEvents().forEach(outboxEventStore::save);
-    savedOrder.clearDomainEvents();
 
     return savedOrder;
   }
