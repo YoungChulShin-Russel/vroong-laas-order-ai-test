@@ -5,11 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.navercorp.fixturemonkey.FixtureMonkey;
 import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
-import java.math.BigDecimal;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import vroong.laas.order.core.domain.shared.Money;
 import vroong.laas.order.core.fixture.OrderFixtures;
 
 class OrderTest {
@@ -60,93 +58,4 @@ class OrderTest {
         .hasMessage("배송 정책은 필수입니다");
   }
 
-  @Test
-  @DisplayName("CREATED 상태에서 배송 완료 처리할 수 있다")
-  void markAsDelivered() {
-    // given
-    Order order = orderFixtures.order();
-
-    // when
-    order.markAsDelivered();
-
-    // then
-    assertThat(order.getStatus()).isEqualTo(OrderStatus.DELIVERED);
-    assertThat(order.getDeliveredAt()).isNotNull();
-  }
-
-  @Test
-  @DisplayName("취소된 주문은 배송 완료 처리할 수 없다")
-  void markAsDeliveredWhenCancelled() {
-    // given
-    Order order = orderFixtures.cancelledOrder();
-
-    // when & then
-    assertThatThrownBy(order::markAsDelivered)
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessage("취소된 주문은 배송 완료 처리할 수 없습니다");
-  }
-
-  @Test
-  @DisplayName("이미 배송 완료된 주문은 다시 배송 완료 처리할 수 없다")
-  void markAsDeliveredWhenAlreadyDelivered() {
-    // given
-    Order order = orderFixtures.deliveredOrder();
-
-    // when & then
-    assertThatThrownBy(order::markAsDelivered)
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessage("이미 배송 완료된 주문입니다");
-  }
-
-  @Test
-  @DisplayName("CREATED 상태에서 주문을 취소할 수 있다")
-  void cancel() {
-    // given
-    Order order = orderFixtures.order();
-
-    // when
-    order.cancel();
-
-    // then
-    assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
-    assertThat(order.getCancelledAt()).isNotNull();
-  }
-
-  @Test
-  @DisplayName("DELIVERED 상태에서는 주문을 취소할 수 없다")
-  void cancelDeliveredOrder() {
-    // given
-    Order order = orderFixtures.deliveredOrder();
-
-    // when & then
-    assertThatThrownBy(order::cancel)
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessage("배송 완료된 주문은 취소할 수 없습니다");
-  }
-
-  @Test
-  @DisplayName("이미 취소된 주문은 다시 취소할 수 없다")
-  void cancelAlreadyCancelledOrder() {
-    // given
-    Order order = orderFixtures.cancelledOrder();
-
-    // when & then
-    assertThatThrownBy(order::cancel)
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessage("이미 취소된 주문입니다");
-  }
-
-  @Test
-  @DisplayName("총 금액을 계산한다")
-  void calculateTotalAmount() {
-    // given
-    Order order = orderFixtures.order();
-
-    // when
-    Money totalAmount = order.calculateTotalAmount();
-
-    // then
-    assertThat(totalAmount).isNotNull();
-    assertThat(totalAmount.amount()).isGreaterThanOrEqualTo(BigDecimal.ZERO);
-  }
 }

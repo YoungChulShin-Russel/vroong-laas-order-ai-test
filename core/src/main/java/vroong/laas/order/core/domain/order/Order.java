@@ -6,11 +6,12 @@ import java.util.Collections;
 import java.util.List;
 import lombok.Getter;
 import lombok.ToString;
-import vroong.laas.order.core.domain.shared.Money;
+import vroong.laas.order.core.domain.order.event.OrderCreatedEvent;
+import vroong.laas.order.core.domain.shared.AggregateRoot;
 
 @Getter
 @ToString
-public class Order {
+public class Order extends AggregateRoot {
 
   private final Long id;
   private final OrderNumber orderNumber;
@@ -23,6 +24,13 @@ public class Order {
   private Instant deliveredAt;
   private Instant cancelledAt;
 
+  /**
+   * 생성자 (순수 객체 생성)
+   *
+   * <p>Infrastructure에서 DB 데이터 복원 시 사용
+   * <p>테스트에서 다양한 상태의 Order 생성 시 사용
+   * <p>도메인 이벤트를 추가하지 않음
+   */
   public Order(
       Long id,
       OrderNumber orderNumber,
@@ -63,35 +71,45 @@ public class Order {
     this.cancelledAt = cancelledAt;
   }
 
-  // 배송 완료 처리 (배송 서비스 이벤트 수신)
-  public void markAsDelivered() {
-    if (status == OrderStatus.CANCELLED) {
-      throw new IllegalStateException("취소된 주문은 배송 완료 처리할 수 없습니다");
-    }
-    if (status == OrderStatus.DELIVERED) {
-      throw new IllegalStateException("이미 배송 완료된 주문입니다");
-    }
-    this.status = OrderStatus.DELIVERED;
-    this.deliveredAt = Instant.now();
-  }
+  /**
+   * 주문 생성 (팩토리 메서드)
+   *
+   * <p>프로덕션 코드에서 신규 주문 생성 시 사용
+   * <p>비즈니스 규칙 검증 및 도메인 이벤트 자동 추가
+   *
+   * @param id 주문 ID (DB에서 생성된 ID)
+   * @param orderNumber 주문번호
+   * @param items 주문 아이템 목록
+   * @param origin 출발지
+   * @param destination 도착지
+   * @param deliveryPolicy 배송 정책
+   * @return 생성된 Order (OrderCreatedEvent 포함)
+   */
+  public static Order create(
+      Long id,
+      OrderNumber orderNumber,
+      List<OrderItem> items,
+      Origin origin,
+      Destination destination,
+      DeliveryPolicy deliveryPolicy) {
 
-  // 주문 취소
-  public void cancel() {
-    if (status == OrderStatus.DELIVERED) {
-      throw new IllegalStateException("배송 완료된 주문은 취소할 수 없습니다");
-    }
-    if (status == OrderStatus.CANCELLED) {
-      throw new IllegalStateException("이미 취소된 주문입니다");
-    }
-    this.status = OrderStatus.CANCELLED;
-    this.cancelledAt = Instant.now();
-  }
+    Order order =
+        new Order(
+            id,
+            orderNumber,
+            OrderStatus.CREATED,
+            items,
+            origin,
+            destination,
+            deliveryPolicy,
+            Instant.now(),
+            null,
+            null);
 
-  // 총 금액 계산
-  public Money calculateTotalAmount() {
-    return items.stream()
-        .map(OrderItem::getTotalPrice)
-        .reduce(Money.zero(), Money::add);
+    // 도메인 이벤트 추가
+    order.addDomainEvent(OrderCreatedEvent.from(order));
+
+    return order;
   }
 
   // 불변 리스트 반환

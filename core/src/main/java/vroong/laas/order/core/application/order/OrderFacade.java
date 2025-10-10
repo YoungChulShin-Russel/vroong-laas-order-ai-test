@@ -33,7 +33,7 @@ public class OrderFacade {
    */
   public Order createOrder(CreateOrderCommand command) {
     // 1. Order 생성 및 저장 (TX 내부)
-    Order savedOrder = orderCreator.createOrder(command);
+    Order savedOrder = orderCreator.create(command);
 
     // 2. 외부 서비스 호출 (TX 외부) - 나중에 추가
     // - 이벤트 발행

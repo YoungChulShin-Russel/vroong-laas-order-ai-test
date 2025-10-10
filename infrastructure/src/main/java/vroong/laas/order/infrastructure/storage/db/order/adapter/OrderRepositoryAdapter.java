@@ -59,7 +59,7 @@ public class OrderRepositoryAdapter implements OrderRepository {
    * @param origin 출발지
    * @param destination 도착지
    * @param deliveryPolicy 배송 정책
-   * @return 저장된 Order (id 할당됨)
+   * @return 저장된 Order (id 할당됨, 도메인 이벤트 포함)
    */
   @Transactional
   @Override
@@ -85,8 +85,8 @@ public class OrderRepositoryAdapter implements OrderRepository {
     saveOrderLocation(origin, destination, orderId);
     saveOrderDeliveryPolicy(deliveryPolicy, orderId);
 
-    // 3. OrderEntity → Order Domain 변환
-    return savedOrderEntity.toDomain(items, origin, destination, deliveryPolicy);
+    // 3. Order.create() 호출 (도메인 이벤트 자동 추가)
+    return Order.create(orderId, orderNumber, items, origin, destination, deliveryPolicy);
   }
 
   // === 조회 ===

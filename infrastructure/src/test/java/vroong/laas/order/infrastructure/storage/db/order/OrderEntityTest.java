@@ -30,7 +30,7 @@ class OrderEntityTest {
 
     Order domain =
         new Order(
-            null,
+            1L,
             OrderNumber.of("ORD-20250115-001"),
             vroong.laas.order.core.domain.order.OrderStatus.CREATED,
             List.of(),
@@ -54,7 +54,7 @@ class OrderEntityTest {
 
   @Test
   @DisplayName("Entity → Domain 변환 (연관 Entity 포함)")
-  void from_entity_to_domain() {
+  void from_entity_to_domain() throws Exception {
     // given
     Instant now = Instant.now();
 
@@ -66,6 +66,11 @@ class OrderEntityTest {
             .deliveredAt(now)
             .cancelledAt(null)
             .build();
+
+    // Reflection으로 id 설정 (테스트 목적)
+    java.lang.reflect.Field idField = vroong.laas.order.infrastructure.storage.db.BaseEntity.class.getDeclaredField("id");
+    idField.setAccessible(true);
+    idField.set(orderEntity, 1L);
 
     OrderLocationEntity locationEntity = createLocationEntity(1L);
     OrderDeliveryPolicyEntity policyEntity = createPolicyEntity(1L);
@@ -102,7 +107,7 @@ class OrderEntityTest {
     // given
     Order domain =
         new Order(
-            null,
+            1L,
             OrderNumber.of("ORD-TEST-001"),
             vroong.laas.order.core.domain.order.OrderStatus.CREATED,
             List.of(),
