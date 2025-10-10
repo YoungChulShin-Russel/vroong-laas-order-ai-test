@@ -27,7 +27,7 @@ public class OrderReader {
    *
    * @param orderId Order ID
    * @return Order
-   * @throws OrderNotFoundException Order를 찾을 수 없는 경우
+   * @throws OrderNotFoundException 주문을 찾을 수 없는 경우
    */
   @Transactional(readOnly = true)
   public Order getOrderById(Long orderId) {
@@ -39,9 +39,9 @@ public class OrderReader {
   /**
    * 주문번호로 Order 조회
    *
-   * @param orderNumber 주문번호 (String)
+   * @param orderNumber 주문번호
    * @return Order
-   * @throws OrderNotFoundException Order를 찾을 수 없는 경우
+   * @throws OrderNotFoundException 주문을 찾을 수 없는 경우
    */
   @Transactional(readOnly = true)
   public Order getOrderByNumber(String orderNumber) {
@@ -51,4 +51,3 @@ public class OrderReader {
         .orElseThrow(() -> new OrderNotFoundException(orderNumberVO));
   }
 }
-

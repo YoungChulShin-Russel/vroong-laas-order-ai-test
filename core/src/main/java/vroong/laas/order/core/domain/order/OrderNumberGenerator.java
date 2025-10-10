@@ -3,7 +3,7 @@ package vroong.laas.order.core.domain.order;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Random;
-import vroong.laas.order.core.common.annotation.DomainService;
+import org.springframework.stereotype.Service;
 
 /**
  * 주문번호 생성기
@@ -17,7 +17,7 @@ import vroong.laas.order.core.common.annotation.DomainService;
  * - 순수 계산 로직
  * - Thread-safe
  */
-@DomainService
+@Service
 public class OrderNumberGenerator {
 
   private static final String PREFIX = "ORD-";
@@ -25,14 +25,14 @@ public class OrderNumberGenerator {
   private static final Random RANDOM = new Random();
 
   /**
-   * 새로운 주문번호를 생성합니다.
+   * 주문번호 생성
    *
-   * @return 생성된 OrderNumber (예: ORD-20240101123045001)
+   * @return 생성된 주문번호
    */
   public OrderNumber generate() {
     String timestamp = LocalDateTime.now().format(FORMATTER);
     String randomSuffix = String.format("%03d", RANDOM.nextInt(1000));
-    String orderNumber = PREFIX + timestamp + randomSuffix;
-    return OrderNumber.of(orderNumber);
+    String value = PREFIX + timestamp + randomSuffix;
+    return new OrderNumber(value);
   }
 }
