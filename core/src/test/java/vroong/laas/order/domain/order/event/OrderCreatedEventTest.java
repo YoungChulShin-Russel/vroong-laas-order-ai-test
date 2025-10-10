@@ -1,7 +1,6 @@
 package vroong.laas.order.domain.order.event;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.navercorp.fixturemonkey.FixtureMonkey;
 import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
@@ -42,14 +41,13 @@ class OrderCreatedEventTest {
     
     // then - Order 기본 정보
     assertThat(event.orderId()).isEqualTo(order.getId());
-    assertThat(event.orderNumber()).isEqualTo(order.getOrderNumber().value());
+    assertThat(event.orderNumber()).isEqualTo(order.getOrderNumber());
     assertThat(event.status()).isEqualTo(OrderStatus.CREATED);
     assertThat(event.orderedAt()).isEqualTo(order.getOrderedAt());
     
     // then - Order Items (Domain Model 그대로)
     assertThat(event.items()).hasSize(order.getItems().size());
     assertThat(event.items()).isEqualTo(order.getItems());
-    assertThat(event.totalAmount()).isEqualTo(order.calculateTotalAmount());
     
     // then - Origin (Domain Model 그대로)
     assertThat(event.origin()).isEqualTo(order.getOrigin());
@@ -59,18 +57,6 @@ class OrderCreatedEventTest {
     
     // then - DeliveryPolicy (Domain Model 그대로)
     assertThat(event.deliveryPolicy()).isEqualTo(order.getDeliveryPolicy());
-  }
-
-  @Test
-  @DisplayName("ID가 없는 Order로는 Event를 생성할 수 없다")
-  void cannotCreateEventFromOrderWithoutId() {
-    // given
-    Order order = orderFixtures.order();  // ID 없음
-
-    // when & then
-    assertThatThrownBy(() -> OrderCreatedEvent.from(order))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessage("저장되지 않은 Order로는 Event를 생성할 수 없습니다");
   }
 
   @Test

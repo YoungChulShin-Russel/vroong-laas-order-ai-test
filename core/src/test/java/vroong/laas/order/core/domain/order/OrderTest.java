@@ -45,11 +45,16 @@ class OrderTest {
     // when & then
     assertThatThrownBy(
             () ->
-                Order.create(
-                    orderFixtures.orderNumberGenerator(),
+                new Order(
+                    1L,
+                    orderFixtures.orderNumberGenerator().generate(),
+                    OrderStatus.CREATED,
                     orderFixtures.randomOrderItems(),
                     orderFixtures.randomOrigin(),
                     orderFixtures.randomDestination(),
+                    null,
+                    java.time.Instant.now(),
+                    null,
                     null))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("배송 정책은 필수입니다");
@@ -143,30 +148,5 @@ class OrderTest {
     // then
     assertThat(totalAmount).isNotNull();
     assertThat(totalAmount.amount()).isGreaterThanOrEqualTo(BigDecimal.ZERO);
-  }
-
-  @Test
-  @DisplayName("ID를 할당할 수 있다")
-  void assignId() {
-    // given
-    Order order = orderFixtures.order();
-
-    // when
-    order.assignId(1L);
-
-    // then
-    assertThat(order.getId()).isEqualTo(1L);
-  }
-
-  @Test
-  @DisplayName("이미 ID가 할당된 주문에는 ID를 다시 할당할 수 없다")
-  void assignIdTwice() {
-    // given
-    Order order = orderFixtures.orderWithId(1L);
-
-    // when & then
-    assertThatThrownBy(() -> order.assignId(2L))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessage("이미 ID가 할당된 주문입니다");
   }
 }

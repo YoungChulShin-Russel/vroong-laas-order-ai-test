@@ -12,7 +12,7 @@ import vroong.laas.order.core.domain.shared.Money;
 @ToString
 public class Order {
 
-  private Long id;
+  private final Long id;
   private final OrderNumber orderNumber;
   private OrderStatus status;
   private final List<OrderItem> items;
@@ -35,6 +35,9 @@ public class Order {
       Instant deliveredAt,
       Instant cancelledAt) {
     // 필수 값 체크
+    if (id == null) {
+      throw new IllegalArgumentException("ID는 필수입니다");
+    }
     if (orderNumber == null) {
       throw new IllegalArgumentException("주문번호는 필수입니다");
     }
@@ -58,29 +61,6 @@ public class Order {
     this.orderedAt = orderedAt;
     this.deliveredAt = deliveredAt;
     this.cancelledAt = cancelledAt;
-  }
-
-  // 주문 생성 팩토리 메서드
-  public static Order create(
-      OrderNumberGenerator orderNumberGenerator,
-      List<OrderItem> items,
-      Origin origin,
-      Destination destination,
-      DeliveryPolicy deliveryPolicy) {
-    OrderNumber orderNumber = orderNumberGenerator.generate();
-    validateOrderCreation(orderNumber, items, origin, destination, deliveryPolicy);
-
-    return new Order(
-        null,
-        orderNumber,
-        OrderStatus.CREATED,
-        items,
-        origin,
-        destination,
-        deliveryPolicy,
-        Instant.now(),
-        null,
-        null);
   }
 
   // 배송 완료 처리 (배송 서비스 이벤트 수신)
@@ -117,23 +97,5 @@ public class Order {
   // 불변 리스트 반환
   public List<OrderItem> getItems() {
     return Collections.unmodifiableList(items);
-  }
-
-  // ID 설정 (Repository에서 저장 후 호출)
-  public void assignId(Long id) {
-    if (this.id != null) {
-      throw new IllegalStateException("이미 ID가 할당된 주문입니다");
-    }
-    this.id = id;
-  }
-
-  private static void validateOrderCreation(
-      OrderNumber orderNumber,
-      List<OrderItem> items,
-      Origin origin,
-      Destination destination,
-      DeliveryPolicy deliveryPolicy) {
-    // 생성자에서 기본 검증을 하므로 추가 비즈니스 규칙만 검증
-    // 현재는 추가 규칙 없음
   }
 }

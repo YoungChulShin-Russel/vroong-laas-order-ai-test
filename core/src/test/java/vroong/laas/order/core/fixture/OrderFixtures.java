@@ -39,7 +39,7 @@ public class OrderFixtures {
   /** 기본 주문 (CREATED 상태) */
   public Order order() {
     return new Order(
-        null, // id
+        Math.abs(fixtureMonkey.giveMeOne(Long.class)),
         generateOrderNumber(),
         OrderStatus.CREATED,
         randomOrderItems(),
@@ -55,7 +55,7 @@ public class OrderFixtures {
   /** 특정 주문번호로 생성 */
   public Order order(String orderNumber) {
     return new Order(
-        null,
+        Math.abs(fixtureMonkey.giveMeOne(Long.class)),
         OrderNumber.of(orderNumber),
         OrderStatus.CREATED,
         randomOrderItems(),
@@ -119,7 +119,7 @@ public class OrderFixtures {
     Instant cancelledAt = status == OrderStatus.CANCELLED ? Instant.now() : null;
 
     return new Order(
-        null,
+        Math.abs(fixtureMonkey.giveMeOne(Long.class)),
         generateOrderNumber(),
         status,
         randomOrderItems(),

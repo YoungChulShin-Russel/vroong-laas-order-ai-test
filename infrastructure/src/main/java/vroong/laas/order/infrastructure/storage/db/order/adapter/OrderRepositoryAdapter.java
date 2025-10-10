@@ -1,10 +1,12 @@
 package vroong.laas.order.infrastructure.storage.db.order.adapter;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import vroong.laas.order.core.common.annotation.ReadOnlyTransactional;
 import vroong.laas.order.core.domain.order.DeliveryPolicy;
 import vroong.laas.order.core.domain.order.Destination;
 import vroong.laas.order.core.domain.order.Order;
@@ -12,7 +14,6 @@ import vroong.laas.order.core.domain.order.OrderItem;
 import vroong.laas.order.core.domain.order.OrderNumber;
 import vroong.laas.order.core.domain.order.Origin;
 import vroong.laas.order.core.domain.order.required.OrderRepository;
-import vroong.laas.order.core.common.annotation.ReadOnlyTransactional;
 import vroong.laas.order.infrastructure.storage.db.order.OrderDeliveryPolicyEntity;
 import vroong.laas.order.infrastructure.storage.db.order.OrderDeliveryPolicyJpaRepository;
 import vroong.laas.order.infrastructure.storage.db.order.OrderEntity;
@@ -21,18 +22,21 @@ import vroong.laas.order.infrastructure.storage.db.order.OrderItemJpaRepository;
 import vroong.laas.order.infrastructure.storage.db.order.OrderJpaRepository;
 import vroong.laas.order.infrastructure.storage.db.order.OrderLocationEntity;
 import vroong.laas.order.infrastructure.storage.db.order.OrderLocationJpaRepository;
+import vroong.laas.order.infrastructure.storage.db.order.OrderStatus;
 
 /**
  * Order Repository Adapter
  *
  * <p>OrderRepository Port의 구현체 (Infrastructure Layer)
  *
- * <p>OrderStore와 OrderReader를 통합한 Adapter입니다.
+ * <p>책임:
+ * - Order Entity 생성 및 저장
+ * - Order 조회
  *
  * <p>트랜잭션 관리:
  *
  * <ul>
- *   <li>store(), delete(): @Transactional (쓰기)
+ *   <li>store(): @Transactional (쓰기)
  *   <li>findById(), findByOrderNumber(), existsByOrderNumber(): @ReadOnlyTransactional (읽기)
  * </ul>
  */
@@ -47,52 +51,42 @@ public class OrderRepositoryAdapter implements OrderRepository {
 
   // === 저장 ===
 
+  /**
+   * Order 생성 및 저장
+   *
+   * @param orderNumber 주문번호
+   * @param items 주문 아이템 목록
+   * @param origin 출발지
+   * @param destination 도착지
+   * @param deliveryPolicy 배송 정책
+   * @return 저장된 Order (id 할당됨)
+   */
   @Transactional
   @Override
-  public Order store(Order order) {
-    // 1. 신규 주문만 저장 (ID 없어야 함)
-    if (order.getId() != null) {
-      throw new IllegalArgumentException("신규 주문은 ID가 없어야 합니다: " + order.getId());
-    }
+  public Order store(
+      OrderNumber orderNumber,
+      List<OrderItem> items,
+      Origin origin,
+      Destination destination,
+      DeliveryPolicy deliveryPolicy) {
 
-    // 2. OrderEntity 저장
-    OrderEntity orderEntity = OrderEntity.from(order);
+    // 1. OrderEntity 생성 및 저장
+    OrderEntity orderEntity =
+        OrderEntity.builder()
+            .orderNumber(orderNumber.value())
+            .status(OrderStatus.CREATED)
+            .orderedAt(Instant.now())
+            .build();
     OrderEntity savedOrderEntity = orderJpaRepository.save(orderEntity);
     Long orderId = savedOrderEntity.getId();
 
-    // 3. 연관 Entity 저장
-    saveOrderItems(order, orderId);
-    OrderLocationEntity locationEntity = saveOrderLocation(order, orderId);
-    OrderDeliveryPolicyEntity policyEntity = saveOrderDeliveryPolicy(order, orderId);
+    // 2. 연관 Entity 저장
+    saveOrderItems(items, orderId);
+    saveOrderLocation(origin, destination, orderId);
+    saveOrderDeliveryPolicy(deliveryPolicy, orderId);
 
-    // 4. 연관 Entity를 Domain으로 변환
-    List<OrderItemEntity> itemEntities = orderItemJpaRepository.findByOrderId(orderId);
-    List<OrderItem> items = itemEntities.stream().map(OrderItemEntity::toDomain).toList();
-
-    Origin origin = locationEntity.toOriginDomain();
-    Destination destination = locationEntity.toDestinationDomain();
-    DeliveryPolicy policy = policyEntity.toDomain();
-
-    // 5. OrderEntity를 Domain으로 변환
-    return savedOrderEntity.toDomain(items, origin, destination, policy);
-  }
-
-  @Transactional
-  @Override
-  public void delete(Order order) {
-    if (order.getId() == null) {
-      throw new IllegalArgumentException("삭제할 주문은 ID가 있어야 합니다");
-    }
-
-    Long orderId = order.getId();
-
-    // 1. 연관 Entity 삭제
-    orderItemJpaRepository.deleteByOrderId(orderId);
-    orderLocationJpaRepository.deleteByOrderId(orderId);
-    orderDeliveryPolicyJpaRepository.deleteByOrderId(orderId);
-
-    // 2. OrderEntity 삭제
-    orderJpaRepository.deleteById(orderId);
+    // 3. OrderEntity → Order Domain 변환
+    return savedOrderEntity.toDomain(items, origin, destination, deliveryPolicy);
   }
 
   // === 조회 ===
@@ -106,7 +100,6 @@ public class OrderRepositoryAdapter implements OrderRepository {
   @ReadOnlyTransactional
   @Override
   public Optional<Order> findByOrderNumber(OrderNumber orderNumber) {
-    // OrderNumber → String 변환 후 JPA Repository 호출
     return orderJpaRepository
         .findByOrderNumber(orderNumber.value())
         .map(this::toDomainWithDetails);
@@ -120,25 +113,22 @@ public class OrderRepositoryAdapter implements OrderRepository {
 
   // === Private Helper Methods ===
 
-  private void saveOrderItems(Order order, Long orderId) {
+  private void saveOrderItems(List<OrderItem> items, Long orderId) {
     List<OrderItemEntity> itemEntities =
-        order.getItems().stream().map(item -> OrderItemEntity.from(item, orderId)).toList();
+        items.stream().map(item -> OrderItemEntity.from(item, orderId)).toList();
 
     orderItemJpaRepository.saveAll(itemEntities);
   }
 
-  private OrderLocationEntity saveOrderLocation(Order order, Long orderId) {
-    OrderLocationEntity locationEntity =
-        OrderLocationEntity.from(order.getOrigin(), order.getDestination(), orderId);
-
-    return orderLocationJpaRepository.save(locationEntity);
+  private void saveOrderLocation(Origin origin, Destination destination, Long orderId) {
+    OrderLocationEntity locationEntity = OrderLocationEntity.from(origin, destination, orderId);
+    orderLocationJpaRepository.save(locationEntity);
   }
 
-  private OrderDeliveryPolicyEntity saveOrderDeliveryPolicy(Order order, Long orderId) {
+  private void saveOrderDeliveryPolicy(DeliveryPolicy deliveryPolicy, Long orderId) {
     OrderDeliveryPolicyEntity policyEntity =
-        OrderDeliveryPolicyEntity.from(order.getDeliveryPolicy(), orderId);
-
-    return orderDeliveryPolicyJpaRepository.save(policyEntity);
+        OrderDeliveryPolicyEntity.from(deliveryPolicy, orderId);
+    orderDeliveryPolicyJpaRepository.save(policyEntity);
   }
 
   /**
@@ -162,8 +152,7 @@ public class OrderRepositoryAdapter implements OrderRepository {
             .findByOrderId(orderId)
             .orElseThrow(
                 () ->
-                    new IllegalStateException(
-                        "OrderLocation이 없습니다. orderId: " + orderId));
+                    new IllegalStateException("OrderLocation이 없습니다. orderId: " + orderId));
 
     Origin origin = locationEntity.toOriginDomain();
     Destination destination = locationEntity.toDestinationDomain();
@@ -183,4 +172,3 @@ public class OrderRepositoryAdapter implements OrderRepository {
     return orderEntity.toDomain(items, origin, destination, policy);
   }
 }
-

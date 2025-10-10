@@ -35,17 +35,17 @@ public class OrderCreator {
    */
   @Transactional
   public Order createOrder(CreateOrderCommand command) {
-    // 1. Order 생성
-    Order order =
-        Order.create(
-            orderNumberGenerator,
+    // 1. 주문번호 생성
+    OrderNumber orderNumber = orderNumberGenerator.generate();
+
+    // 2. Order 저장 (Repository에서 Order 생성 및 저장)
+    Order savedOrder =
+        orderRepository.store(
+            orderNumber,
             command.items(),
             command.origin(),
             command.destination(),
             command.deliveryPolicy());
-
-    // 2. Order 저장
-    Order savedOrder = orderRepository.store(order);
 
     // 3. 이벤트 생성 및 발행
     outboxEventStore.save(OrderCreatedEvent.from(savedOrder));
