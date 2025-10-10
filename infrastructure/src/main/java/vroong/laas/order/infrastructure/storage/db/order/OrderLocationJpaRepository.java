@@ -23,5 +23,16 @@ public interface OrderLocationJpaRepository extends JpaRepository<OrderLocationE
           + "WHERE l.orderId = :orderId "
           + "AND l.entityStatus = vroong.laas.order.infrastructure.storage.db.EntityStatus.ACTIVE")
   Optional<OrderLocationEntity> findByOrderId(@Param("orderId") Long orderId);
+
+  /**
+   * 주문 ID로 위치 정보 삭제 (soft delete)
+   *
+   * @param orderId 주문 ID
+   */
+  @Query(
+      "UPDATE OrderLocationEntity l "
+          + "SET l.entityStatus = vroong.laas.order.infrastructure.storage.db.EntityStatus.DELETED "
+          + "WHERE l.orderId = :orderId")
+  void deleteByOrderId(@Param("orderId") Long orderId);
 }
 

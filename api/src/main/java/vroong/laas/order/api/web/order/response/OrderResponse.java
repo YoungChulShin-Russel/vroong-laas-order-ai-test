@@ -9,7 +9,7 @@ import vroong.laas.order.api.web.order.dto.OriginDto;
 import vroong.laas.order.core.domain.order.Order;
 
 /**
- * 주문 생성 Response
+ * 주문 Response
  *
  * <p>Order Domain → Response DTO 변환
  */
@@ -23,11 +23,10 @@ public record OrderResponse(
     DeliveryPolicyDto deliveryPolicy,
     Instant orderedAt,
     Instant deliveredAt,
-    Instant cancelledAt
-) {
+    Instant cancelledAt) {
 
   /**
-   * Order Domain → OrderResponse 변환
+   * Order → OrderResponse 변환
    */
   public static OrderResponse from(Order order) {
     return new OrderResponse(

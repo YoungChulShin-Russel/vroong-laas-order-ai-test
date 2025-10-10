@@ -11,13 +11,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import vroong.laas.order.api.web.order.request.CreateOrderRequest;
 import vroong.laas.order.api.web.order.response.OrderResponse;
-import vroong.laas.order.core.application.order.query.GetOrderByIdQuery;
-import vroong.laas.order.core.application.order.query.GetOrderByNumberQuery;
-import vroong.laas.order.core.application.order.usecase.CreateOrderUseCase;
-import vroong.laas.order.core.application.order.usecase.GetOrderByIdUseCase;
-import vroong.laas.order.core.application.order.usecase.GetOrderByNumberUseCase;
+import vroong.laas.order.core.application.order.OrderFacade;
 import vroong.laas.order.core.domain.order.Order;
-import vroong.laas.order.core.domain.order.OrderNumber;
 
 /**
  * 주문 Controller
@@ -31,17 +26,10 @@ import vroong.laas.order.core.domain.order.OrderNumber;
 @RequestMapping("/api/v1/orders")
 public class OrderController {
 
-  private final CreateOrderUseCase createOrderUseCase;
-  private final GetOrderByIdUseCase getOrderByIdUseCase;
-  private final GetOrderByNumberUseCase getOrderByNumberUseCase;
+  private final OrderFacade orderFacade;
 
-  public OrderController(
-      CreateOrderUseCase createOrderUseCase,
-      GetOrderByIdUseCase getOrderByIdUseCase,
-      GetOrderByNumberUseCase getOrderByNumberUseCase) {
-    this.createOrderUseCase = createOrderUseCase;
-    this.getOrderByIdUseCase = getOrderByIdUseCase;
-    this.getOrderByNumberUseCase = getOrderByNumberUseCase;
+  public OrderController(OrderFacade orderFacade) {
+    this.orderFacade = orderFacade;
   }
 
   /**
@@ -54,10 +42,10 @@ public class OrderController {
   @ResponseStatus(HttpStatus.CREATED)
   public OrderResponse createOrder(@RequestBody @Valid CreateOrderRequest request) {
 
-    // UseCase 실행
-    Order order = createOrderUseCase.execute(request.toCommand());
+    // Facade 실행
+    Order order = orderFacade.createOrder(request.toCommand());
 
-    // Domain → Response DTO 변환 및 반환
+    // Order → Response DTO 변환 및 반환
     return OrderResponse.from(order);
   }
 
@@ -70,11 +58,10 @@ public class OrderController {
   @GetMapping("/{orderId}")
   public OrderResponse getOrderById(@PathVariable Long orderId) {
 
-    // Query 생성 및 UseCase 실행
-    GetOrderByIdQuery query = new GetOrderByIdQuery(orderId);
-    Order order = getOrderByIdUseCase.execute(query);
+    // Facade 실행
+    Order order = orderFacade.getOrderById(orderId);
 
-    // Domain → Response DTO 변환 및 반환
+    // Order → Response DTO 변환 및 반환
     return OrderResponse.from(order);
   }
 
@@ -87,12 +74,10 @@ public class OrderController {
   @GetMapping("/number/{orderNumber}")
   public OrderResponse getOrderByNumber(@PathVariable String orderNumber) {
 
-    // String → OrderNumber (Domain Value Object) 변환
-    // Query 생성 및 UseCase 실행
-    GetOrderByNumberQuery query = new GetOrderByNumberQuery(OrderNumber.of(orderNumber));
-    Order order = getOrderByNumberUseCase.execute(query);
+    // Facade 실행
+    Order order = orderFacade.getOrderByNumber(orderNumber);
 
-    // Domain → Response DTO 변환 및 반환
+    // Order → Response DTO 변환 및 반환
     return OrderResponse.from(order);
   }
 }

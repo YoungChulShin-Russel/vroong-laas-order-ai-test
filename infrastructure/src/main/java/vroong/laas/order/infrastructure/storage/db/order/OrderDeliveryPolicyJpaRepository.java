@@ -24,5 +24,16 @@ public interface OrderDeliveryPolicyJpaRepository
           + "WHERE p.orderId = :orderId "
           + "AND p.entityStatus = vroong.laas.order.infrastructure.storage.db.EntityStatus.ACTIVE")
   Optional<OrderDeliveryPolicyEntity> findByOrderId(@Param("orderId") Long orderId);
+
+  /**
+   * 주문 ID로 배송 정책 삭제 (soft delete)
+   *
+   * @param orderId 주문 ID
+   */
+  @Query(
+      "UPDATE OrderDeliveryPolicyEntity p "
+          + "SET p.entityStatus = vroong.laas.order.infrastructure.storage.db.EntityStatus.DELETED "
+          + "WHERE p.orderId = :orderId")
+  void deleteByOrderId(@Param("orderId") Long orderId);
 }
 

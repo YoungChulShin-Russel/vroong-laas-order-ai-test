@@ -1,4 +1,4 @@
-package vroong.laas.order.core.application.order.command;
+package vroong.laas.order.core.domain.order.command;
 
 import java.util.List;
 import vroong.laas.order.core.domain.order.DeliveryPolicy;
@@ -9,7 +9,7 @@ import vroong.laas.order.core.domain.order.Origin;
 /**
  * 주문 생성 Command
  *
- * <p>API Layer에서 받은 요청을 Domain Layer로 전달하기 위한 Command입니다.
+ * <p>주문 생성에 필요한 입력 데이터를 담는 Command입니다.
  *
  * <p>설계 원칙:
  * - 가능하면 Domain Model 사용 (OrderItem, Origin, Destination, DeliveryPolicy 등)
@@ -37,3 +37,4 @@ public record CreateOrderCommand(
     // items는 선택 사항 (null 또는 빈 리스트 허용)
   }
 }
+
