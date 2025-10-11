@@ -11,10 +11,8 @@ dependencies {
     // kafka event 발행
     implementation 'com.vroong.msa.kafka:vroong-msa-kafka-event:1.0.7'
     implementation 'com.vroong.msa.kafka:vroong-msa-kafka-event-publisher:0.0.15'
-//    implementation 'com.vroong.msa.kafka:vroong-msa-kafka-event:1.0.7'
-//    implementation 'com.vroong.msa.kafka:vroong-msa-kafka-event-publisher:0.0.15'
-//    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
-//    implementation 'org.springframework.kafka:spring-kafka'
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    implementation 'org.springframework.kafka:spring-kafka'
 
     // MySQL Connector/J - Local 환경용 (Docker MySQL) + AWS Wrapper가 내부적으로 사용
     // https://dev.mysql.com/downloads/connector/j/

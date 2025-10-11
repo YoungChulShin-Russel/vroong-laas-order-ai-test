@@ -56,6 +56,13 @@ management:
     health:
       show-details: always  # 로컬: 항상 Health Check 상세 정보 노출
 
+# Kafka/Outbox 설정 (Local 환경)
+outbox:
+  event:
+    publisher:
+      bootstrap-servers: localhost:9092  # 로컬 Kafka (실제 연결 안 해도 Bean 생성용)
+      enabled: true
+
 # 로그 설정
 logging:
   level:
