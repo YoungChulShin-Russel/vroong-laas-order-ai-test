@@ -2,10 +2,10 @@ package vroong.laas.order.api.web.order.dto;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import vroong.laas.order.api.web.common.dto.AddressDto;
-import vroong.laas.order.api.web.common.dto.ContactDto;
-import vroong.laas.order.api.web.common.dto.EntranceInfoDto;
-import vroong.laas.order.api.web.common.dto.LatLngDto;
+import vroong.laas.order.api.web.shared.dto.AddressDto;
+import vroong.laas.order.api.web.shared.dto.ContactDto;
+import vroong.laas.order.api.web.shared.dto.EntranceInfoDto;
+import vroong.laas.order.api.web.shared.dto.LatLngDto;
 import vroong.laas.order.core.domain.order.Destination;
 import vroong.laas.order.core.domain.order.EntranceInfo;
 

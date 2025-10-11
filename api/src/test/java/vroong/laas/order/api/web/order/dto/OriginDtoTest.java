@@ -5,10 +5,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import vroong.laas.order.api.web.common.dto.AddressDto;
-import vroong.laas.order.api.web.common.dto.ContactDto;
-import vroong.laas.order.api.web.common.dto.EntranceInfoDto;
-import vroong.laas.order.api.web.common.dto.LatLngDto;
+import vroong.laas.order.api.web.shared.dto.AddressDto;
+import vroong.laas.order.api.web.shared.dto.ContactDto;
+import vroong.laas.order.api.web.shared.dto.EntranceInfoDto;
+import vroong.laas.order.api.web.shared.dto.LatLngDto;
 import vroong.laas.order.core.domain.order.Origin;
 
 @DisplayName("OriginDto 테스트")

@@ -1,4 +1,4 @@
-package vroong.laas.order.api.web.common.dto;
+package vroong.laas.order.api.web.shared.dto;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

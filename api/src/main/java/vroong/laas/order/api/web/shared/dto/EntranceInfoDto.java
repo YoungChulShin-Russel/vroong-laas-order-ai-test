@@ -1,4 +1,4 @@
-package vroong.laas.order.api.web.common.dto;
+package vroong.laas.order.api.web.shared.dto;
 
 import vroong.laas.order.core.domain.order.EntranceInfo;
 
