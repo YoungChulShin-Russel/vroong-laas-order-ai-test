@@ -1,9 +1,11 @@
 package vroong.laas.order.infrastructure.outbox;
 
+import com.vroong.msa.kafka.eventpublisher.OutboxEventService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
-import vroong.laas.order.core.domain.shared.event.DomainEvent;
+import vroong.laas.order.core.domain.outbox.OutboxEventType;
+import vroong.laas.order.core.domain.shared.AggregateRoot;
 import vroong.laas.order.core.domain.outbox.required.OutboxEventClient;
 
 /**
@@ -24,23 +26,20 @@ import vroong.laas.order.core.domain.outbox.required.OutboxEventClient;
 @Repository
 @RequiredArgsConstructor
 @Slf4j
-public class OutboxEventClientAdapter implements OutboxEventClient {
+public class KafkaOutboxEventClient implements OutboxEventClient {
 
-  // TODO: Outbox 라이브러리 의존성 주입
-  // private final YourOutboxLibrary outboxLibrary;
+  private final OutboxEventService outboxEventService;
+  private final KafkaOutboxEventMapper outboxEventMapper = new KafkaOutboxEventMapper();
 
   /**
    * Domain Event를 Outbox에 저장
    *
-   * @param event Domain Event
+   * @param eventType Outbox Event Type
+   * @param aggregateRoot AggregateRoot model
    */
   @Override
-  public void save(DomainEvent event) {
-    // TODO: Outbox 라이브러리 호출
-    log.info(
-        "Outbox 저장 (TODO): eventType={}, occurredAt={}",
-        event.eventType(),
-        event.occurredAt());
+  public void save(OutboxEventType eventType, AggregateRoot aggregateRoot) {
+    KafkaOutboxEvent event = outboxEventMapper.map(eventType, aggregateRoot);
+    outboxEventService.registerEvent(event.kafkaEvent(), event.eventKey());
   }
 }
-

@@ -2,8 +2,8 @@ package vroong.laas.order.core.domain.outbox;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import vroong.laas.order.core.domain.shared.event.DomainEvent;
 import vroong.laas.order.core.domain.outbox.required.OutboxEventClient;
+import vroong.laas.order.core.domain.shared.AggregateRoot;
 
 /**
  * Outbox Event Store (Domain Service)
@@ -20,27 +20,11 @@ import vroong.laas.order.core.domain.outbox.required.OutboxEventClient;
  */
 @Service
 @RequiredArgsConstructor
-public class OutboxEventStore {
+public class OutboxEventAppender {
 
   private final OutboxEventClient outboxEventClient;
 
-  /**
-   * Domain Event 목록을 Outbox에 저장
-   *
-   * @param events Domain Event 목록
-   */
-  public void saveAll(Iterable<DomainEvent> events) {
-    events.forEach(this::save);
-  }
+  public void append(OutboxEventType type, AggregateRoot aggregateRoot) {
 
-  /**
-   * Domain Event를 Outbox에 저장
-   *
-   * @param event Domain Event
-   */
-  public void save(DomainEvent event) {
-    outboxEventClient.save(event);
   }
-
-  
 }

@@ -1,5 +1,7 @@
 package vroong.laas.order.core.domain.outbox.required;
 
+import vroong.laas.order.core.domain.outbox.OutboxEventType;
+import vroong.laas.order.core.domain.shared.AggregateRoot;
 import vroong.laas.order.core.domain.shared.event.DomainEvent;
 
 /**
@@ -20,8 +22,9 @@ public interface OutboxEventClient {
   /**
    * Domain Event를 Outbox에 저장
    *
-   * @param event Domain Event
+   * @param type Outbox Event Type
+   * @param aggregateRoot AggregateRoot model
    */
-  void save(DomainEvent event);
+  void save(OutboxEventType type, AggregateRoot aggregateRoot);
 }
 

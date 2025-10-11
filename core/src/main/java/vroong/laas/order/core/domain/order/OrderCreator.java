@@ -5,7 +5,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vroong.laas.order.core.domain.order.command.CreateOrderCommand;
 import vroong.laas.order.core.domain.order.required.OrderRepository;
-import vroong.laas.order.core.domain.outbox.OutboxEventStore;
+import vroong.laas.order.core.domain.outbox.OutboxEventAppender;
+import vroong.laas.order.core.domain.outbox.OutboxEventType;
 
 /**
  * Order 생성 Domain Service
@@ -24,7 +25,7 @@ public class OrderCreator {
 
   private final OrderNumberGenerator orderNumberGenerator;
   private final OrderRepository orderRepository;
-  private final OutboxEventStore outboxEventStore;
+  private final OutboxEventAppender outboxEventAppender;
 
   /**
    * 주문 생성
@@ -38,7 +39,7 @@ public class OrderCreator {
     OrderNumber orderNumber = orderNumberGenerator.generate();
 
     // 2. Order 저장 (Order.create()가 내부에서 호출되어 도메인 이벤트 자동 추가)
-    Order savedOrder =
+    Order order =
         orderRepository.store(
             orderNumber,
             command.items(),
@@ -47,8 +48,8 @@ public class OrderCreator {
             command.deliveryPolicy());
 
     // 3. 도메인 이벤트 발행
-    savedOrder.getDomainEvents().forEach(outboxEventStore::save);
+    outboxEventAppender.append(OutboxEventType.ORDER_CREATED, order);
 
-    return savedOrder;
+    return order;
   }
 }
