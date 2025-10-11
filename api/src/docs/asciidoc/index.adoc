@@ -1,0 +1,150 @@
+= LaaS Order Service API Documentation
+:doctype: book
+:icons: font
+:source-highlighter: highlightjs
+:toc: left
+:toclevels: 3
+:sectlinks:
+:sectnums:
+
+[[overview]]
+== Overview
+
+LaaS Order Service의 REST API 문서입니다.
+
+=== Version Information
+[%hardbreaks]
+__Version__ : 1.0.0
+
+=== Base URL
+[source]
+----
+http://localhost:8080
+----
+
+[[order-api]]
+== 주문 API
+
+[[order-create]]
+=== 주문 생성
+
+`POST /api/v1/orders`
+
+주문을 생성합니다.
+
+==== Request
+
+include::{snippets}/order-create/curl-request.adoc[]
+
+include::{snippets}/order-create/http-request.adoc[]
+
+===== Request Fields
+
+include::{snippets}/order-create/request-fields.adoc[]
+
+==== Response
+
+include::{snippets}/order-create/http-response.adoc[]
+
+===== Response Fields
+
+include::{snippets}/order-create/response-fields.adoc[]
+
+[[order-get]]
+=== 주문 조회 (ID)
+
+`GET /api/v1/orders/{orderId}`
+
+주문 ID로 주문을 조회합니다.
+
+==== 성공 응답 (200 OK)
+
+===== Request
+
+include::{snippets}/order-get/curl-request.adoc[]
+
+include::{snippets}/order-get/http-request.adoc[]
+
+====== Path Parameters
+
+include::{snippets}/order-get/path-parameters.adoc[]
+
+===== Response
+
+include::{snippets}/order-get/http-response.adoc[]
+
+====== Response Fields
+
+include::{snippets}/order-get/response-fields.adoc[]
+
+==== 에러 응답
+
+===== 주문을 찾을 수 없음 (400 Bad Request)
+
+====== Request
+
+include::{snippets}/order-get-not-found/curl-request.adoc[]
+
+include::{snippets}/order-get-not-found/http-request.adoc[]
+
+======= Path Parameters
+
+include::{snippets}/order-get-not-found/path-parameters.adoc[]
+
+====== Response
+
+include::{snippets}/order-get-not-found/http-response.adoc[]
+
+======= Response Fields (Error)
+
+include::{snippets}/order-get-not-found/response-fields.adoc[]
+
+[[order-get-by-order-number]]
+=== 주문 조회 (주문번호)
+
+`GET /api/v1/orders/number/{orderNumber}`
+
+주문 번호로 주문을 조회합니다.
+
+==== 성공 응답 (200 OK)
+
+===== Request
+
+include::{snippets}/order-get-by-order-number/curl-request.adoc[]
+
+include::{snippets}/order-get-by-order-number/http-request.adoc[]
+
+====== Path Parameters
+
+include::{snippets}/order-get-by-order-number/path-parameters.adoc[]
+
+===== Response
+
+include::{snippets}/order-get-by-order-number/http-response.adoc[]
+
+====== Response Fields
+
+include::{snippets}/order-get-by-order-number/response-fields.adoc[]
+
+==== 에러 응답
+
+===== 주문을 찾을 수 없음 (400 Bad Request)
+
+====== Request
+
+include::{snippets}/order-get-by-order-number-not-found/curl-request.adoc[]
+
+include::{snippets}/order-get-by-order-number-not-found/http-request.adoc[]
+
+======= Path Parameters
+
+include::{snippets}/order-get-by-order-number-not-found/path-parameters.adoc[]
+
+====== Response
+
+include::{snippets}/order-get-by-order-number-not-found/http-response.adoc[]
+
+======= Response Fields (Error)
+
+include::{snippets}/order-get-by-order-number-not-found/response-fields.adoc[]
+

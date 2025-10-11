@@ -152,10 +152,15 @@ vroong-laas-order-ai-test/
 | **Flyway** | 데이터베이스 마이그레이션 (Local 환경 자동 실행) | [flywaydb.org](https://flywaydb.org/) |
 | **Spring Boot Actuator** | Health Check, Metrics, Kubernetes Probe 지원 | [docs.spring.io/spring-boot/reference/actuator](https://docs.spring.io/spring-boot/reference/actuator/index.html) |
 | **Micrometer Prometheus** | Prometheus 메트릭 수집 (운영 모니터링) | [micrometer.io](https://micrometer.io/) |
+| **Spring Kafka** | Kafka Producer/Consumer (Outbox 라이브러리 Auto-Configuration 활성화) | [spring.io/projects/spring-kafka](https://spring.io/projects/spring-kafka) |
+| **Spring Boot Starter JDBC** | JdbcTemplate 제공 (Outbox 라이브러리 Auto-Configuration 활성화) | [spring.io/projects/spring-boot](https://spring.io/projects/spring-boot) |
+| **Vroong MSA Kafka Event** | Kafka 이벤트 표준 (v1.0.7) | Internal Library |
+| **Vroong MSA Kafka Event Publisher** | Kafka Outbox 패턴 구현 (v0.0.15) | Internal Library |
 | **JUnit 5** | 테스트 프레임워크 | [junit.org/junit5](https://junit.org/junit5/) |
 | **AssertJ** | 가독성 좋은 Assertion | [assertj.github.io](https://assertj.github.io/doc/) |
 | **Mockito** | Mock 객체 생성 (Application/Interface Layer 테스트) | [site.mockito.org](https://site.mockito.org/) |
 | **Fixture Monkey** | 테스트 데이터 자동 생성 (v1.1.15) | [naver.github.io/fixture-monkey](https://naver.github.io/fixture-monkey/) |
+| **Spring REST Docs** | REST API 문서 자동 생성 (Asciidoctor) | [spring.io/projects/spring-restdocs](https://spring.io/projects/spring-restdocs) |
 
 ### 버전 관리
 
@@ -177,7 +182,7 @@ fixtureMonkeyVersion=1.1.15
 | **Domain** | 순수 Java 단위 테스트 (Spring Context 없음) | JUnit 5, AssertJ, Fixture Monkey |
 | **Application** | Facade 테스트 (Domain Service는 Mock) | JUnit 5, Mockito |
 | **Infrastructure** | Repository/Adapter 통합 테스트 | `@DataJpaTest`, H2 |
-| **Interface** | Controller 테스트 | `@WebMvcTest`, MockMvc |
+| **Interface** | Controller 테스트 (API 문서 자동 생성) | `@WebMvcTest`, MockMvc, REST Docs |
 
 ### Fixture Monkey 활용
 
@@ -195,6 +200,50 @@ Order order = fixtureMonkey.giveMeBuilder(Order.class)
     .set("status", OrderStatus.CREATED)
     .sample();
 ```
+
+### REST Docs - API 문서 자동 생성
+
+Controller 테스트와 함께 API 문서를 자동으로 생성합니다.
+
+```java
+@WebMvcTest(
+    controllers = OrderController.class,
+    excludeFilters = @ComponentScan.Filter(
+        type = FilterType.REGEX,
+        pattern = "vroong.laas.order.api.web.common.logging.*"
+    )
+)
+@AutoConfigureRestDocs
+@Import({RestDocsConfiguration.class, WebApiControllerAdvice.class})
+class OrderControllerTest {
+    
+    @Test
+    void createOrder_success() throws Exception {
+        mockMvc.perform(post("/api/v1/orders")
+                .contentType(APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isCreated())
+            .andDo(document("order-create",
+                requestFields(
+                    fieldWithPath("items[]").description("주문 아이템 목록"),
+                    // ...
+                ),
+                responseFields(
+                    fieldWithPath("id").description("주문 ID"),
+                    // ...
+                )
+            ));
+    }
+}
+```
+
+**주요 특징:**
+- ✅ `@WebMvcTest` 사용 (Web Layer만 로드, 빠른 실행)
+- ✅ `@AutoConfigureRestDocs` 자동 설정
+- ✅ 커스텀 템플릿으로 Constraints 컬럼 자동 추가 (`src/test/resources/org/springframework/restdocs/templates/asciidoctor/`)
+- ✅ FixtureMonkey 사용 안 함 (일관된 문서 생성 위해 고정 데이터 사용)
+- ✅ `WebApiControllerAdvice` 명시적 Import (전역 예외 처리)
+- ✅ `RequestResponseLoggingFilter` 제외 (테스트 환경에서 불필요)
 
 **자세한 테스트 가이드는 [.cursor/rules/07-testing.mdc](./.cursor/rules/07-testing.mdc)를 참고하세요.**
 

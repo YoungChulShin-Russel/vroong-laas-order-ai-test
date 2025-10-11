@@ -1,0 +1,46 @@
+spring:
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+  
+  flyway:
+    enabled: false  # 테스트에서는 Flyway 비활성화
+
+# 커스텀 DataSource 설정 (H2)
+order:
+  datasource:
+    write:
+      driver-class-name: org.h2.Driver
+      jdbc-url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+      username: sa
+      password:
+      hikari:
+        pool-name: TestWriterPool
+        maximum-pool-size: 5
+        minimum-idle: 1
+    read:
+      driver-class-name: org.h2.Driver
+      jdbc-url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+      username: sa
+      password:
+      hikari:
+        pool-name: TestReaderPool
+        maximum-pool-size: 5
+        minimum-idle: 1
+
+# Kafka/Outbox 비활성화
+outbox:
+  event:
+    publisher:
+      enabled: false
+
+logging:
+  level:
+    root: WARN
+    vroong.laas.order: DEBUG
+

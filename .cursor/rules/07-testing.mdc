@@ -801,6 +801,268 @@ class OrderControllerTest {
 
 ---
 
+## 5. REST Docs - API 문서 자동 생성 ⭐
+
+**특징:**
+- Controller 테스트와 함께 API 문서 자동 생성
+- **@WebMvcTest 사용** (Web Layer만 로드, 빠른 실행)
+- **FixtureMonkey 사용 안 함** (일관된 문서를 위해 고정 데이터 사용)
+- 커스텀 템플릿으로 Constraints 컬럼 추가
+
+### REST Docs 테스트 템플릿
+
+```java
+// api/src/test/java/vroong/laas/order/api/web/order/OrderControllerTest.java
+@WebMvcTest(
+    controllers = OrderController.class,
+    excludeFilters = @ComponentScan.Filter(
+        type = FilterType.REGEX,
+        pattern = "vroong.laas.order.api.web.common.logging.*"
+    )
+)
+@AutoConfigureRestDocs
+@Import({RestDocsConfiguration.class, WebApiControllerAdvice.class})
+class OrderControllerTest {
+    
+    @Autowired
+    private MockMvc mockMvc;
+    
+    @MockBean
+    private OrderFacade orderFacade;
+    
+    @Autowired
+    private ObjectMapper objectMapper;
+    
+    @Autowired
+    private RestDocumentationResultHandler restDocs;
+    
+    @Test
+    @DisplayName("주문 생성 API")
+    void createOrder_success() throws Exception {
+        // given - 고정된 테스트 데이터 사용 (FixtureMonkey 사용 안 함)
+        CreateOrderRequest request = CreateOrderRequest.builder()
+            .items(List.of(
+                OrderItemDto.builder()
+                    .itemName("상품A")
+                    .quantity(2)
+                    .price(new BigDecimal("10000"))
+                    .category("식품")
+                    .build()
+            ))
+            .origin(OriginDto.builder()
+                .contact(ContactDto.builder()
+                    .name("발송자")
+                    .phoneNumber("010-1234-5678")
+                    .build())
+                .address(AddressDto.builder()
+                    .jibnunAddress("서울시 강남구 역삼동 123")
+                    .roadAddress("서울시 강남구 테헤란로 123")
+                    .detailAddress("1층")
+                    .build())
+                .latLng(LatLngDto.builder()
+                    .latitude(new BigDecimal("37.123456"))
+                    .longitude(new BigDecimal("127.123456"))
+                    .build())
+                .build())
+            .destination(DestinationDto.builder()
+                .contact(ContactDto.builder()
+                    .name("수령자")
+                    .phoneNumber("010-9876-5432")
+                    .build())
+                .address(AddressDto.builder()
+                    .jibnunAddress("서울시 서초구 서초동 456")
+                    .roadAddress("서울시 서초구 서초대로 456")
+                    .detailAddress("2층")
+                    .build())
+                .latLng(LatLngDto.builder()
+                    .latitude(new BigDecimal("37.234567"))
+                    .longitude(new BigDecimal("127.234567"))
+                    .build())
+                .entranceInfo(EntranceInfoDto.builder()
+                    .entrancePassword("1234")
+                    .entranceNote("현관 비밀번호는 1234입니다")
+                    .build())
+                .build())
+            .deliveryPolicy(DeliveryPolicyDto.builder()
+                .pickupDueAt(Instant.now().plusSeconds(3600))
+                .deliveryDueAt(Instant.now().plusSeconds(7200))
+                .build())
+            .build();
+        
+        Order mockOrder = Order.builder()
+            .id(1L)
+            .orderNumber(OrderNumber.of("ORD-20250112-001"))
+            .status(OrderStatus.CREATED)
+            .items(request.toItems())
+            .origin(request.toOrigin())
+            .destination(request.toDestination())
+            .deliveryPolicy(request.toDeliveryPolicy())
+            .orderedAt(Instant.now())
+            .build();
+        
+        given(orderFacade.createOrder(any(CreateOrderCommand.class)))
+            .willReturn(mockOrder);
+        
+        // when & then
+        mockMvc.perform(post("/api/v1/orders")
+                .contentType(APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.id").value(1))
+            .andExpect(jsonPath("$.orderNumber").value("ORD-20250112-001"))
+            .andExpect(jsonPath("$.status").value("CREATED"))
+            .andDo(restDocs.document(
+                requestFields(
+                    fieldWithPath("items[]").description("주문 아이템 목록")
+                        .attributes(key("constraints").value("최소 1개")),
+                    fieldWithPath("items[].itemName").description("상품명"),
+                    fieldWithPath("items[].quantity").description("수량")
+                        .attributes(key("constraints").value("1 이상")),
+                    fieldWithPath("items[].price").description("가격"),
+                    fieldWithPath("items[].category").description("카테고리"),
+                    fieldWithPath("origin.contact.name").description("발송자 이름"),
+                    fieldWithPath("origin.contact.phoneNumber").description("발송자 전화번호"),
+                    // ... 기타 필드
+                ),
+                responseFields(
+                    fieldWithPath("id").description("주문 ID"),
+                    fieldWithPath("orderNumber").description("주문 번호"),
+                    fieldWithPath("status").description("주문 상태")
+                        .attributes(key("constraints").value("CREATED, DELIVERED, CANCELLED")),
+                    // ... 기타 필드
+                )
+            ));
+    }
+}
+```
+
+### RestDocsConfiguration (공통 설정)
+
+```java
+// api/src/test/java/vroong/laas/order/api/config/RestDocsConfiguration.java
+@TestConfiguration
+public class RestDocsConfiguration {
+    
+    @Bean
+    public RestDocumentationResultHandler write() {
+        return MockMvcRestDocumentation.document(
+            "{class-name}/{method-name}",
+            preprocessRequest(prettyPrint()),
+            preprocessResponse(prettyPrint())
+        );
+    }
+}
+```
+
+### 커스텀 템플릿 (Constraints 컬럼 추가)
+
+**중요:** 템플릿 경로는 반드시 `src/test/resources/org/springframework/restdocs/templates/asciidoctor/`이어야 합니다. (Spring REST Docs 고정 규칙)
+
+```
+// api/src/test/resources/org/springframework/restdocs/templates/asciidoctor/request-fields.snippet
+|===
+|Path|Type|Description|Constraints
+
+{{#fields}}
+|{{#tableCellContent}}`+{{path}}+`{{/tableCellContent}}
+|{{#tableCellContent}}`+{{type}}+`{{/tableCellContent}}
+|{{#tableCellContent}}{{description}}{{/tableCellContent}}
+|{{#tableCellContent}}{{#constraints}}{{.}}{{/constraints}}{{^constraints}}-{{/constraints}}{{/tableCellContent}}
+
+{{/fields}}
+|===
+```
+
+```
+// api/src/test/resources/org/springframework/restdocs/templates/asciidoctor/response-fields.snippet
+|===
+|Path|Type|Description|Constraints
+
+{{#fields}}
+|{{#tableCellContent}}`+{{path}}+`{{/tableCellContent}}
+|{{#tableCellContent}}`+{{type}}+`{{/tableCellContent}}
+|{{#tableCellContent}}{{description}}{{/tableCellContent}}
+|{{#tableCellContent}}{{#constraints}}{{.}}{{/constraints}}{{^constraints}}-{{/constraints}}{{/tableCellContent}}
+
+{{/fields}}
+|===
+```
+
+### 주요 규칙
+
+1. **@WebMvcTest 사용 (필수)**
+   - `@SpringBootTest` 대신 `@WebMvcTest` 사용
+   - Web Layer만 로드하여 빠른 테스트 실행
+   - 필요한 Bean은 `@Import`로 명시적 추가
+
+2. **FixtureMonkey 사용 안 함 (필수)**
+   - REST Docs는 일관된 문서가 필요
+   - 고정된 테스트 데이터 사용
+   - 빌더 패턴으로 가독성 있게 작성
+
+3. **WebApiControllerAdvice Import (필수)**
+   - `@WebMvcTest`는 `@ControllerAdvice`를 자동으로 로드하지 않음
+   - `@Import({WebApiControllerAdvice.class})`로 명시적 추가
+
+4. **RequestResponseLoggingFilter 제외 (필수)**
+   - `@WebMvcTest`는 `LoggingProperties` Bean을 로드하지 않음
+   - `excludeFilters`로 로깅 필터 제외
+
+5. **커스텀 템플릿 경로 (고정)**
+   - 반드시 `src/test/resources/org/springframework/restdocs/templates/asciidoctor/`
+   - 다른 경로는 Spring REST Docs가 인식하지 못함
+
+### 체크리스트
+
+- [ ] `@WebMvcTest` 사용 (not `@SpringBootTest`)
+- [ ] `@AutoConfigureRestDocs` 추가
+- [ ] `@Import({RestDocsConfiguration.class, WebApiControllerAdvice.class})` 추가
+- [ ] `excludeFilters`로 `RequestResponseLoggingFilter` 제외
+- [ ] FixtureMonkey 제거, 고정 데이터 사용
+- [ ] 커스텀 템플릿 경로 확인 (`org/springframework/restdocs/templates/asciidoctor/`)
+- [ ] Constraints 추가 (`.attributes(key("constraints").value(...))`)
+
+### 자주하는 실수
+
+**❌ 잘못된 템플릿 경로**
+```
+src/test/resources/restdocs/templates/asciidoctor/  ← 인식 안 됨!
+```
+
+**✅ 올바른 템플릿 경로**
+```
+src/test/resources/org/springframework/restdocs/templates/asciidoctor/  ← 필수!
+```
+
+**❌ FixtureMonkey 사용**
+```java
+Order order = fixtureMonkey.giveMeOne(Order.class);  // 랜덤 데이터 → 문서가 매번 달라짐
+```
+
+**✅ 고정 데이터 사용**
+```java
+Order order = Order.builder()
+    .id(1L)
+    .orderNumber(OrderNumber.of("ORD-20250112-001"))
+    .build();  // 고정 데이터 → 일관된 문서
+```
+
+**❌ @SpringBootTest 사용**
+```java
+@SpringBootTest  // 전체 Context 로드 → 느림
+@AutoConfigureMockMvc
+class OrderControllerTest { }
+```
+
+**✅ @WebMvcTest 사용**
+```java
+@WebMvcTest(OrderController.class)  // Web Layer만 로드 → 빠름
+@AutoConfigureRestDocs
+class OrderControllerTest { }
+```
+
+---
+
 ## 🎯 Fixture Monkey 사용 규칙
 
 ### 1. 설정
@@ -1128,6 +1390,9 @@ assertThat(captor.getValue().getStatus()).isEqualTo(OrderStatus.CANCELLED);
 - [ ] API 예외 응답 테스트
 - [ ] 유효성 검증 테스트
 - [ ] 인증/인가 테스트
+- [ ] REST Docs 문서 생성 확인 (snippets 파일)
+- [ ] Constraints 컬럼 추가 확인
+- [ ] 커스텀 템플릿 경로 확인 (`org/springframework/restdocs/templates/asciidoctor/`)
 
 ---
 
@@ -1205,6 +1470,8 @@ void cancel_order() {
 - [AssertJ Documentation](https://assertj.github.io/doc/)
 - [Fixture Monkey Documentation](https://naver.github.io/fixture-monkey/)
 - [Mockito Documentation](https://javadoc.io/doc/org.mockito/mockito-core/latest/org/mockito/Mockito.html)
+- [Spring REST Docs](https://docs.spring.io/spring-restdocs/docs/current/reference/htmlsingle/)
+- [Spring REST Docs - Custom Templates](https://docs.spring.io/spring-restdocs/docs/current/reference/htmlsingle/#documenting-your-api-customizing-including-snippets)
 
 ---
 
