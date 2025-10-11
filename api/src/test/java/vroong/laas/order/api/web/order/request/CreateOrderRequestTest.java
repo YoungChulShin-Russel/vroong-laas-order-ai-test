@@ -15,7 +15,7 @@ import vroong.laas.order.api.web.order.dto.DeliveryPolicyDto;
 import vroong.laas.order.api.web.order.dto.DestinationDto;
 import vroong.laas.order.api.web.order.dto.OrderItemDto;
 import vroong.laas.order.api.web.order.dto.OriginDto;
-import vroong.laas.order.core.application.order.command.CreateOrderCommand;
+import vroong.laas.order.core.domain.order.command.CreateOrderCommand;
 
 @DisplayName("CreateOrderRequest 테스트")
 class CreateOrderRequestTest {

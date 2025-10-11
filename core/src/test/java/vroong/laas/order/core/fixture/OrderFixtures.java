@@ -131,6 +131,18 @@ public class OrderFixtures {
         cancelledAt);
   }
 
+  /** Order.create()로 생성 (Domain Event 자동 추가) */
+  public Order createdOrder() {
+    Long id = Math.abs(fixtureMonkey.giveMeOne(Long.class));
+    OrderNumber orderNumber = generateOrderNumber();
+    List<OrderItem> items = randomOrderItems();
+    Origin origin = randomOrigin();
+    Destination destination = randomDestination();
+    DeliveryPolicy deliveryPolicy = randomDeliveryPolicy();
+
+    return Order.create(id, orderNumber, items, origin, destination, deliveryPolicy);
+  }
+
   // ===== Value Objects 랜덤 생성 (Fixture Monkey 활용) =====
 
   /** 랜덤 OrderItem 리스트 */
