@@ -22,15 +22,16 @@ alwaysApply: true
       - adapter/
     - payment/
     - coupon/
-  - **cache/** - 캐시 (Redis)
+  - **cache/** - 캐시 (Redis) [미구현]
     - order/
     - config/
-- **external/** - 외부 API
+- **outbox/** - Outbox Pattern
+  - KafkaOutboxEventClient.java
+  - KafkaOutboxEventMapper.java
+  - KafkaOutboxEvent.java
+- **external/** - 외부 API [미구현]
   - client/
   - adapter/
-- **messaging/** - 메시징 (Kafka)
-  - adapter/
-  - config/
 - **config/** - 공통 설정
 
 ## JPA Entity 규칙
@@ -367,194 +368,229 @@ class FlywayConfig {
 
 ---
 
-## Store Adapter 규칙
+## Repository Adapter 규칙
 
 ### 위치
 `infrastructure/storage/db/*/adapter/`
 
 ### 책임
-- OrderStore 인터페이스 구현
+- OrderRepository 인터페이스 구현 (통합)
 - JpaRepository 사용
 - Domain ↔ Entity 변환
 - **@Transactional 관리 (트랜잭션 경계)**
 
-### Store Adapter 템플릿
+### Repository Adapter 템플릿
 
 ```java
-// infrastructure/storage/db/order/adapter/OrderStoreAdapter.java
+// infrastructure/storage/db/order/adapter/OrderRepositoryAdapter.java
 @Repository
 @RequiredArgsConstructor
-public class OrderStoreAdapter implements OrderStore {
+public class OrderRepositoryAdapter implements OrderRepository {
     
-    private final OrderJpaRepository jpaRepository;
+    private final OrderJpaRepository orderJpaRepository;
+    private final OrderItemJpaRepository orderItemJpaRepository;
+    private final OrderLocationJpaRepository orderLocationJpaRepository;
+    private final OrderDeliveryPolicyJpaRepository orderDeliveryPolicyJpaRepository;
     
+    /**
+     * Order 생성 및 저장
+     *
+     * <p>Order Entity를 생성하고 저장한 후, Order.create()로 완전한 Domain Model 반환
+     */
     @Transactional  // ⭐ 여기서 트랜잭션 관리
     @Override
-    public Order save(Order order) {
-        OrderJpaEntity entity = OrderJpaEntity.from(order);
-        OrderJpaEntity saved = jpaRepository.save(entity);
-        return saved.toDomain();
-    }
-    
-    @Transactional(readOnly = true)  // ⭐ 읽기 전용 트랜잭션
-    @Override
-    public Optional<Order> findById(Long id) {
-        return jpaRepository.findById(id)
-            .map(OrderJpaEntity::toDomain);
+    public Order store(
+        OrderNumber orderNumber,
+        List<OrderItem> items,
+        Origin origin,
+        Destination destination,
+        DeliveryPolicy deliveryPolicy) {
+
+      // 1. OrderEntity 생성 및 저장
+      OrderEntity orderEntity =
+          OrderEntity.builder()
+              .orderNumber(orderNumber.value())
+              .status(OrderStatus.CREATED)
+              .orderedAt(Instant.now())
+              .build();
+      OrderEntity savedOrderEntity = orderJpaRepository.save(orderEntity);
+      Long orderId = savedOrderEntity.getId();
+
+      // 2. 연관 Entity 저장
+      saveOrderItems(items, orderId);
+      saveOrderLocation(origin, destination, orderId);
+      saveOrderDeliveryPolicy(deliveryPolicy, orderId);
+
+      // 3. Order.create()로 완전한 Domain Model 생성 (Domain Event 자동 추가)
+      return Order.create(orderId, orderNumber, items, origin, destination, deliveryPolicy);
     }
     
     @Transactional(readOnly = true)
     @Override
-    public Optional<Order> findByIdWithItems(Long id) {
-        return jpaRepository.findByIdWithItems(id)
-            .map(OrderJpaEntity::toDomain);
+    public Optional<Order> findById(Long id) {
+        return orderJpaRepository.findById(id)
+            .map(entity -> reconstructOrder(entity));
     }
     
-    @Transactional
+    @Transactional(readOnly = true)
     @Override
-    public void delete(Order order) {
-        jpaRepository.deleteById(order.getId());
+    public Optional<Order> findByOrderNumber(OrderNumber orderNumber) {
+        return orderJpaRepository.findByOrderNumber(orderNumber.value())
+            .map(entity -> reconstructOrder(entity));
     }
+    
+    @Override
+    public boolean existsByOrderNumber(OrderNumber orderNumber) {
+        return orderJpaRepository.existsByOrderNumber(orderNumber.value());
+    }
+    
+    // private 헬퍼 메서드들
+    private void saveOrderItems(List<OrderItem> items, Long orderId) { /* ... */ }
+    private void saveOrderLocation(Origin origin, Destination destination, Long orderId) { /* ... */ }
+    private void saveOrderDeliveryPolicy(DeliveryPolicy deliveryPolicy, Long orderId) { /* ... */ }
+    private Order reconstructOrder(OrderEntity entity) { /* ... */ }
 }
 ```
 
 **특징:**
+- ✅ **Store/Reader 통합** (하나의 Repository)
+- ✅ `store()` 메서드가 Order Entity 생성 및 저장
+- ✅ `Order.create()`로 Domain Model 생성 (Domain Event 자동 추가)
 - ✅ 메서드 단위로 짧은 트랜잭션
-- ✅ UseCase는 트랜잭션 관리 불필요
-- ✅ DB 커넥션 최소 점유
-- ⚠️ 여러 Aggregate 수정 시 UseCase에서 TransactionTemplate 사용
+- ✅ Domain Service에서 @Transactional로 트랜잭션 관리
 
 ```java
 // infrastructure/storage/db/order/adapter/OrderJpaRepository.java
-public interface OrderJpaRepository extends JpaRepository<OrderJpaEntity, Long> {
+public interface OrderJpaRepository extends JpaRepository<OrderEntity, Long> {
     
-    @Query("SELECT o FROM OrderJpaEntity o JOIN FETCH o.items WHERE o.id = :id")
-    Optional<OrderJpaEntity> findByIdWithItems(@Param("id") Long id);
-    
-    Optional<OrderJpaEntity> findByOrderNumber(String orderNumber);
+    Optional<OrderEntity> findByOrderNumber(String orderNumber);
+    boolean existsByOrderNumber(String orderNumber);
 }
 ```
 
-## Reader Adapter 규칙
+## Outbox Pattern 구현
 
 ### 위치
-`infrastructure/storage/db/*/adapter/`
+`infrastructure/outbox/`
 
 ### 책임
-- OrderReader 인터페이스 구현
-- QueryDSL로 동적 쿼리 작성
-- 복잡한 조회 쿼리 처리
+- OutboxEventClient Port 구현
+- Domain Model → Kafka Event Payload 변환
+- Outbox 라이브러리 호출
 
-### Reader Adapter 템플릿
+### Outbox 흐름
+
+```
+OrderCreator (Domain Service)
+  1. orderRepository.store(order)        → Order 저장 (DB)
+  2. outboxEventAppender.append(order)   → Outbox 저장 (DB, 같은 트랜잭션)
+     → outboxEventClient.save()          → Infrastructure Layer
+       → KafkaOutboxEventMapper.map()    → Order → KafkaEvent 변환
+       → outboxEventService.registerEvent() → Outbox 라이브러리 호출
+```
+
+### KafkaOutboxEventClient (Adapter)
 
 ```java
-// infrastructure/storage/db/order/adapter/OrderReaderAdapter.java
+// infrastructure/outbox/KafkaOutboxEventClient.java
 @Repository
 @RequiredArgsConstructor
-public class OrderReaderAdapter implements OrderReader {
-    
-    private final JPAQueryFactory queryFactory;
-    
-    @Override
-    public Page<Order> findByUserId(Long userId, Pageable pageable) {
-        QOrderJpaEntity order = QOrderJpaEntity.orderJpaEntity;
-        
-        List<OrderJpaEntity> results = queryFactory
-            .selectFrom(order)
-            .where(order.userId.eq(userId))
-            .orderBy(order.createdAt.desc())
-            .offset(pageable.getOffset())
-            .limit(pageable.getPageSize())
-            .fetch();
-        
-        long total = queryFactory
-            .select(order.count())
-            .from(order)
-            .where(order.userId.eq(userId))
-            .fetchOne();
-        
-        List<Order> orders = results.stream()
-            .map(OrderJpaEntity::toDomain)
-            .collect(Collectors.toList());
-        
-        return new PageImpl<>(orders, pageable, total);
-    }
-    
-    @Override
-    public Page<Order> searchOrders(
-        OrderSearchCondition condition,
-        Pageable pageable
-    ) {
-        QOrderJpaEntity order = QOrderJpaEntity.orderJpaEntity;
-        
-        List<OrderJpaEntity> results = queryFactory
-            .selectFrom(order)
-            .where(
-                userIdEq(condition.getUserId()),
-                statusEq(condition.getStatus()),
-                orderNumberContains(condition.getOrderNumber()),
-                createdAtBetween(condition.getStartDate(), condition.getEndDate())
-            )
-            .orderBy(order.createdAt.desc())
-            .offset(pageable.getOffset())
-            .limit(pageable.getPageSize())
-            .fetch();
-        
-        long total = queryFactory
-            .select(order.count())
-            .from(order)
-            .where(
-                userIdEq(condition.getUserId()),
-                statusEq(condition.getStatus()),
-                orderNumberContains(condition.getOrderNumber()),
-                createdAtBetween(condition.getStartDate(), condition.getEndDate())
-            )
-            .fetchOne();
-        
-        List<Order> orders = results.stream()
-            .map(OrderJpaEntity::toDomain)
-            .collect(Collectors.toList());
-        
-        return new PageImpl<>(orders, pageable, total);
-    }
-    
-    @Override
-    public boolean existsByOrderNumber(String orderNumber) {
-        QOrderJpaEntity order = QOrderJpaEntity.orderJpaEntity;
-        
-        Integer count = queryFactory
-            .selectOne()
-            .from(order)
-            .where(order.orderNumber.eq(orderNumber))
-            .fetchFirst();
-        
-        return count != null;
-    }
-    
-    // 동적 쿼리 조건
-    private BooleanExpression userIdEq(Long userId) {
-        return userId != null ? order.userId.eq(userId) : null;
-    }
-    
-    private BooleanExpression statusEq(OrderStatus status) {
-        return status != null ? order.status.eq(status) : null;
-    }
-    
-    private BooleanExpression orderNumberContains(String orderNumber) {
-        return orderNumber != null ? order.orderNumber.contains(orderNumber) : null;
-    }
-    
-    private BooleanExpression createdAtBetween(LocalDate start, LocalDate end) {
-        if (start == null || end == null) {
-            return null;
-        }
-        return order.createdAt.between(
-            start.atStartOfDay(),
-            end.atTime(23, 59, 59)
-        );
-    }
+@Slf4j
+public class KafkaOutboxEventClient implements OutboxEventClient {
+
+  private final OutboxEventService outboxEventService;
+  private final KafkaOutboxEventMapper outboxEventMapper = new KafkaOutboxEventMapper();
+
+  /**
+   * Domain Event를 Outbox에 저장
+   */
+  @Override
+  public void save(OutboxEventType eventType, AggregateRoot aggregateRoot) {
+    KafkaOutboxEvent event = outboxEventMapper.map(eventType, aggregateRoot);
+    outboxEventService.registerEvent(event.kafkaEvent(), event.eventKey());
+  }
 }
 ```
+
+### KafkaOutboxEventMapper
+
+```java
+// infrastructure/outbox/KafkaOutboxEventMapper.java
+class KafkaOutboxEventMapper {
+
+  private final KafkaEventSource ORDER_EVENT_SOURCE = KafkaEventSource.ORDER;
+
+  public KafkaOutboxEvent map(OutboxEventType eventType, AggregateRoot aggregateRoot) {
+    if (eventType == OutboxEventType.ORDER_CREATED) {
+      Order order = (Order) aggregateRoot;
+      return mapToOrderCreatedEvent(order);
+    }
+
+    throw new IllegalArgumentException("지원하지 않는 이벤트 타입입니다: " + eventType);
+  }
+
+  private KafkaOutboxEvent mapToOrderCreatedEvent(Order order) {
+    // 1. Items 매핑
+    List<OrderCreatedOrderItem> items = order.getItems().stream()
+        .map(item -> OrderCreatedOrderItem.builder()
+            .itemName(item.itemName())
+            .quantity(item.quantity())
+            .price(item.price().amount())
+            .category(item.category())
+            .weight(item.weight() != null ? item.weight().value() : null)
+            .build())
+        .toList();
+
+    // 2. Origin/Destination 매핑
+    OrderCreatedOrderLocation originLocation = mapToLocation(order.getOrigin());
+    OrderCreatedOrderLocation destinationLocation = mapToLocation(order.getDestination());
+
+    // 3. Delivery Policy 매핑
+    OrderCreatedOrderDeliveryPolicy deliveryPolicy = mapToDeliveryPolicy(order.getDeliveryPolicy());
+
+    // 4. Payload 생성
+    OrderCreatedKafkaEventPayload payload = OrderCreatedKafkaEventPayload.builder()
+        .orderId(order.getId())
+        .orderNumber(order.getOrderNumber().value())
+        .orderStatus(order.getStatus().name())
+        .items(items)
+        .originLocation(originLocation)
+        .destinationLocation(destinationLocation)
+        .deliveryPolicy(deliveryPolicy)
+        .orderedAt(order.getOrderedAt())
+        .build();
+
+    // 5. KafkaEvent 생성
+    KafkaEvent<KafkaEventPayload> kafkaEvent = KafkaEvent.of(
+        KafkaEventType.ORDER_ORDER_CREATED,
+        ORDER_EVENT_SOURCE,
+        payload);
+
+    // 6. KafkaOutboxEvent 반환
+    return new KafkaOutboxEvent(String.valueOf(order.getId()), kafkaEvent);
+  }
+
+  // 헬퍼 메서드들
+  private OrderCreatedOrderLocation mapToLocation(Origin origin) { /* ... */ }
+  private OrderCreatedOrderDeliveryPolicy mapToDeliveryPolicy(DeliveryPolicy policy) { /* ... */ }
+}
+```
+
+### KafkaOutboxEvent (DTO)
+
+```java
+// infrastructure/outbox/KafkaOutboxEvent.java
+record KafkaOutboxEvent(
+    String eventKey,
+    KafkaEvent<KafkaEventPayload> kafkaEvent
+) { }
+```
+
+**특징:**
+- ✅ DB 트랜잭션과 이벤트 발행의 원자성 보장
+- ✅ Order 저장 + Outbox 저장 = 하나의 트랜잭션
+- ✅ 별도 Worker가 Outbox → Kafka 전송 (비동기)
+- ✅ 메시지 전송 실패 시 재시도 보장
 
 ## 외부 API Adapter 규칙
 

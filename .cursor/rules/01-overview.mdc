@@ -22,20 +22,17 @@ alwaysApply: true
 
 ```
 order-service/
-├── core/                   # 비즈니스 로직 (Spring 의존성 없음)
-│   ├── domain/            # Domain Entity, Value Object, Domain Service
-│   └── application/       # Use Case, Port, Command/Query, Support
+├── core/                   # 비즈니스 로직 (Spring 의존성 최소화)
+│   ├── domain/            # Domain Entity, Value Object, Domain Service, Command
+│   └── application/       # Facade (흐름 조정)
 ├── infrastructure/         # 기술 구현
-│   └── storage/
-│       ├── db/            # PostgreSQL (JPA)
-│       └── cache/         # Redis
+│   ├── storage/
+│   │   └── db/            # MySQL (JPA)
+│   └── outbox/            # Kafka Outbox
 ├── api/                    # 고객용 API
-│   ├── web/              # HTTP API
-│   └── grpc/             # gRPC API
-├── admin/                  # 관리자용 API
-│   └── web/
-└── worker/                 # 배치/스케줄러
-    └── job/
+│   └── web/              # HTTP API
+├── admin/                  # 관리자용 API (미구현)
+└── worker/                 # 배치/스케줄러 (미구현)
 ```
 
 ## 의존성 방향 (중요!)
@@ -48,40 +45,135 @@ order-service/
 
 ### Domain (core/domain/)
 - 목적: 순수 비즈니스 규칙
-- 허용: Java, Lombok만
-- 금지: JPA, Spring, Repository, @Transactional
+- 허용: Java, Lombok, Spring @Service (Domain Service용)
+- 금지: JPA, Infrastructure 직접 의존
+- 포함:
+  - Aggregate Root (Order)
+  - Value Objects (OrderNumber, Origin, Destination, etc.)
+  - Domain Services (OrderCreator, OrderReader)
+  - Domain Commands (CreateOrderCommand)
+  - Domain Events (OrderCreatedEvent)
+  - Ports (OrderRepository, OutboxEventClient)
 
 ### Application (core/application/)
-- 목적: Use Case 실행, 흐름 조정
-- 허용: Domain, Port 의존
-- 금지: Infrastructure 직접 의존
+- 목적: Facade 패턴으로 흐름 조정
+- 허용: Domain Service, Port 의존
+- 금지: Infrastructure 직접 의존, 비즈니스 로직 직접 구현
+- 포함:
+  - Facade (OrderFacade)
 
 ### Infrastructure (infrastructure/)
 - 목적: 기술 구현
 - 허용: JPA, Repository 구현, Port 구현
 - 책임: DB, Cache, 외부 API, 메시징
+- 포함:
+  - Repository Adapter (OrderRepositoryAdapter)
+  - Outbox Client (KafkaOutboxEventClient)
+  - Mapper (KafkaOutboxEventMapper)
 
 ### Interfaces (api/, admin/, worker/)
 - 목적: 외부 진입점
-- 허용: Controller, DTO, Use Case 호출
-- 금지: 비즈니스 로직
+- 허용: Controller, DTO, Facade 호출
+- 금지: 비즈니스 로직, Domain Service 직접 호출
 
-## 파일 생성 핵심 원칙 (AI 개발 시)
+## 아키텍처 패턴
 
-1. 하나의 UseCase = 하나의 파일
-2. 하나의 파일 = 하나의 execute() 메서드만
-3. 작은 파일 = AI가 이해하기 쉬움
+### 1. Facade + Domain Service 패턴
+
+```
+Controller
+  → Facade (Application Layer)
+    → Domain Service (Domain Layer)
+      → Repository (Port)
+        → Adapter (Infrastructure Layer)
+```
+
+**특징:**
+- ✅ Facade는 흐름만 조정
+- ✅ Domain Service가 비즈니스 로직 수행
+- ✅ Repository는 통합 인터페이스 (Store/Reader 분리 안 함)
+
+### 2. Outbox Pattern
+
+```
+OrderCreator (Domain Service)
+  1. orderRepository.store(order)        → Order 저장 (DB)
+  2. outboxEventAppender.append(order)   → Outbox 저장 (DB, 같은 트랜잭션)
+     → outboxEventClient.save()          → Infrastructure Layer
+       → KafkaOutboxEventMapper.map()    → Order → KafkaEvent 변환
+       → outboxEventService.registerEvent() → Outbox 라이브러리 호출
+```
+
+**특징:**
+- ✅ DB 트랜잭션과 이벤트 발행의 원자성 보장
+- ✅ Order 저장 + Outbox 저장 = 하나의 트랜잭션
+- ✅ 별도 Worker가 Outbox → Kafka 전송 (비동기)
+
+## 파일 구조 핵심 원칙
+
+### Domain Layer
+```
+core/domain/
+├── order/
+│   ├── Order.java                   # Aggregate Root
+│   ├── OrderCreator.java            # Domain Service (생성)
+│   ├── OrderReader.java             # Domain Service (조회)
+│   ├── OrderItem.java               # Value Object
+│   ├── OrderNumber.java             # Value Object
+│   ├── OrderStatus.java             # Enum
+│   ├── command/
+│   │   └── CreateOrderCommand.java  # Domain Command
+│   ├── event/
+│   │   └── OrderCreatedEvent.java   # Domain Event
+│   └── required/                    # ⭐ 모든 Port
+│       └── OrderRepository.java     # 영속성 Port (통합)
+│
+├── outbox/
+│   ├── OutboxEventAppender.java     # Domain Service
+│   ├── OutboxEventType.java         # Enum
+│   └── required/
+│       └── OutboxEventClient.java   # Outbox Port
+│
+└── shared/
+    ├── AggregateRoot.java           # 추상 클래스 (Domain Event 관리)
+    ├── Money.java                   # Value Object
+    ├── Weight.java                  # Value Object
+    └── event/
+        └── DomainEvent.java         # Domain Event 인터페이스
+```
+
+### Application Layer
+```
+core/application/order/
+└── OrderFacade.java                 # Facade (흐름 조정)
+```
+
+### Infrastructure Layer
+```
+infrastructure/
+├── storage/db/order/
+│   ├── adapter/
+│   │   └── OrderRepositoryAdapter.java  # Repository 구현
+│   └── entity/
+│       ├── OrderEntity.java
+│       └── OrderItemEntity.java
+└── outbox/
+    ├── KafkaOutboxEventClient.java      # Outbox 구현
+    ├── KafkaOutboxEventMapper.java      # Mapper
+    └── KafkaOutboxEvent.java            # DTO
+```
 
 ## 빠른 체크리스트
 
 - [ ] Domain에 @Entity, @Table 등 JPA 어노테이션 없는가?
-- [ ] Domain Service에 Repository 의존성 없는가?
-- [ ] UseCase가 Port(인터페이스)만 의존하는가?
-- [ ] UseCase별로 파일이 분리되어 있는가? (하나의 파일 = 하나의 execute())
+- [ ] Domain Service에 @Service 애노테이션 사용하는가?
+- [ ] Facade가 Domain Service만 호출하는가?
+- [ ] Command가 Domain Layer에 있는가?
 - [ ] 트랜잭션이 Repository Adapter에 있는가? (@Transactional)
-- [ ] 여러 Aggregate 수정 시 TransactionTemplate 사용했는가?
-- [ ] Controller에 비즈니스 로직이 없는가?
+- [ ] Outbox 저장이 Order 저장과 같은 트랜잭션인가?
+- [ ] Controller가 Facade만 호출하는가?
 - [ ] 모든 커스텀 Exception이 BaseException을 상속받는가? ⭐
+- [ ] OrderRepository가 통합 인터페이스인가? (Store/Reader 분리 안 함)
 
 ## 상세 규칙 문서
 
@@ -91,98 +183,4 @@ order-service/
 - Infrastructure Layer: 04-infrastructure.md
 - Interfaces Layer: 05-interfaces.md
 - Validation: 06-validation.md
-  </artifact>
-
----
-# 프로젝트 개요
-
-## 기술 스택
-- Java 25
-- Spring Boot 4.0.0-M3
-- Spring Data JPA
-- QueryDSL
-- MySQL
-- Kafka
-- Gradle (Multi-Module)
-
-## 목표
-- 일 30만건 이상 주문 처리
-- 명확한 레이어 분리
-- AI가 이해하고 수정하기 쉬운 구조
-
-## 모듈 구조
-
-```
-order-service/
-├── core/                   # 비즈니스 로직 (Spring 의존성 없음)
-│   ├── domain/            # Domain Entity, Value Object, Domain Service
-│   └── application/       # Use Case, Port, Command/Query, Support
-├── infrastructure/         # 기술 구현
-│   └── storage/
-│       ├── db/            # PostgreSQL (JPA)
-│       └── cache/         # Redis
-├── api/                    # 고객용 API
-│   ├── web/              # HTTP API
-│   └── grpc/             # gRPC API
-├── admin/                  # 관리자용 API
-│   └── web/
-└── worker/                 # 배치/스케줄러
-    └── job/
-```
-
-## 의존성 방향 (중요!)
-
-허용: api/admin/worker → infrastructure → core
-
-금지: core → infrastructure (절대 안 됨!)
-
-## 레이어별 책임
-
-### Domain (core/domain/)
-- 목적: 순수 비즈니스 규칙
-- 허용: Java, Lombok만
-- 금지: JPA, Spring, Repository, @Transactional
-
-### Application (core/application/)
-- 목적: Use Case 실행, 흐름 조정
-- 허용: Domain, Port 의존
-- 금지: Infrastructure 직접 의존
-
-### Infrastructure (infrastructure/)
-- 목적: 기술 구현
-- 허용: JPA, Repository 구현, Port 구현
-- 책임: DB, Cache, 외부 API, 메시징
-
-### Interfaces (api/, admin/, worker/)
-- 목적: 외부 진입점
-- 허용: Controller, DTO, Use Case 호출
-- 금지: 비즈니스 로직
-
-## 파일 생성 핵심 원칙 (AI 개발 시)
-
-1. 하나의 UseCase = 하나의 파일
-2. 하나의 파일 = 하나의 execute() 메서드만
-3. 작은 파일 = AI가 이해하기 쉬움
-
-## 빠른 체크리스트
-
-- [ ] Domain에 @Entity, @Table 등 JPA 어노테이션 없는가?
-- [ ] Domain Service에 Repository 의존성 없는가?
-- [ ] UseCase가 Port(인터페이스)만 의존하는가?
-- [ ] UseCase별로 파일이 분리되어 있는가? (하나의 파일 = 하나의 execute())
-- [ ] 트랜잭션이 Repository Adapter에 있는가? (@Transactional)
-- [ ] 여러 Aggregate 수정 시 TransactionTemplate 사용했는가?
-- [ ] Controller에 비즈니스 로직이 없는가?
-- [ ] 모든 커스텀 Exception이 BaseException을 상속받는가? ⭐
-
-## 상세 규칙 문서
-
-더 상세한 규칙은 다음 파일들을 참고하세요:
-- Domain Layer: 02-domain.md
-- Application Layer: 03-application.md
-- Infrastructure Layer: 04-infrastructure.md
-- Interfaces Layer: 05-interfaces.md
-- Validation: 06-validation.md
-  </artifact>
-
----
+- Testing: 07-testing.md

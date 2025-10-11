@@ -26,22 +26,23 @@
                          │
 ┌────────────────────────▼────────────────────────────────┐
 │                  Application Layer                       │
-│         UseCase (구체 클래스, In Port 없음)               │
+│                    Facade                                │
 └────────────────────────┬────────────────────────────────┘
                          │ 의존
 ┌────────────────────────▼────────────────────────────────┐
 │                   Domain Layer                           │
 │      (Entities, Value Objects, Domain Services)          │
+│      - OrderCreator, OrderReader (Domain Services)       │
 │      required/ ⭐ (모든 외부 의존성 Port)                 │
-│      ├── OrderStore, OrderReader                         │
-│      └── EmailSender, EventPublisher                     │
+│      ├── OrderRepository                                 │
+│      └── OutboxEventClient                               │
 │                  (순수 Java만 사용)                       │
 └─────────────────────────────────────────────────────────┘
                          ↑ DIP (의존성 역전)
 ┌────────────────────────┼────────────────────────────────┐
 │               Infrastructure Layer                       │
-│     OrderStoreAdapter, OrderReaderAdapter ⭐              │
-│     EmailSenderAdapter, EventPublisherAdapter ⭐          │
+│     OrderRepositoryAdapter ⭐                             │
+│     KafkaOutboxEventClient ⭐                             │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -49,33 +50,35 @@
 - ✅ **Layered Architecture** (계층형 구조)
 - ✅ **DDD** (Domain-Driven Design)
 - ✅ **DIP** (Dependency Inversion Principle)
+- ✅ **Facade Pattern** (Application Layer)
 - ✅ **모든 외부 의존성 Port는 required/에 위치** (일관성)
-- ❌ **In Port 없음** (UseCase는 구체 클래스)
 
 **구조:**
 ```
 core/domain/order/
-├── Order.java
+├── Order.java                   # Aggregate Root
+├── OrderCreator.java            # Domain Service (생성)
+├── OrderReader.java             # Domain Service (조회)
+├── command/
+│   └── CreateOrderCommand.java  # Domain Command
 └── required/                    # ⭐ 모든 외부 의존성 Port
-    ├── OrderStore.java          # 영속성 (쓰기)
-    ├── OrderReader.java         # 영속성 (읽기)
-    ├── EmailSender.java
-    ├── EventPublisher.java
-    └── PaymentGateway.java
+    └── OrderRepository.java     # 영속성 (통합)
+
+core/domain/outbox/
+├── OutboxEventAppender.java     # Domain Service
+├── OutboxEventType.java         # Enum
+└── required/
+    └── OutboxEventClient.java   # Outbox Port
 
 core/application/order/
-├── usecase/
-│   └── CreateOrderUseCase.java  # 구체 클래스 (In Port 없음)
-└── command/
-    └── CreateOrderCommand.java
+└── OrderFacade.java             # Facade (Application Layer)
 
 infrastructure/
 ├── storage/db/order/
-│   ├── OrderStoreAdapter        # Store 구현
-│   └── OrderReaderAdapter       # Reader 구현
-└── messaging/
-    ├── EmailSenderAdapter       # Port 구현
-    └── EventPublisherAdapter
+│   └── OrderRepositoryAdapter   # Repository 구현
+└── outbox/
+    ├── KafkaOutboxEventClient   # Outbox 구현
+    └── KafkaOutboxEventMapper   # Domain → Kafka Payload
 ```
 
 ### 모듈 구조
@@ -86,29 +89,30 @@ vroong-laas-order-ai-test/
 │   └── src/main/java/vroong/laas/order/core/
 │       ├── domain/         # 순수 도메인 모델 + Port 인터페이스
 │       │   ├── order/      # Order Aggregate
-│       │   │   ├── Order.java
-│       │   │   └── required/             ⭐ 모든 외부 의존성 Port
-│       │   │       ├── OrderStore.java       # 영속성 (쓰기)
-│       │   │       ├── OrderReader.java      # 영속성 (읽기)
-│       │   │       ├── EmailSender.java
-│       │   │       ├── EventPublisher.java
-│       │   │       └── PaymentGateway.java
+│       │   │   ├── Order.java              # Aggregate Root
+│       │   │   ├── OrderCreator.java       # Domain Service (생성)
+│       │   │   ├── OrderReader.java        # Domain Service (조회)
+│       │   │   ├── command/
+│       │   │   │   └── CreateOrderCommand.java  # Domain Command
+│       │   │   └── required/               ⭐ 모든 외부 의존성 Port
+│       │   │       └── OrderRepository.java     # 영속성 (통합)
+│       │   ├── outbox/     # Outbox Pattern
+│       │   │   ├── OutboxEventAppender.java     # Domain Service
+│       │   │   ├── OutboxEventType.java         # Enum
+│       │   │   └── required/
+│       │   │       └── OutboxEventClient.java   # Outbox Port
 │       │   └── shared/     # 공유 Value Objects
-│       └── application/    # Use Cases (구체 클래스)
+│       └── application/    # Facade (Application Layer)
 │           └── order/
-│               ├── usecase/
-│               │   └── CreateOrderUseCase.java  # In Port 없음
-│               └── command/
-│                   └── CreateOrderCommand.java
+│               └── OrderFacade.java        # Facade
 ├── infrastructure/         # Infrastructure Layer (Port 구현)
 │   └── src/main/java/vroong/laas/order/infrastructure/
 │       ├── storage/db/     # JPA Entities
 │       │   └── order/
-│       │       ├── OrderStoreAdapter.java   ⭐ Store 구현
-│       │       └── OrderReaderAdapter.java  ⭐ Reader 구현
-│       └── messaging/      # Kafka, Email 등
-│           ├── EmailSenderAdapter.java      ⭐ 구현
-│           └── EventPublisherAdapter.java   ⭐ 구현
+│       │       └── OrderRepositoryAdapter.java   ⭐ Repository 구현
+│       └── outbox/         # Outbox Pattern
+│           ├── KafkaOutboxEventClient.java   ⭐ OutboxEventClient 구현
+│           └── KafkaOutboxEventMapper.java   # Domain → Kafka Payload
 └── api/                    # Interface Layer
     └── src/main/java/vroong/laas/order/api/
         ├── web/           # REST Controllers
@@ -171,8 +175,8 @@ fixtureMonkeyVersion=1.1.15
 | 계층 | 테스트 방법 | 주요 도구 |
 |------|------------|----------|
 | **Domain** | 순수 Java 단위 테스트 (Spring Context 없음) | JUnit 5, AssertJ, Fixture Monkey |
-| **Application** | UseCase 테스트 (Port는 Mock) | JUnit 5, Mockito |
-| **Infrastructure** | Repository 통합 테스트 | `@DataJpaTest`, H2 |
+| **Application** | Facade 테스트 (Domain Service는 Mock) | JUnit 5, Mockito |
+| **Infrastructure** | Repository/Adapter 통합 테스트 | `@DataJpaTest`, H2 |
 | **Interface** | Controller 테스트 | `@WebMvcTest`, MockMvc |
 
 ### Fixture Monkey 활용
@@ -308,14 +312,21 @@ docker exec order-mysql mysql -u order_user -porder_password order \
 1. **Domain Layer는 순수 Java만 사용** (Spring, JPA 의존성 없음)
 2. **Aggregate Root**를 중심으로 불변식 유지
 3. **Value Object**로 도메인 개념 명확히 표현
+4. **Domain Service**로 비즈니스 로직 구현 (OrderCreator, OrderReader)
 
 ### Layered Architecture with DDD & DIP
 1. **Layered Architecture** (계층형 구조)
 2. **DDD** (Domain-Driven Design 적용)
 3. **DIP** (의존성 역전 - 모든 Port는 Domain에)
-4. **모든 Port는 Domain Layer에 위치** (외부 의존성 분리)
-5. **UseCase는 구체 클래스** (In Port 없음)
+4. **Facade Pattern** (Application Layer는 Domain Service 조합)
+5. **모든 Port는 Domain Layer의 required/에 위치** (외부 의존성 분리)
 6. **Infrastructure가 Domain Port를 구현** (Adapter 패턴)
+
+### Outbox Pattern
+1. **DB 트랜잭션과 이벤트 발행의 원자성 보장**
+2. **OutboxEventAppender** (Domain Service)로 Outbox 저장
+3. **KafkaOutboxEventClient** (Adapter)로 외부 라이브러리 연동
+4. **별도 Worker가 Outbox → Kafka 전송** (비동기)
 
 ### 테스트 주도
 1. **모든 도메인 로직은 테스트 필수**

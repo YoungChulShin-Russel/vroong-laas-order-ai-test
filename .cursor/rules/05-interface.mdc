@@ -9,9 +9,10 @@ alwaysApply: true
 
 ## 책임
 - 외부 진입점 (Controller, gRPC Service, Batch Job)
-- Use Case 호출
+- Facade 호출
 - DTO 변환 (Request → Command, Domain → Response)
 - 예외 처리
+- Command는 Domain Layer에 위치
 
 ## Web Controller 규칙 (api/web/)
 
@@ -20,22 +21,22 @@ alwaysApply: true
 
 ### 책임
 - HTTP API 제공
-- Use Case만 호출
-- Request → Command 변환
+- Facade만 호출
+- Request → Command 변환 (Command는 Domain Layer에서 가져옴)
 - Domain → Response 변환
 
 ### 반드시 해야 할 것
 1. @RestController 사용
-2. Use Case만 의존
-3. Request DTO에서 Command 변환
+2. Facade만 의존
+3. Request DTO에서 Command 변환 (Command는 Domain Layer에서 import)
 4. Domain에서 Response DTO 변환
 5. Bean Validation 사용
 
 ### 절대 하지 말 것
 1. 비즈니스 로직 작성 금지
 2. Domain Service 직접 호출 금지
-3. Store/Reader 직접 의존 금지
-4. 트랜잭션 관리 금지 (Use Case에서)
+3. Repository 직접 의존 금지
+4. 트랜잭션 관리 금지 (Domain Service에서)
 
 ### Web Controller 템플릿
 
@@ -46,80 +47,46 @@ alwaysApply: true
 @RequiredArgsConstructor
 public class OrderController {
     
-    private final CreateOrderUseCase createOrderUseCase;
-    private final CancelOrderUseCase cancelOrderUseCase;
-    private final GetOrderUseCase getOrderUseCase;
+    private final OrderFacade orderFacade;  // ⭐ Facade 사용
     
     @PostMapping
-    public ResponseEntity<OrderResponse> createOrder(
-        @RequestBody @Valid CreateOrderRequest request,
-        @AuthenticationPrincipal User user
-    ) {
-        // Request → Command 변환
-        CreateOrderCommand command = CreateOrderCommand.builder()
-            .userId(user.getId())
-            .items(request.items().stream()
-                .map(item -> new CreateOrderCommand.OrderItemCommand(
-                    item.productId(),
-                    item.quantity()
-                ))
-                .toList())
-            .deliveryAddress(request.deliveryAddress())
-            .couponId(request.couponId())
-            .build();
+    @ResponseStatus(HttpStatus.CREATED)
+    public OrderResponse createOrder(@RequestBody @Valid CreateOrderRequest request) {
+        // Request → Command 변환 (Command는 Domain Layer에서 import)
+        CreateOrderCommand command = request.toCommand();
         
-        // Use Case 실행
-        Order order = createOrderUseCase.execute(command);
+        // Facade 호출
+        Order order = orderFacade.createOrder(command);
         
         // Domain → Response 변환
-        return ResponseEntity.ok(OrderResponse.from(order));
+        return OrderResponse.from(order);
     }
     
     @GetMapping("/{orderId}")
-    public ResponseEntity<OrderDetailResponse> getOrder(
-        @PathVariable Long orderId,
-        @AuthenticationPrincipal User user
-    ) {
-        GetOrderQuery query = new GetOrderQuery(orderId, user.getId());
+    public OrderResponse getOrder(@PathVariable Long orderId) {
+        // Facade 호출
+        Order order = orderFacade.getOrderById(orderId);
         
-        Order order = getOrderUseCase.execute(query);
-        
-        return ResponseEntity.ok(OrderDetailResponse.from(order));
+        return OrderResponse.from(order);
     }
     
-    @DeleteMapping("/{orderId}")
-    public ResponseEntity<Void> cancelOrder(
-        @PathVariable Long orderId,
-        @RequestBody @Valid CancelOrderRequest request,
-        @AuthenticationPrincipal User user
-    ) {
-        CancelOrderCommand command = CancelOrderCommand.builder()
-            .orderId(orderId)
-            .userId(user.getId())
-            .reason(request.reason())
-            .cancelType(CancelType.CUSTOMER)
-            .build();
+    @GetMapping("/order-number/{orderNumber}")
+    public OrderResponse getOrderByOrderNumber(@PathVariable String orderNumber) {
+        OrderNumber orderNumberVO = OrderNumber.of(orderNumber);
         
-        cancelOrderUseCase.execute(command);
+        // Facade 호출
+        Order order = orderFacade.getOrderByOrderNumber(orderNumberVO);
         
-        return ResponseEntity.noContent().build();
-    }
-    
-    @GetMapping
-    public ResponseEntity<Page<OrderSummaryResponse>> getMyOrders(
-        @AuthenticationPrincipal User user,
-        Pageable pageable
-    ) {
-        GetMyOrdersQuery query = new GetMyOrdersQuery(user.getId(), pageable);
-        
-        Page<OrderSummary> orders = getMyOrdersUseCase.execute(query);
-        
-        Page<OrderSummaryResponse> response = orders.map(OrderSummaryResponse::from);
-        
-        return ResponseEntity.ok(response);
+        return OrderResponse.from(order);
     }
 }
 ```
+
+**특징:**
+- ✅ Facade만 의존
+- ✅ Command는 Domain Layer에서 import
+- ✅ @ResponseStatus로 간결한 상태 코드 관리
+- ✅ 비즈니스 로직 없음 (단순 위임)
 
 ## Request DTO 규칙
 

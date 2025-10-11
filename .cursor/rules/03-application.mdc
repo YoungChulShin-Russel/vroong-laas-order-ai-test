@@ -10,657 +10,429 @@ alwaysApply: true
 ## 저장소 구조
 
 ```
-core/application/
-└── order/
-    ├── usecase/
-    │   ├── CreateOrderUseCase.java
-    │   └── CancelOrderUseCase.java
-    ├── command/
-    │   ├── CreateOrderCommand.java
-    │   └── CancelOrderCommand.java
-    ├── query/
-    │   └── GetOrderQuery.java
-    └── support/                         # 선택 사항
-        └── OrderRetriever.java
+core/application/order/
+└── OrderFacade.java             # Facade (흐름 조정)
 ```
 
 **중요:**
-- **모든 Port는 Domain Layer의 required/에 위치** 
-  - `core/domain/order/required/OrderStore.java` (영속성 쓰기)
-  - `core/domain/order/required/OrderReader.java` (영속성 읽기)
-  - `core/domain/order/required/EmailSender.java` (이메일)
-  - `core/domain/order/required/EventPublisher.java` (이벤트)
-- UseCase는 Domain의 Port만 의존
+- **Facade Pattern 사용** (UseCase 대신)
+- **Domain Service만 호출** (비즈니스 로직은 Domain에서)
+- **Command는 Domain Layer에 위치** (application에 없음)
 
 ## 책임
-- Use Case 실행 및 흐름 조정
-- Domain 로직 호출 (직접 구현 금지)
-- 트랜잭션 관리
+- Facade로 흐름 조정
+- Domain Service 호출
+- 트랜잭션 관리 (필요 시)
 
 ## 반드시 해야 할 것
-1. UseCase별 파일 분리 (1 UseCase = 1 execute())
-2. Domain의 required/ Port만 의존 (Store, Reader, 기타 Port)
-3. Command/Query로 입력 받기
-4. Domain 로직 호출만 (직접 구현 금지)
+1. @Facade 애노테이션 사용
+2. Domain Service만 의존
+3. 비즈니스 로직은 절대 직접 구현 금지
+4. 간단한 흐름 조정만
 
 ## 절대 하지 말 것
 1. 비즈니스 로직 직접 구현 금지
 2. JPA, Infrastructure 직접 의존 금지
-3. Port 인터페이스를 Application에 정의하지 말 것 (Domain required/에 위치)
+3. Repository 직접 호출 금지 (Domain Service를 통해서만)
+4. 복잡한 로직 작성 금지
+
+---
+
+## Facade 패턴
+
+### 아키텍처
+
+```
+Controller (Interface Layer)
+  → Facade (Application Layer) - 흐름만 조정
+    → Domain Service (Domain Layer) - 비즈니스 로직 수행
+      → Repository (Port) - 영속성
+        → Adapter (Infrastructure Layer) - 기술 구현
+```
+
+**특징:**
+- ✅ Facade는 흐름만 조정 (비즈니스 로직 없음)
+- ✅ Domain Service가 실제 비즈니스 로직 수행
+- ✅ 트랜잭션은 Domain Service에서 관리
+
+---
+
+## Facade 템플릿
+
+### OrderFacade
+
+```java
+// core/application/order/OrderFacade.java
+@Facade
+@RequiredArgsConstructor
+public class OrderFacade {
+
+  private final OrderCreator orderCreator;
+  private final OrderReader orderReader;
+
+  /**
+   * 주문 생성
+   *
+   * <p>OrderCreator Domain Service를 호출하여 주문을 생성합니다.
+   *
+   * @param command 주문 생성 Command (Domain Layer에 위치)
+   * @return 생성된 Order
+   */
+  public Order createOrder(CreateOrderCommand command) {
+    return orderCreator.create(command);
+  }
+
+  /**
+   * 주문 조회 (ID)
+   *
+   * @param orderId 주문 ID
+   * @return Order
+   */
+  public Order getOrderById(Long orderId) {
+    return orderReader.getOrderById(orderId);
+  }
+
+  /**
+   * 주문 조회 (주문번호)
+   *
+   * @param orderNumber 주문번호
+   * @return Order
+   */
+  public Order getOrderByOrderNumber(OrderNumber orderNumber) {
+    return orderReader.getOrderByOrderNumber(orderNumber);
+  }
+}
+```
+
+**특징:**
+- ✅ @Facade 애노테이션
+- ✅ Domain Service(OrderCreator, OrderReader)만 호출
+- ✅ 비즈니스 로직 없음 (단순 위임)
+- ✅ Command는 Domain Layer에서 가져옴
+
+---
+
+## @Facade 애노테이션
+
+```java
+// core/application/common/annotation/Facade.java
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@Service
+public @interface Facade {
+}
+```
+
+**특징:**
+- ✅ Spring @Service를 포함
+- ✅ 의미론적으로 Facade임을 명시
+- ✅ Component Scan에서 자동 등록
 
 ---
 
 ## 트랜잭션 전략
 
-### 원칙 1: 기본 - Repository Adapter에 @Transactional
+### 기본: Domain Service에서 @Transactional
 
-**적용 조건:**
-- 단일 Aggregate만 수정
-- 가장 일반적인 패턴
+**Facade는 트랜잭션 관리 안 함**
 
-**예시:**
 ```java
-// Infrastructure - Repository Adapter
-@Repository
+// Domain Service에서 트랜잭션
+@Service
 @RequiredArgsConstructor
-public class OrderRepositoryAdapter implements OrderRepository {
-    
-    private final OrderJpaRepository jpaRepository;
-    
-    @Transactional  // ⭐ Adapter에서 트랜잭션
-    @Override
-    public Order save(Order order) {
-        OrderJpaEntity entity = OrderJpaEntity.from(order);
-        OrderJpaEntity saved = jpaRepository.save(entity);
-        return saved.toDomain();
-    }
+public class OrderCreator {
+
+  @Transactional  // ⭐ Domain Service에서 트랜잭션
+  public Order create(CreateOrderCommand command) {
+    // 1. 주문번호 생성
+    OrderNumber orderNumber = orderNumberGenerator.generate();
+
+    // 2. Order 저장
+    Order order = orderRepository.store(...);
+
+    // 3. Outbox 저장 (같은 트랜잭션)
+    outboxEventAppender.append(OutboxEventType.ORDER_CREATED, order);
+
+    return order;
+  }
 }
 
-// UseCase - 트랜잭션 없음
-@UseCase
+// Facade는 단순 호출
+@Facade
 @RequiredArgsConstructor
-public class CancelOrderUseCase {
-    private final OrderRepository orderRepository;
-    
-    public void execute(CancelOrderCommand command) {
-        Order order = orderRepository.findById(command.orderId())
-            .orElseThrow();
-        
-        order.cancel(command.reason());
-        orderRepository.save(order);  // 여기서 짧은 트랜잭션
-    }
+public class OrderFacade {
+
+  public Order createOrder(CreateOrderCommand command) {
+    return orderCreator.create(command);  // 트랜잭션은 Domain Service에서
+  }
 }
 ```
-
-### 원칙 2: 여러 Aggregate 수정 - TransactionTemplate
-
-**적용 조건:**
-- 여러 Aggregate를 동시에 수정
-- 원자성이 필요한 비즈니스 로직
-
-**예시:**
-```java
-@UseCase
-@RequiredArgsConstructor
-public class CreateOrderUseCase {
-    
-    private final TransactionTemplate transactionTemplate;
-    private final OrderRepository orderRepository;
-    private final CouponRepository couponRepository;
-    
-    public Order execute(CreateOrderCommand command) {
-        return transactionTemplate.execute(status -> {
-            // 1. Coupon 사용
-            Coupon coupon = couponRepository.findById(command.couponId())
-                .orElseThrow();
-            coupon.use();
-            couponRepository.save(coupon);
-            
-            // 2. Order 생성
-            Order order = Order.create(...);
-            return orderRepository.save(order);
-        });
-    }
-}
-```
-
-### 원칙 3: 외부 API 호출 사이 - TransactionTemplate 분리
-
-**외부 API 호출이 트랜잭션 사이에 끼어있는 경우**
-
-```java
-@UseCase
-@RequiredArgsConstructor
-public class ProcessOrderPaymentUseCase implements UseCase<ProcessPaymentCommand> {
-    
-    private final TransactionTemplate transactionTemplate;
-    private final OrderRepository orderRepository;
-    private final PaymentGateway paymentGateway;  // 외부 API
-    
-    public void execute(ProcessPaymentCommand command) {
-        
-        // ===== 트랜잭션 1: 주문 조회 및 검증 =====
-        Order order = transactionTemplate.execute(status -> {
-            Order o = orderRepository.findById(command.orderId()).orElseThrow();
-            
-            if (!o.isPayable()) {
-                throw new OrderNotPayableException();
-            }
-            
-            return o;
-        });
-        
-        // ===== 외부 API (트랜잭션 밖) =====
-        PaymentResult payment = paymentGateway.process(order.getId(), order.getTotalAmount());
-        
-        // ===== 트랜잭션 2: 결제 완료 처리 =====
-        transactionTemplate.executeWithoutResult(status -> {
-            Order o = orderRepository.findById(order.getId()).orElseThrow();
-            o.completePayment(payment);
-            orderRepository.save(o);
-        });
-    }
-}
-```
-
-**사용 시기:**
-- ✅ 외부 API 호출이 DB 작업 사이에 있는 경우
-- ✅ 외부 API 응답을 받아서 DB에 반영해야 하는 경우
-
-**트랜잭션 흐름:**
-```
-TX1: 주문 조회/검증 (0.01초) → 커밋
-  ↓
-외부 API: 결제 처리 (3초) - DB 커넥션 점유 안 함
-  ↓
-TX2: 주문 완료 처리 (0.01초) → 커밋
-
-총 DB 커넥션 점유: 0.02초 (vs 3.02초)
-```
-
-## Use Case 템플릿
-
-### Command UseCase (반환값 있음)
-
-```java
-// core/application/order/usecase/command/CreateOrderUseCase.java
-@UseCase
-@RequiredArgsConstructor
-public class CreateOrderUseCase implements UseCase<CreateOrderCommand> {
-    
-    private final OrderRepository orderRepository;
-    private final EmailSender emailSender;
-    
-    @Transactional
-    public Order execute(CreateOrderCommand command) {
-        
-        // Repository로 중복 체크
-        boolean exists = orderRepository.existsByOrderNumber(command.orderNumber());
-        if (exists) {
-            throw new DuplicateOrderNumberException();
-        }
-        
-        // Order 생성
-        Order order = Order.create(
-            command.userId(),
-            command.items(),
-            command.deliveryAddress(),
-            command.totalAmount()
-        );
-        
-        // Repository로 저장
-        Order saved = orderRepository.save(order);
-        
-        // 기술적 요구사항
-        emailSender.sendOrderConfirmation(saved);
-        
-        return saved;
-    }
-}
-```
-
-### Command UseCase (반환값 없음)
-
-```java
-// core/application/order/usecase/command/CancelOrderUseCase.java
-@UseCase
-@RequiredArgsConstructor
-public class CancelOrderUseCase implements UseCase<CancelOrderCommand> {
-    
-    private final OrderRepository orderRepository;
-    private final EventPublisher eventPublisher;
-    
-    @Transactional
-    public void execute(CancelOrderCommand command) {
-        Order order = orderRepository.findById(command.orderId())
-            .orElseThrow();
-        
-        // 권한 체크
-        if (!order.isOwnedBy(command.userId())) {
-            throw new OrderAccessDeniedException();
-        }
-        
-        order.cancel(command.reason());
-        
-        orderRepository.save(order);
-        
-        eventPublisher.publish(OrderCancelledEvent.from(order));
-    }
-}
-```
-
-### Query UseCase
-
-```java
-// core/application/order/usecase/query/GetMyOrdersUseCase.java
-@UseCase
-@RequiredArgsConstructor
-public class GetMyOrdersUseCase implements UseCase<GetMyOrdersQuery> {
-    
-    private final OrderQueryRepository orderQueryRepository;  // 복잡한 조회용
-    
-    @Transactional(readOnly = true)
-    public Page<OrderSummary> execute(GetMyOrdersQuery query) {
-        Page<Order> orders = orderQueryRepository.findByUserId(
-            query.userId(),
-            query.pageable()
-        );
-        
-        return orders.map(OrderSummary::from);
-    }
-}
-
-// Note: OrderQueryRepository도 Domain Layer에 위치
-// core/domain/order/OrderQueryRepository.java
-public interface OrderQueryRepository {
-    Page<Order> findByUserId(Long userId, Pageable pageable);
-    Page<Order> search(OrderSearchCondition condition, Pageable pageable);
-}
-```
-
-## Application Support 규칙 (선택 사항)
-
-### 위치
-`core/application/*/support/`
-
-**중요: domain/service/가 아님!**
-
-### 책임
-- UseCase의 반복되는 조회/검증 로직 제거
-- **비즈니스 로직 포함 금지**
-- **트랜잭션 관리는 UseCase에서**
-
-### 반드시 해야 할 것
-1. 조회 및 검증만 수행
-2. Store/Reader 의존 가능
-3. 간단한 헬퍼 메서드만
-
-### 절대 하지 말 것
-1. **@Transactional 사용 금지** (UseCase에서 관리)
-2. **비즈니스 로직 작성 금지**
-3. **복잡한 흐름 제어 금지**
-
-### Application Support 템플릿
-
-#### Retriever (조회 헬퍼) - 권장
-
-```java
-// core/application/order/support/OrderRetriever.java
-@Component
-@RequiredArgsConstructor
-public class OrderRetriever {
-    
-    private final OrderRepository orderRepository;
-    
-    public Order getOrder(Long orderId) {
-        return orderRepository.findByIdWithItems(orderId)
-            .orElseThrow(() -> new OrderNotFoundException(orderId));
-    }
-    
-    public Order getOrderWithOwnershipCheck(Long orderId, Long userId) {
-        Order order = getOrder(orderId);
-        
-        if (!order.isOwnedBy(userId)) {
-            throw new OrderAccessDeniedException(
-                "해당 주문에 접근할 권한이 없습니다"
-            );
-        }
-        
-        return order;
-    }
-}
-```
-
-**사용 예시:**
-```java
-@UseCase
-@RequiredArgsConstructor
-public class CancelOrderUseCase {
-    
-    private final OrderRetriever orderRetriever;  // ✅ 조회 헬퍼
-    private final OrderRepository orderRepository;
-    
-    @Transactional  // ✅ UseCase에서 트랜잭션
-    public void execute(CancelOrderCommand command) {
-        // Retriever로 조회 및 권한 체크
-        Order order = orderRetriever.getOrderWithOwnershipCheck(
-            command.orderId(),
-            command.userId()
-        );
-        
-        // 비즈니스 로직
-        order.cancel(command.reason());
-        
-        // 저장
-        orderRepository.save(order);
-    }
-}
-```
-
-## Command/Query 설계
-
-### 📌 설계 원칙: Domain Model 우선 사용 ⭐
-
-**기본 원칙:**
-> **가능하면 Domain Model 사용, 어려운 경우에만 Command용 DTO 추가**
-
-#### ✅ Domain Model 직접 사용 (권장):
-
-**사용 대상:**
-- Value Object (Money, Weight, Volume, Contact, Address, LatLng, EntranceInfo 등)
-- Domain record (OrderItem, Origin, Destination, DeliveryPolicy 등)
-- 단순한 비즈니스 계산 메서드만 있는 경우 (예: `getTotalPrice()`)
-
-**장점:**
-- 검증 로직이 Domain에만 존재 (중복 제거)
-- UseCase에서 변환 코드 불필요
-- 코드 간결성 및 유지보수 용이
-- Domain의 의존성 방향 명확 (Application → Domain)
-
-**예시:**
-```java
-// ✅ 좋은 예 - Domain Model 직접 사용
-public record CreateOrderCommand(
-    String orderNumber,
-    List<OrderItem> items,        // Domain record
-    Origin origin,                 // Domain record
-    Destination destination,       // Domain record
-    DeliveryPolicy deliveryPolicy  // Domain record
-) {
-    // 필수 값 검증만
-}
-
-// UseCase에서 변환 불필요
-public Order execute(CreateOrderCommand command) {
-    Order order = Order.create(
-        command.orderNumber(),
-        command.items(),           // 그대로 사용
-        command.origin(),          // 그대로 사용
-        command.destination(),     // 그대로 사용
-        command.deliveryPolicy()   // 그대로 사용
-    );
-    return orderStore.store(order);
-}
-```
-
-#### ⚠️ Command DTO 추가 (필요시만):
-
-**추가해야 하는 경우:**
-- Domain과 구조가 완전히 다른 경우
-- API 통신 최적화가 필요한 경우 (대량 데이터 전송 등)
-- 보안상 Domain을 그대로 노출하면 안 되는 경우
-- ID가 있는 Entity를 생성 요청으로 받아야 하는 경우
-
-**예시:**
-```java
-// ⚠️ Command DTO가 필요한 경우
-public record UpdateOrderCommand(
-    Long orderId,
-    OrderStatus newStatus,        // Domain의 일부만 변경
-    String changeReason
-) {
-    // Domain의 Order Entity와는 구조가 다름
-}
-```
-
-**원칙 요약:**
-1. **먼저 Domain Model 사용을 고려** - 대부분의 경우 충분
-2. **정말 필요한 경우에만 DTO 추가** - 구조가 완전히 다를 때
-3. **API Layer에서 Domain Model 생성** - Controller에서 VO 생성 후 Command에 전달
 
 ---
 
-### Command 기본 템플릿
+## Command 위치
 
-```java
-// core/application/order/usecase/command/CreateOrderCommand.java
-@Builder
-public record CreateOrderCommand(
-    Long userId,
-    List<OrderItemCommand> items,
-    String deliveryAddress,
-    Long couponId
-) {
-    // 생성 시점 검증
-    public CreateOrderCommand {
-        if (userId == null || userId <= 0) {
-            throw new IllegalArgumentException("유효하지 않은 사용자 ID입니다");
-        }
-        
-        if (items == null || items.isEmpty()) {
-            throw new IllegalArgumentException("주문 상품이 없습니다");
-        }
-        
-        if (deliveryAddress == null || deliveryAddress.isBlank()) {
-            throw new IllegalArgumentException("배송지가 없습니다");
-        }
-        
-        // 중복 상품 체크
-        long distinctCount = items.stream()
-            .map(OrderItemCommand::productId)
-            .distinct()
-            .count();
-        
-        if (distinctCount != items.size()) {
-            throw new IllegalArgumentException("중복된 상품이 있습니다");
-        }
-    }
-    
-    public record OrderItemCommand(
-        Long productId,
-        int quantity
-    ) {
-        public OrderItemCommand {
-            if (productId == null || productId <= 0) {
-                throw new IllegalArgumentException("유효하지 않은 상품 ID입니다");
-            }
-            if (quantity < 1 || quantity > 100) {
-                throw new IllegalArgumentException("수량은 1~100 사이여야 합니다");
-            }
-        }
-    }
-}
+**Command는 Application이 아닌 Domain Layer에 위치합니다.**
+
+```
+❌ 잘못된 위치:
+core/application/order/command/CreateOrderCommand.java
+
+✅ 올바른 위치:
+core/domain/order/command/CreateOrderCommand.java
 ```
 
-### 상황별 입력값이 다른 경우
+**이유:**
+- Command는 Domain 개념 (비즈니스 요구사항)
+- Domain Service가 직접 사용
+- Application은 단순히 전달만
 
-#### Command에 Optional 필드 + 타입 구분
+---
 
-```java
-// core/application/order/usecase/command/CancelOrderCommand.java
-@Builder
-public record CancelOrderCommand(
-    // 공통 필드
-    Long orderId,
-    String reason,
-    
-    // 타입 구분
-    CancelType cancelType,  // CUSTOMER, ADMIN, SYSTEM
-    
-    // Optional 필드 (타입별로 필요)
-    Long userId,        // CUSTOMER만
-    String adminMemo,   // ADMIN만
-    Long adminId,       // ADMIN만
-    String systemCode   // SYSTEM만
-) {
-    // 타입별 검증
-    public CancelOrderCommand {
-        if (cancelType == null) {
-            throw new IllegalArgumentException("취소 타입은 필수입니다");
-        }
-        
-        switch (cancelType) {
-            case CUSTOMER -> {
-                if (userId == null) {
-                    throw new IllegalArgumentException("고객 ID는 필수입니다");
-                }
-            }
-            case ADMIN -> {
-                if (adminId == null || adminMemo == null) {
-                    throw new IllegalArgumentException("관리자 정보는 필수입니다");
-                }
-            }
-            case SYSTEM -> {
-                if (systemCode == null) {
-                    throw new IllegalArgumentException("시스템 코드는 필수입니다");
-                }
-            }
-        }
-    }
-}
-```
+## Facade vs UseCase 비교
 
-#### UseCase에서 직접 처리
-
-```java
-@UseCase
-@RequiredArgsConstructor
-public class CancelOrderUseCase implements UseCase<CancelOrderCommand> {
-    
-    private final OrderRetriever orderRetriever;
-    private final OrderRepository orderRepository;
-    private final PaymentGateway paymentGateway;
-    private final EventPublisher eventPublisher;
-    
-    @Transactional
-    public void execute(CancelOrderCommand command) {
-        
-        // 1. 타입별 조회
-        Order order = retrieveOrder(command);
-        
-        // 2. 타입별 취소 처리
-        processCancellation(order, command);
-        
-        // 3. 저장 및 이벤트
-        orderRepository.save(order);
-        eventPublisher.publish(OrderCancelledEvent.from(order, command.cancelType()));
-    }
-    
-    private Order retrieveOrder(CancelOrderCommand command) {
-        return switch (command.cancelType()) {
-            case CUSTOMER -> orderRetriever.getOrderWithOwnershipCheck(
-                command.orderId(),
-                command.userId()
-            );
-            case ADMIN, SYSTEM -> orderRetriever.getOrder(command.orderId());
-        };
-    }
-    
-    private void processCancellation(Order order, CancelOrderCommand command) {
-        switch (command.cancelType()) {
-            case CUSTOMER -> order.cancel(command.reason());
-            case ADMIN -> {
-                order.cancelByAdmin(command.reason(), command.adminMemo());
-                if (order.isPaid()) {
-                    paymentGateway.refund(order.getPaymentId());
-                }
-            }
-            case SYSTEM -> order.cancelBySystem(command.systemCode(), command.reason());
-        }
-    }
-}
-```
-
-## UseCase에서 Domain Port 사용
-
-**중요:** 
-- **모든 Port는 Domain Layer의 required/에 위치**
-  - `core/domain/order/required/OrderStore.java`
-  - `core/domain/order/required/OrderReader.java`
-  - `core/domain/order/required/EmailSender.java`
-  - `core/domain/order/required/EventPublisher.java`
-
-### UseCase 예시
+### UseCase 패턴 (이전)
 
 ```java
 @UseCase
 @RequiredArgsConstructor
 public class CreateOrderUseCase {
+  
+  private final OrderRepository orderRepository;
+  private final OrderNumberGenerator orderNumberGenerator;
+  private final OutboxEventPublisher outboxEventPublisher;
+
+  @Transactional
+  public Order execute(CreateOrderCommand command) {
+    // UseCase에서 비즈니스 로직 직접 수행
+    OrderNumber orderNumber = orderNumberGenerator.generate();
     
-    // 모든 Port는 Domain required/에서 가져옴
-    private final OrderStore orderStore;                     // Domain Port
-    private final OrderReader orderReader;                   // Domain Port
-    private final EmailSender emailSender;                   // Domain Port
-    private final EventPublisher eventPublisher;             // Domain Port
+    Order order = Order.create(...);
+    Order saved = orderRepository.save(order);
     
-    @Transactional
-    public Order execute(CreateOrderCommand command) {
-        // 1. 중복 체크 (Reader)
-        boolean exists = orderReader.existsByOrderNumber(command.orderNumber());
-        if (exists) {
-            throw new DuplicateOrderNumberException();
-        }
-        
-        // 2. Domain으로 주문 생성
-        Order order = Order.create(...);
-        
-        // 3. Store로 저장
-        Order saved = orderStore.save(order);
-        
-        // 4. Required Port 사용
-        emailSender.sendOrderConfirmation(saved);
-        eventPublisher.publish(new OrderCreatedEvent(saved));
-        
-        return saved;
-    }
+    outboxEventPublisher.publish(saved.getDomainEvents());
+    
+    return saved;
+  }
 }
 ```
 
-### 규칙
-- ✅ 모든 Port는 Domain required/에 위치
-- ✅ UseCase는 Domain의 Port(인터페이스)만 의존
-- ✅ Infrastructure에서 모든 Port를 Adapter로 구현
+**문제점:**
+- ❌ UseCase가 비즈니스 로직을 직접 수행
+- ❌ Domain Service 개념 없음
+- ❌ 재사용 어려움
+
+### Facade 패턴 (현재)
+
+```java
+@Facade
+@RequiredArgsConstructor
+public class OrderFacade {
+  
+  private final OrderCreator orderCreator;
+
+  public Order createOrder(CreateOrderCommand command) {
+    // Facade는 단순 호출만
+    return orderCreator.create(command);
+  }
+}
+
+@Service
+@RequiredArgsConstructor
+public class OrderCreator {
+  
+  @Transactional
+  public Order create(CreateOrderCommand command) {
+    // Domain Service가 비즈니스 로직 수행
+    OrderNumber orderNumber = orderNumberGenerator.generate();
+    Order order = orderRepository.store(...);
+    outboxEventAppender.append(OutboxEventType.ORDER_CREATED, order);
+    return order;
+  }
+}
+```
+
+**장점:**
+- ✅ Facade는 흐름만 조정
+- ✅ Domain Service가 비즈니스 로직 수행
+- ✅ Domain Service 재사용 가능
+- ✅ 책임 분리 명확
+
+---
+
+## 여러 Domain Service 조합
+
+여러 Domain Service를 조합해야 할 때는 **Facade에서 흐름 조정**
+
+```java
+@Facade
+@RequiredArgsConstructor
+public class OrderFacade {
+  
+  private final OrderCreator orderCreator;
+  private final OrderValidator orderValidator;
+  private final InventoryChecker inventoryChecker;
+
+  public Order createOrderWithValidation(CreateOrderCommand command) {
+    // 1. 재고 확인 (Domain Service)
+    inventoryChecker.checkAvailability(command.items());
+    
+    // 2. 주문 검증 (Domain Service)
+    orderValidator.validate(command);
+    
+    // 3. 주문 생성 (Domain Service)
+    return orderCreator.create(command);
+  }
+}
+```
+
+**특징:**
+- ✅ Facade가 여러 Domain Service 조합
+- ✅ 각 Domain Service는 독립적
+- ✅ Facade는 흐름만 제어
+
+---
+
+## 복잡한 흐름 처리
+
+### TransactionTemplate 사용 (선택적)
+
+여러 Aggregate를 수정하고 외부 API 호출이 있는 경우
+
+```java
+@Facade
+@RequiredArgsConstructor
+public class OrderFacade {
+  
+  private final TransactionTemplate transactionTemplate;
+  private final OrderCreator orderCreator;
+  private final PaymentProcessor paymentProcessor;
+  private final OrderStatusUpdater orderStatusUpdater;
+
+  public Order createAndPayOrder(CreateOrderCommand command, PaymentInfo paymentInfo) {
+    
+    // 1. 트랜잭션 1: 주문 생성
+    Order order = transactionTemplate.execute(status -> 
+      orderCreator.create(command)
+    );
+    
+    // 2. 외부 API: 결제 처리 (트랜잭션 밖)
+    PaymentResult result = paymentProcessor.process(order.getId(), paymentInfo);
+    
+    // 3. 트랜잭션 2: 주문 상태 업데이트
+    return transactionTemplate.execute(status -> 
+      orderStatusUpdater.updateToPaid(order.getId(), result)
+    );
+  }
+}
+```
+
+**언제 사용:**
+- ✅ 여러 Aggregate 수정 + 외부 API 호출
+- ✅ 트랜잭션 분리가 필요한 경우
+
+---
+
+## 예외 처리
+
+### Domain Exception은 그대로 전파
+
+```java
+@Facade
+@RequiredArgsConstructor
+public class OrderFacade {
+  
+  private final OrderReader orderReader;
+
+  public Order getOrderById(Long orderId) {
+    // Domain Service에서 발생한 예외를 그대로 전파
+    return orderReader.getOrderById(orderId);  // OrderNotFoundException 발생 가능
+  }
+}
+```
+
+**특징:**
+- ✅ Facade는 예외를 변환하지 않음
+- ✅ Domain Exception을 그대로 전파
+- ✅ Controller의 ExceptionHandler에서 처리
+
+---
+
+## 금지 사항
+
+### ❌ Facade에서 비즈니스 로직 직접 구현
+
+```java
+// ❌ 나쁜 예
+@Facade
+public class OrderFacade {
+  
+  public Order createOrder(CreateOrderCommand command) {
+    // Facade에서 비즈니스 로직 직접 수행 금지!
+    OrderNumber orderNumber = orderNumberGenerator.generate();
+    Order order = Order.create(...);
+    Order saved = orderRepository.store(...);
+    outboxEventAppender.append(...);
+    return saved;
+  }
+}
+
+// ✅ 좋은 예
+@Facade
+public class OrderFacade {
+  
+  public Order createOrder(CreateOrderCommand command) {
+    // Domain Service에게 위임
+    return orderCreator.create(command);
+  }
+}
+```
+
+### ❌ Repository 직접 호출
+
+```java
+// ❌ 나쁜 예
+@Facade
+public class OrderFacade {
+  
+  private final OrderRepository orderRepository;  // 금지!
+
+  public Order getOrder(Long id) {
+    return orderRepository.findById(id).orElseThrow();
+  }
+}
+
+// ✅ 좋은 예
+@Facade
+public class OrderFacade {
+  
+  private final OrderReader orderReader;  // Domain Service
+
+  public Order getOrder(Long id) {
+    return orderReader.getOrderById(id);
+  }
+}
+```
+
+---
+
+## 체크리스트
+
+- [ ] Facade에 @Facade 애노테이션이 있는가?
+- [ ] Facade가 Domain Service만 호출하는가?
+- [ ] Facade에 비즈니스 로직이 없는가?
+- [ ] Command가 Domain Layer에 있는가?
+- [ ] Repository를 직접 호출하지 않는가?
+- [ ] 트랜잭션이 Domain Service에 있는가?
+- [ ] 예외를 변환하지 않고 그대로 전파하는가?
+
+---
 
 ## 중요 원칙
 
-### 1. UseCase 설계
-- 하나의 UseCase = 하나의 파일 = 하나의 execute()
-- UseCase는 Port(인터페이스)만 의존
-- 비즈니스 로직은 Domain에, UseCase는 흐름 제어만
-
-### 2. 트랜잭션 전략
-**기본: Repository Adapter에 @Transactional**
-- 단일 Aggregate 수정
-- UseCase는 트랜잭션 없음
-- 짧은 트랜잭션
-
-**여러 Aggregate 수정: TransactionTemplate**
-- 여러 Aggregate를 하나의 트랜잭션으로
-- UseCase에서 명시적 제어
-
-**외부 API 사이: TransactionTemplate 분리**
-- 트랜잭션을 여러 개로 쪼개기
-- DB 커넥션 최소 점유
-
-### 3. Store/Reader 분리 (CQRS)
-- **OrderStore**: 쓰기 작업 (save, delete)
-- **OrderReader**: 읽기 작업 (find, search, exists)
-- 트랜잭션 최적화 (readOnly = true)
-
-### 4. Support Service
-- 조회/검증 헬퍼만
-- 트랜잭션 관리 금지
-- 비즈니스 로직 금지
-</artifact>
-
----
+1. **Facade는 흐름만 조정** (비즈니스 로직 없음)
+2. **Domain Service가 비즈니스 로직 수행**
+3. **Command는 Domain Layer에 위치**
+4. **트랜잭션은 Domain Service에서 관리**
+5. **Repository는 Domain Service를 통해서만 호출**
+6. **여러 Domain Service 조합 시 Facade에서 흐름 제어**
