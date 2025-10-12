@@ -2,18 +2,27 @@ package vroong.laas.order.core.application.order;
 
 import lombok.RequiredArgsConstructor;
 import vroong.laas.order.core.common.annotation.Facade;
+import vroong.laas.order.core.domain.address.AddressRefiner;
+import vroong.laas.order.core.domain.order.Destination;
 import vroong.laas.order.core.domain.order.Order;
 import vroong.laas.order.core.domain.order.OrderCreator;
 import vroong.laas.order.core.domain.order.OrderReader;
+import vroong.laas.order.core.domain.order.Origin;
 import vroong.laas.order.core.domain.order.command.CreateOrderCommand;
+import vroong.laas.order.core.domain.shared.Address;
 
 /**
  * Order Facade
  *
  * <p>책임:
  * - API 진입점
+ * - 주소 정제 (AddressRefiner)
  * - Domain Service 호출 (OrderCreator, OrderReader)
- * - 외부 서비스 조합 (나중에 추가)
+ * - 외부 서비스 조합
+ *
+ * <p>흐름:
+ * 1. 주소 정제 (Origin/Destination) - AddressRefiner
+ * 2. 주문 생성 - OrderCreator
  *
  * <p>트랜잭션:
  * - 트랜잭션 없음 (Domain Service에서 관리)
@@ -24,22 +33,57 @@ public class OrderFacade {
 
   private final OrderCreator orderCreator;
   private final OrderReader orderReader;
+  private final AddressRefiner addressRefiner;
 
   /**
    * 주문 생성
    *
+   * <p>흐름:
+   * 1. Origin 주소 정제 (역지오코딩)
+   * 2. Destination 주소 정제 (역지오코딩)
+   * 3. 정제된 주소로 Order 생성
+   *
    * @param command 주문 생성 Command
-   * @return Order
+   * @return 생성된 Order
+   * @throws vroong.laas.order.core.domain.address.exception.AddressRefineFailedException 주소 정제 실패 시
    */
   public Order createOrder(CreateOrderCommand command) {
-    // 1. Order 생성 및 저장 (TX 내부)
-    Order savedOrder = orderCreator.create(command);
+    // 1. 주소 정제 (역지오코딩)
+    Origin refinedOrigin = refineOriginAddress(command.origin());
+    Destination refinedDestination = refineDestinationAddress(command.destination());
 
-    // 2. 외부 서비스 호출 (TX 외부) - 나중에 추가
-    // - 이벤트 발행
-    // - 알림 전송
+    // 2. Order 생성 및 저장 (정제된 주소로)
+    return orderCreator.create(
+        command.items(), refinedOrigin, refinedDestination, command.deliveryPolicy());
+  }
 
-    return savedOrder;
+  /**
+   * Origin 주소 정제
+   *
+   * <p>역지오코딩을 통해 정제된 주소로 Origin을 재생성합니다.
+   *
+   * @param origin 원본 Origin
+   * @return 정제된 주소가 적용된 Origin
+   */
+  private Origin refineOriginAddress(Origin origin) {
+    Address refinedAddress = addressRefiner.refine(origin.latLng(), origin.address());
+
+    return new Origin(origin.contact(), refinedAddress, origin.latLng(), origin.entranceInfo());
+  }
+
+  /**
+   * Destination 주소 정제
+   *
+   * <p>역지오코딩을 통해 정제된 주소로 Destination을 재생성합니다.
+   *
+   * @param destination 원본 Destination
+   * @return 정제된 주소가 적용된 Destination
+   */
+  private Destination refineDestinationAddress(Destination destination) {
+    Address refinedAddress = addressRefiner.refine(destination.latLng(), destination.address());
+
+    return new Destination(
+        destination.contact(), refinedAddress, destination.latLng(), destination.entranceInfo());
   }
 
   /**
