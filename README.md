@@ -14,6 +14,52 @@
 
 ---
 
+## 🚀 Quick Start
+
+처음 프로젝트를 시작하는 분들을 위한 가이드입니다.
+
+### Prerequisites (필수 요구사항)
+
+다음 도구들이 설치되어 있어야 합니다:
+
+- **Java 25** - [다운로드](https://jdk.java.net/25/)
+- **Docker & Docker Compose** - [다운로드](https://www.docker.com/products/docker-desktop/)
+- **Git** - [다운로드](https://git-scm.com/downloads)
+
+### 5분 안에 시작하기
+
+**1. 저장소 클론**
+```bash
+git clone <repository-url>
+cd vroong-laas-order-ai-test
+```
+
+**2. Docker 컨테이너 실행 (MySQL)**
+```bash
+cd scripts
+docker-compose up -d
+cd ..
+```
+
+**3. 애플리케이션 실행**
+```bash
+./gradlew :api:bootRun
+```
+
+**4. 서버 실행 확인**
+
+브라우저에서 다음 URL로 접속하여 서버가 정상 실행되었는지 확인:
+- Health Check: http://localhost:8080/actuator/health
+- Application: http://localhost:8080
+
+로그에서 다음 메시지 확인:
+```
+✅ Started ApiApplication in X.XXX seconds
+✅ Flyway Migration 완료
+```
+
+---
+
 ## 🏗️ 아키텍처
 
 ### Layered Architecture with DDD & DIP
