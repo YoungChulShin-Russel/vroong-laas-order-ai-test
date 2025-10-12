@@ -82,3 +82,32 @@ logging:
     org.hibernate.SQL: WARN
     software.amazon.jdbc: INFO  # AWS Advanced JDBC Driver 로그
     # Failover, IAM 인증, Read/Write Splitting 로그 확인 가능
+
+# ============================================
+# 주소 정제 설정 (Production 환경)
+# ============================================
+address:
+  refinement:
+    # Production 환경: Fallback 순서
+    fallback-order:
+      - neogeo
+      - naver
+      - kakao
+    
+    # Neogeo (내부 서비스)
+    neogeo:
+      url: ${NEOGEO_URL}  # 환경변수 필수
+      timeout-ms: 3000
+    
+    # Naver Geocoding API (외부 서비스)
+    naver:
+      url: https://naveropenapi.apigw.ntruss.com
+      client-id: ${NAVER_CLIENT_ID}  # 환경변수 필수
+      client-secret: ${NAVER_CLIENT_SECRET}  # 환경변수 필수
+      timeout-ms: 3000
+    
+    # Kakao Local API (외부 서비스)
+    kakao:
+      url: https://dapi.kakao.com
+      api-key: ${KAKAO_API_KEY}  # 환경변수 필수
+      timeout-ms: 3000

@@ -68,3 +68,32 @@ logging:
   level:
     vroong.laas.order: DEBUG  # 로컬: 상세 로그
     org.hibernate.SQL: DEBUG
+
+# ============================================
+# 주소 정제 설정 (Local 환경)
+# ============================================
+address:
+  refinement:
+    # Local 환경: 테스트용 Fallback 순서 (원하면 변경 가능)
+    fallback-order:
+      - neogeo
+      - naver
+      - kakao
+    
+    # Neogeo (Local - Mock/Stub)
+    neogeo:
+      url: http://localhost:8081  # 로컬 Mock 서버
+      timeout-ms: 3000
+    
+    # Naver (Local - 테스트용)
+    naver:
+      url: https://naveropenapi.apigw.ntruss.com
+      client-id: test-naver-client-id
+      client-secret: test-naver-client-secret
+      timeout-ms: 3000
+    
+    # Kakao (Local - 테스트용)
+    kakao:
+      url: https://dapi.kakao.com
+      api-key: test-kakao-api-key
+      timeout-ms: 3000

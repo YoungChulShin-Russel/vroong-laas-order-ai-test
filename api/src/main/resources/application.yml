@@ -76,3 +76,34 @@ app:
       - /actuator/**
       - /health
       - /favicon.ico
+
+# ============================================
+# 주소 정제 설정 (역지오코딩)
+# ============================================
+address:
+  refinement:
+    # Fallback 순서 (첫 번째가 최우선)
+    # - 순서 변경 가능 (환경별로 오버라이드 가능)
+    # - 지원 Provider: neogeo, naver, kakao
+    fallback-order:
+      - neogeo
+      - naver
+      - kakao
+    
+    # Neogeo (내부 서비스)
+    neogeo:
+      url: ${NEOGEO_URL:http://neogeo-service}
+      timeout-ms: ${NEOGEO_TIMEOUT_MS:3000}  # 기본 3초
+    
+    # Naver Geocoding API (외부 서비스)
+    naver:
+      url: ${NAVER_GEOCODE_URL:https://naveropenapi.apigw.ntruss.com}
+      client-id: ${NAVER_CLIENT_ID}
+      client-secret: ${NAVER_CLIENT_SECRET}
+      timeout-ms: ${NAVER_TIMEOUT_MS:3000}  # 기본 3초
+    
+    # Kakao Local API (외부 서비스)
+    kakao:
+      url: ${KAKAO_API_URL:https://dapi.kakao.com}
+      api-key: ${KAKAO_API_KEY}
+      timeout-ms: ${KAKAO_TIMEOUT_MS:3000}  # 기본 3초
