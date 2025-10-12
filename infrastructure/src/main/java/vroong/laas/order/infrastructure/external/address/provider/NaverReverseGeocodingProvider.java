@@ -32,23 +32,27 @@ public class NaverReverseGeocodingProvider implements ReverseGeocodingProvider {
   }
 
   /**
-   * Naver 역지오코딩 (현재 Stub)
+   * Naver 역지오코딩 (Stub - 성공 응답)
    *
    * <p>TODO: Feign Client로 Naver Geocoding API 호출 구현
    *
    * @param latLng 위/경도 좌표
    * @return 변환된 주소
-   * @throws RuntimeException Stub이므로 항상 예외 발생 (Fallback 테스트용)
    */
   @Override
   public Address reverseGeocode(LatLng latLng) {
-    log.debug("[NAVER] 역지오코딩 요청: latLng={}", latLng);
+    log.info("[NAVER] 역지오코딩 요청 (Stub - 성공): latLng={}", latLng);
 
     // TODO: 실제 Naver Geocoding API 호출 구현
     // NaverReverseGeocodeResponse response = naverGeocodeFeignClient.reverseGeocode(...);
     // return toAddress(response);
 
-    throw new RuntimeException("Naver API 미구현 (Stub)");
+    // ⭐ Stub 구현: Fallback Chain 테스트를 위해 성공 응답 반환
+    return new Address(
+        "서울특별시 강남구 역삼동 123-45",  // 지번 주소
+        "서울특별시 강남구 테헤란로 123",    // 도로명 주소
+        null                                  // 상세 주소 (역지오코딩에서는 없음)
+    );
   }
 }
 

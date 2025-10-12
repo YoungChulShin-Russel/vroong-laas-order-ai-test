@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 
 import com.navercorp.fixturemonkey.FixtureMonkey;
 import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
+import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -158,11 +159,15 @@ class AddressRefinementAdapterTest {
 
   // Helper methods
   private LatLng randomLatLng() {
-    return fixtureMonkey.giveMeOne(LatLng.class);
+    // FixtureMonkey가 생성한 값은 범위를 벗어날 수 있으므로 직접 생성
+    return new LatLng(
+        new BigDecimal("37.5012"), // 서울 위도 (유효 범위: -90 ~ 90)
+        new BigDecimal("127.0396") // 서울 경도 (유효 범위: -180 ~ 180)
+        );
   }
 
   private Address randomAddress() {
-    return fixtureMonkey.giveMeOne(Address.class);
+    return new Address("서울시 강남구 역삼동 456", "서울시 강남구 테헤란로 456", "5층");
   }
 }
 

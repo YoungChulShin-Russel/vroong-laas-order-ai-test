@@ -2,8 +2,9 @@ package vroong.laas.order.infrastructure.external.address.config;
 
 import java.util.List;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import vroong.laas.order.infrastructure.external.address.provider.KakaoReverseGeocodingProvider;
@@ -31,11 +32,12 @@ import vroong.laas.order.infrastructure.external.address.provider.ReverseGeocodi
  * </pre>
  */
 @Configuration
+@EnableConfigurationProperties(AddressRefinementProperties.class)
+@RequiredArgsConstructor
 @Slf4j
 public class AddressRefinementConfig {
 
-  @Value("${address.refinement.fallback-order}")
-  private List<String> fallbackOrder;
+  private final AddressRefinementProperties properties;
 
   /**
    * 역지오코딩 Provider 리스트를 Fallback 순서대로 반환
@@ -61,7 +63,7 @@ public class AddressRefinementConfig {
             "kakao", kakao);
 
     List<ReverseGeocodingProvider> providers =
-        fallbackOrder.stream()
+        properties.fallbackOrder().stream()
             .map(
                 name -> {
                   ReverseGeocodingProvider provider = providerMap.get(name.toLowerCase());

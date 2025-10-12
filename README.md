@@ -374,6 +374,148 @@ class OrderControllerTest {
 
 ---
 
+## 📡 API 응답 표준
+
+### 응답 형식
+
+모든 API 응답은 다음 두 가지 형태를 따릅니다:
+
+#### 1. 성공 응답 (2xx)
+
+일반 객체를 직접 반환합니다.
+
+```json
+// 200 OK - 조회 성공
+{
+  "id": 1,
+  "orderNumber": "ORD-20251005123045001",
+  "status": "CREATED",
+  "items": [...],
+  "orderedAt": "2025-10-12T07:20:16Z"
+}
+```
+
+| 상태 코드 | 용도 | 반환 형식 |
+|----------|------|----------|
+| **200 OK** | 조회, 수정 성공 | 객체 직접 반환 (OrderResponse, PageResponse 등) |
+| **201 Created** | 생성 성공 | 생성된 객체 반환 (OrderResponse) |
+| **204 No Content** | 삭제 성공 | 응답 Body 없음 |
+
+#### 2. 에러 응답 (4xx, 5xx)
+
+**RFC 7807 (Problem Details for HTTP APIs)** 표준을 따릅니다.
+
+```json
+// 400 Bad Request - 클라이언트 입력 에러
+{
+  "status": 400,
+  "title": "Bad Request",
+  "detail": "주문을 찾을 수 없습니다. ID: 999",
+  "properties": {
+    "timestamp": "2025-10-12T07:20:16.360318Z",
+    "errorCode": "ORDER_NOT_FOUND",
+    "exception": "OrderNotFoundException"
+  }
+}
+
+// 503 Service Unavailable - 재시도 가능 에러
+{
+  "status": 503,
+  "title": "Service Unavailable",
+  "detail": "모든 역지오코딩 서비스가 실패했습니다",
+  "properties": {
+    "timestamp": "2025-10-12T07:20:16.360318Z",
+    "errorCode": "ADDRESS_REFINE_FAILED",
+    "exception": "AddressRefineFailedException",
+    "retryable": true  // ⭐ 재시도 가능 여부 (부릉 내부 표준)
+  }
+}
+```
+
+### 재시도 가능한 에러 (5xx) ⭐
+
+일시적 장애로 인한 에러는 재시도 가능함을 명시합니다.
+
+**HTTP 상태:**
+- **503 Service Unavailable** - 외부 서비스 일시적 장애
+
+**헤더:**
+- `Retry-After`: 재시도 권장 시간(초)
+
+**응답 필드:**
+- `retryable: true` - 재시도 가능 표시 (부릉 내부 표준)
+
+**예시:**
+```http
+HTTP/1.1 503 Service Unavailable
+Retry-After: 60
+
+{
+  "status": 503,
+  "title": "Service Unavailable",
+  "detail": "모든 역지오코딩 서비스가 실패했습니다",
+  "properties": {
+    "errorCode": "ADDRESS_REFINE_FAILED",
+    "retryable": true
+  }
+}
+```
+
+**재시도 가능 에러 타입:**
+- `ADDRESS_REFINE_FAILED` - 주소 정제 실패 (역지오코딩 서비스 장애)
+- (향후 추가 예정)
+
+### 에러 코드 목록
+
+| 에러 코드 | HTTP 상태 | 설명 | 재시도 가능 |
+|----------|----------|------|------------|
+| `ORDER_NOT_FOUND` | 400 | 주문을 찾을 수 없음 | ❌ |
+| `INVALID_INPUT` | 400 | 잘못된 입력 값 | ❌ |
+| `VALIDATION_ERROR` | 400 | Bean Validation 실패 | ❌ |
+| `ADDRESS_REFINE_FAILED` | 503 | 주소 정제 실패 | ✅ |
+| `INTERNAL_SERVER_ERROR` | 500 | 예상하지 못한 서버 에러 | ❌ |
+
+### 클라이언트 가이드
+
+#### 에러 처리 예시 (TypeScript)
+
+```typescript
+async function createOrder(request: CreateOrderRequest) {
+  try {
+    const response = await api.post('/api/v1/orders', request);
+    return response.data;
+    
+  } catch (error) {
+    if (error.response?.status === 503) {
+      const retryAfter = error.response.headers['retry-after'];
+      const retryable = error.response.data.properties?.retryable;
+      
+      if (retryable) {
+        // 재시도 로직
+        await sleep(retryAfter * 1000);
+        return createOrder(request);  // 재시도
+      }
+    }
+    
+    // 에러 코드별 처리
+    const errorCode = error.response?.data.properties?.errorCode;
+    switch (errorCode) {
+      case 'ORDER_NOT_FOUND':
+        // 주문 없음 처리
+        break;
+      case 'VALIDATION_ERROR':
+        // 유효성 검증 에러 처리
+        const fieldErrors = error.response.data.properties.fieldErrors;
+        break;
+      default:
+        // 일반 에러 처리
+    }
+  }
+}
+```
+
+---
+
 ## 📦 빌드 및 실행
 
 ### 로컬 환경 구성
