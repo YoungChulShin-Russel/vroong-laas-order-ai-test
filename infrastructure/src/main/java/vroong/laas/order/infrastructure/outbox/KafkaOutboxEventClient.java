@@ -42,4 +42,15 @@ public class KafkaOutboxEventClient implements OutboxEventClient {
     KafkaOutboxEvent event = outboxEventMapper.map(eventType, aggregateRoot);
     outboxEventService.registerEvent(event.kafkaEvent(), event.eventKey());
   }
+
+  /**
+   * Outbox 테이블에서 미전송 이벤트를 Kafka로 발행
+   *
+   * @param batchSize 한 번에 처리할 이벤트 수
+   * @return 발행된 이벤트 수
+   */
+  @Override
+  public int publishPendingEvents(int batchSize) {
+    return outboxEventService.processUnpublishedEvents(batchSize);
+  }
 }

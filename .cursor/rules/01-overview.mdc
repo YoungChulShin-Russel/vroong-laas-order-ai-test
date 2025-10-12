@@ -80,10 +80,12 @@ order-service/
 - 목적: Scheduled Job 실행
 - 허용: Domain Service 호출, @Scheduled 사용
 - 금지: Repository 직접 호출, 비즈니스 로직 직접 구현
-- 포함:
-  - BaseScheduledJob (인터페이스)
-  - ScheduledJobLoggingAspect (AOP - 로깅, 예외처리)
-  - OutboxPollingJob, OrderStatisticsJob (구체 클래스)
+- 패키지 구조:
+  - scheduled/ - BaseScheduledJob (인터페이스)
+  - common/aspect/ - ScheduledJobLoggingAspect (AOP)
+  - outbox/ - OutboxEventPublishJob
+  - statistics/ - OrderStatisticsJob (예시)
+- 원칙: 기능별 패키지 구성 (outbox/, statistics/, cleanup/ 등)
 
 ## 아키텍처 패턴
 

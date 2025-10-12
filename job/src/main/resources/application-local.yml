@@ -1,0 +1,72 @@
+# ============================================
+# Local 환경 설정 (개발용 - Docker MySQL)
+# ============================================
+
+# Spring Boot 설정
+spring:
+  # JPA/Hibernate 설정
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none  # Flyway가 스키마 관리
+    properties:
+      hibernate:
+        format_sql: true     # 로컬: SQL 포맷팅
+    show-sql: true           # 로컬: SQL 로그 출력
+
+# Local DataSource (Writer/Reader 동일 - localhost:3306)
+order:
+  datasource:
+    # Writer DataSource (Local - localhost)
+    write:
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      jdbc-url: jdbc:mysql://localhost:3306/order?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+      username: ${DB_USERNAME:order_user}
+      password: ${DB_PASSWORD:order_password}
+      hikari:
+        pool-name: OrderJobWriterPool
+        maximum-pool-size: 3  # 로컬: Job용 작은 Pool
+        minimum-idle: 1
+        connection-timeout: 3000
+        idle-timeout: 600000
+        max-lifetime: 1800000
+    
+    # Reader DataSource (Local - localhost, Writer와 동일)
+    read:
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      jdbc-url: jdbc:mysql://localhost:3306/order?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+      username: ${DB_USERNAME:order_user}
+      password: ${DB_PASSWORD:order_password}
+      hikari:
+        pool-name: OrderJobReaderPool
+        maximum-pool-size: 5  # 로컬: 조회용으로 조금 더 크게
+        minimum-idle: 1
+        connection-timeout: 3000
+        idle-timeout: 600000
+        max-lifetime: 1800000
+
+# Actuator 설정 (Local 환경 - 개발 편의)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'  # 로컬: 모든 엔드포인트 노출 (개발/디버깅 용이)
+  
+  endpoint:
+    health:
+      show-details: always  # 로컬: 항상 Health Check 상세 정보 노출
+
+# Kafka/Outbox 설정 (Local 환경)
+outbox:
+  event:
+    publisher:
+      bootstrap-servers: localhost:9092  # 로컬 Kafka
+      enabled: true
+
+# 로그 설정
+logging:
+  level:
+    vroong.laas.order: DEBUG  # 로컬: 상세 로그
+    org.hibernate.SQL: DEBUG
+    org.springframework.scheduling: DEBUG  # Scheduled Job 로그
+

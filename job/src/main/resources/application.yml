@@ -1,0 +1,115 @@
+# ============================================
+# 공통 설정 (모든 환경에서 공유)
+# ============================================
+spring:
+  profiles:
+    active: local  # 기본 프로파일: local
+    include: infrastructure  # Infrastructure 설정 포함
+  application:
+    name: order-job
+  lifecycle:  # Graceful Shutdown 타임아웃 설정
+    timeout-per-shutdown-phase: 30s # 진행 중인 Job을 완료할 때까지 최대 30초 대기
+
+# Job 모듈은 HTTP 서버가 필요 없으므로 server 설정 제거
+# Actuator용 Management Port만 설정
+management:
+  server:
+    port: 8081  # Actuator 전용 포트 (Health Check, Metrics)
+  
+  # Actuator 엔드포인트 기본 설정
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,info  # 기본: health, info만 노출 (환경별로 오버라이드)
+  
+  # Health Check 상세 설정
+  endpoint:
+    health:
+      show-details: when-authorized  # 인증된 경우에만 상세 정보 노출
+      probes:
+        enabled: true  # Kubernetes Liveness/Readiness Probe 활성화
+      
+      # Liveness/Readiness Probe 그룹 설정 (DB 제외)
+      group:
+        liveness:
+          include: livenessState        # 애플리케이션 생존 여부만
+        readiness:
+          include: readinessState       # 트래픽 수신 준비 여부만
+  
+  health:
+    livenessstate:
+      enabled: true  # Liveness State 활성화
+    readinessstate:
+      enabled: true  # Readiness State 활성화
+    db:
+      enabled: true  # DB Health Check 활성화 (모니터링용 - /actuator/health)
+    diskspace:
+      enabled: true  # Disk Space Health Check 활성화 (모니터링용)
+  
+  # Metrics 설정
+  metrics:
+    enable:
+      jvm: true
+      process: true
+      system: true
+    distribution:
+      percentiles-histogram:
+        scheduled.job.execution: true  # Scheduled Job 실행 시간 히스토그램
+  
+  # Tracing 설정
+  tracing:
+    enabled: true
+    baggage:
+      enabled: true
+
+
+
+# ============================================
+# 주소 정제 설정 (역지오코딩)
+# ============================================
+address:
+  refinement:
+    # Fallback 순서 (첫 번째가 최우선)
+    # - 순서 변경 가능 (환경별로 오버라이드 가능)
+    # - 지원 Provider: neogeo, naver, kakao
+    fallback-order:
+      - neogeo
+      - naver
+      - kakao
+    
+    # Neogeo (내부 서비스)
+    neogeo:
+      url: ${NEOGEO_URL:http://neogeo-service}
+      timeout-ms: ${NEOGEO_TIMEOUT_MS:3000}  # 기본 3초
+    
+    # Naver Geocoding API (외부 서비스)
+    naver:
+      url: ${NAVER_GEOCODE_URL:https://naveropenapi.apigw.ntruss.com}
+      client-id: ${NAVER_CLIENT_ID}
+      client-secret: ${NAVER_CLIENT_SECRET}
+      timeout-ms: ${NAVER_TIMEOUT_MS:3000}  # 기본 3초
+    
+    # Kakao Local API (외부 서비스)
+    kakao:
+      url: ${KAKAO_API_URL:https://dapi.kakao.com}
+      api-key: ${KAKAO_API_KEY}
+      timeout-ms: ${KAKAO_TIMEOUT_MS:3000}  # 기본 3초
+
+# ============================================
+# Scheduled Job 설정
+# ============================================
+job:
+  # Thread Pool 설정
+  scheduling:
+    pool-size: 10  # 동시에 실행 가능한 Job 수
+    thread-name-prefix: "scheduled-job-"
+    await-termination-seconds: 60  # Shutdown 대기 시간
+  
+  # Outbox Event Publish Job 설정
+  outbox:
+    publish:
+      enabled: true
+      fixed-delay: 10000  # 10초마다 실행
+      batch-size: 100  # 한 번에 처리할 이벤트 수
+

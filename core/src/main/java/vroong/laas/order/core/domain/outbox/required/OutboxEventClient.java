@@ -37,5 +37,15 @@ public interface OutboxEventClient {
    * @param aggregateRoot AggregateRoot (Order, Payment 등)
    */
   void save(OutboxEventType type, AggregateRoot aggregateRoot);
+
+  /**
+   * Outbox 테이블에서 미전송 이벤트를 Kafka로 발행
+   *
+   * <p>Job에서 주기적으로 호출하여 Outbox에 쌓인 이벤트를 Kafka로 전송합니다.
+   *
+   * @param batchSize 한 번에 처리할 이벤트 수
+   * @return 발행된 이벤트 수
+   */
+  int publishPendingEvents(int batchSize);
 }
 

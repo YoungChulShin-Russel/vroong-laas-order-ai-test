@@ -12,7 +12,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-autoconfigure'
     
     // AOP (Scheduled Job 로깅)
-    implementation 'org.springframework.boot:spring-boot-starter-aop'
+    implementation 'org.springframework:spring-aop'
+    implementation 'org.aspectj:aspectjweaver'
     
     // Actuator (Health Check, Metrics)
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
