@@ -1,0 +1,537 @@
+---
+alwaysApply: true
+---
+
+# Job Layer 규칙
+
+## 위치
+`job/`
+
+## 저장소 구조
+
+```
+job/
+├── src/main/java/vroong/laas/order/job/
+│   ├── JobApplication.java          # Main Application
+│   ├── config/
+│   │   └── *Properties.java         # 설정 클래스
+│   ├── common/
+│   │   └── aspect/
+│   │       └── ScheduledJobLoggingAspect.java  # AOP (로깅, 예외처리)
+│   └── scheduled/
+│       ├── BaseScheduledJob.java    # 기본 인터페이스
+│       └── *Job.java                # 구체적인 Job 구현
+└── src/main/resources/
+    └── application.yml
+```
+
+## 책임
+- Scheduled Job 실행
+- Outbox Polling (Outbox → Kafka 전송)
+- 주기적인 통계 집계
+- 데이터 정리 작업
+
+---
+
+## 필수 규칙 ⭐
+
+### 1. BaseScheduledJob 구현
+
+**모든 Scheduled Job은 BaseScheduledJob 인터페이스를 구현해야 합니다.**
+
+#### ✅ 올바른 예
+
+```java
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class OutboxPollingJob implements BaseScheduledJob {
+    
+    private final OutboxEventService outboxEventService;
+    private final OutboxPollingProperties properties;
+    
+    @Scheduled(fixedDelay = 10000)
+    @Override
+    public void execute() {
+        // 비즈니스 로직
+        int count = outboxEventService.publishPendingEvents(properties.getBatchSize());
+        
+        if (count > 0) {
+            log.info("Published {} events from outbox to Kafka", count);
+        }
+    }
+}
+```
+
+**AOP가 자동으로 제공하는 기능:**
+- ✅ 실행 시작/종료 로깅 (`[JobName] Job started/completed`)
+- ✅ 실행 시간 자동 측정
+- ✅ 예외 자동 처리 (다음 실행 보장)
+- ✅ 일관된 로깅 포맷
+
+**로그 출력 예시:**
+```
+2025-01-12 10:00:00.123 DEBUG [OutboxPollingJob] Job started
+2025-01-12 10:00:00.456 INFO  Published 3 events from outbox to Kafka
+2025-01-12 10:00:00.789 INFO  [OutboxPollingJob] Job completed successfully in 666ms
+```
+
+---
+
+### 2. 1개 클래스 = 1개 작업
+
+**한 클래스에는 하나의 @Scheduled 메서드만 존재해야 합니다.**
+
+#### ❌ 나쁜 예 - 여러 작업을 한 클래스에
+
+```java
+@Component
+public class OrderJob implements BaseScheduledJob {
+    
+    @Scheduled(fixedDelay = 10000)
+    @Override
+    public void execute() {
+        pollOutbox();
+    }
+    
+    @Scheduled(cron = "0 0 1 * * *")  // ❌ 금지! 다른 작업
+    public void calculateStatistics() {
+        // ...
+    }
+}
+```
+
+#### ✅ 좋은 예 - 작업별로 클래스 분리
+
+```java
+// OutboxPollingJob.java
+@Component
+public class OutboxPollingJob implements BaseScheduledJob {
+    
+    @Scheduled(fixedDelay = 10000)
+    @Override
+    public void execute() {
+        // Outbox Polling 로직
+    }
+}
+
+// OrderStatisticsJob.java
+@Component
+public class OrderStatisticsJob implements BaseScheduledJob {
+    
+    @Scheduled(cron = "0 0 1 * * *")
+    @Override
+    public void execute() {
+        // 통계 집계 로직
+    }
+}
+```
+
+**이유:**
+- ✅ 단일 책임 원칙 (SRP)
+- ✅ 테스트 용이
+- ✅ 독립적인 활성화/비활성화 가능
+- ✅ 독립적인 실행 주기 관리
+
+---
+
+### 3. 클래스 이름은 *Job으로 끝나야 함
+
+**모든 Scheduled Job 클래스는 "Job" 접미사로 끝나야 합니다.**
+
+#### ✅ 올바른 이름
+
+```java
+OutboxPollingJob
+OrderStatisticsJob
+DataCleanupJob
+OrderNotificationJob
+```
+
+#### ❌ 잘못된 이름
+
+```java
+OutboxPoller          // Job 접미사 없음
+OrderStatistics       // Job 접미사 없음
+CleanupScheduler      // Scheduler는 사용 안 함
+OrderTask             // Task는 사용 안 함
+```
+
+**이유:**
+- ✅ 명확한 식별 (Job임을 즉시 알 수 있음)
+- ✅ 일관된 네이밍 규칙
+- ✅ AOP 로깅에서 클래스명 사용
+
+---
+
+## Scheduled 애노테이션 규칙
+
+### Scheduling 옵션
+
+| 방법 | 용도 | 예시 |
+|---|---|-----|
+| `fixedDelay` | 이전 실행 완료 후 N ms 대기 | Outbox Polling (10초) |
+| `fixedRate` | N ms마다 실행 (이전 실행 무관) | Health Check (1분) |
+| `cron` | Cron 표현식 | 일일 통계 (새벽 1시) |
+
+```java
+// fixedDelay - 권장 (중복 실행 방지)
+@Scheduled(fixedDelayString = "${job.outbox.polling.fixed-delay:10000}")
+@Override
+public void execute() {
+    // 비즈니스 로직
+}
+
+// cron - 정해진 시간에 실행
+@Scheduled(cron = "0 0 1 * * *")  // 매일 새벽 1시
+@Override
+public void execute() {
+    // 비즈니스 로직
+}
+
+// fixedRate - 주의 (이전 실행과 무관하게 실행)
+@Scheduled(fixedRate = 60000)  // 1분마다
+@Override
+public void execute() {
+    // 비즈니스 로직
+}
+```
+
+---
+
+## 설정 관리
+
+### Properties 클래스 사용
+
+**application.yml 설정은 @ConfigurationProperties로 매핑합니다.**
+
+```java
+// job/config/OutboxPollingProperties.java
+@Component
+@ConfigurationProperties(prefix = "job.outbox.polling")
+@Getter
+@Setter
+public class OutboxPollingProperties {
+    
+    private boolean enabled = true;
+    private long fixedDelay = 10000;
+    private int batchSize = 100;
+}
+```
+
+```yaml
+# application.yml
+job:
+  outbox:
+    polling:
+      enabled: true
+      fixed-delay: 10000
+      batch-size: 100
+```
+
+### @ConditionalOnProperty로 활성화 제어
+
+```java
+@Component
+@ConditionalOnProperty(
+    prefix = "job.outbox.polling",
+    name = "enabled",
+    havingValue = "true",
+    matchIfMissing = true
+)
+public class OutboxPollingJob implements BaseScheduledJob {
+    // ...
+}
+```
+
+**장점:**
+- ✅ 환경별 Job 활성화/비활성화 가능
+- ✅ 테스트 환경에서 Job 제외 가능
+
+---
+
+## 비즈니스 로직 호출 규칙
+
+### Domain Service 호출 (필수)
+
+**Job은 Domain Service를 통해 비즈니스 로직을 호출해야 합니다.**
+
+#### ✅ 좋은 예 - Domain Service 호출
+
+```java
+@Component
+@RequiredArgsConstructor
+public class OrderStatisticsJob implements BaseScheduledJob {
+    
+    private final OrderReader orderReader;  // Domain Service
+    
+    @Scheduled(cron = "0 0 1 * * *")
+    @Override
+    public void execute() {
+        LocalDate yesterday = LocalDate.now().minusDays(1);
+        
+        // Domain Service 호출
+        var statistics = orderReader.calculateStatistics(yesterday);
+        
+        log.info("Daily statistics calculated: {}", statistics);
+    }
+}
+```
+
+#### ❌ 나쁜 예 - Repository 직접 호출
+
+```java
+@Component
+@RequiredArgsConstructor
+public class OrderStatisticsJob implements BaseScheduledJob {
+    
+    private final OrderRepository orderRepository;  // ❌ 금지!
+    
+    @Scheduled(cron = "0 0 1 * * *")
+    @Override
+    public void execute() {
+        // Repository 직접 호출 금지!
+        List<Order> orders = orderRepository.findAll();
+        
+        // 비즈니스 로직 직접 구현 금지!
+        long count = orders.stream()
+            .filter(o -> o.getStatus() == OrderStatus.COMPLETED)
+            .count();
+    }
+}
+```
+
+**규칙:**
+- ✅ Domain Service만 호출
+- ❌ Repository 직접 호출 금지
+- ❌ 비즈니스 로직 직접 구현 금지
+- ❌ 트랜잭션 관리 금지 (Domain Service에서)
+
+---
+
+## 예외 처리
+
+### AOP가 자동으로 처리
+
+**ScheduledJobLoggingAspect가 자동으로 예외를 처리합니다.**
+
+```java
+@Component
+public class OutboxPollingJob implements BaseScheduledJob {
+    
+    @Scheduled(fixedDelay = 10000)
+    @Override
+    public void execute() {
+        // 예외 발생 시 AOP가 자동으로:
+        // 1. 에러 로그 기록
+        // 2. 예외 삼킴 (다음 실행 보장)
+        outboxEventService.publishPendingEvents(batchSize);
+    }
+}
+```
+
+**자동 처리:**
+```
+2025-01-12 10:00:00.123 DEBUG [OutboxPollingJob] Job started
+2025-01-12 10:00:00.456 ERROR [OutboxPollingJob] Job failed after 333ms: Connection timeout
+  ... stack trace ...
+```
+
+### 특수한 예외 처리가 필요한 경우
+
+```java
+@Component
+public class CustomJob implements BaseScheduledJob {
+    
+    @Scheduled(fixedDelay = 10000)
+    @Override
+    public void execute() {
+        try {
+            // 비즈니스 로직
+        } catch (SpecificException e) {
+            // 특수 처리
+            log.warn("Specific error handled", e);
+            // 예외를 다시 던지지 않으면 성공으로 간주
+        }
+    }
+}
+```
+
+---
+
+## 테스트 규칙
+
+### Job 단위 테스트
+
+```java
+@ExtendWith(MockitoExtension.class)
+class OutboxPollingJobTest {
+    
+    @InjectMocks
+    private OutboxPollingJob job;
+    
+    @Mock
+    private OutboxEventService outboxEventService;
+    
+    @Mock
+    private OutboxPollingProperties properties;
+    
+    @Test
+    void execute_publishesEvents_whenPendingEventsExist() {
+        // given
+        given(properties.getBatchSize()).willReturn(100);
+        given(outboxEventService.publishPendingEvents(100)).willReturn(3);
+        
+        // when
+        job.execute();
+        
+        // then
+        verify(outboxEventService).publishPendingEvents(100);
+    }
+}
+```
+
+### 통합 테스트에서 Job 비활성화
+
+```yaml
+# src/test/resources/application.yml
+job:
+  outbox:
+    polling:
+      enabled: false  # 테스트에서 Job 비활성화
+```
+
+---
+
+## 실전 예시: OutboxPollingJob
+
+```java
+package vroong.laas.order.job.scheduled;
+
+import com.vroong.msa.kafka.eventpublisher.OutboxEventService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+import vroong.laas.order.job.config.OutboxPollingProperties;
+
+/**
+ * Outbox Polling Job
+ *
+ * <p>Outbox 테이블에서 미전송 이벤트를 Kafka로 전송합니다.
+ *
+ * <p>실행 주기: 10초 (job.outbox.polling.fixed-delay)
+ *
+ * <p>AOP가 자동으로 로깅, 실행 시간 측정, 예외 처리를 수행합니다.
+ */
+@Component
+@RequiredArgsConstructor
+@Slf4j
+@ConditionalOnProperty(
+    prefix = "job.outbox.polling",
+    name = "enabled",
+    havingValue = "true",
+    matchIfMissing = true
+)
+public class OutboxPollingJob implements BaseScheduledJob {
+    
+    private final OutboxEventService outboxEventService;
+    private final OutboxPollingProperties properties;
+    
+    /**
+     * Outbox Polling 실행
+     *
+     * <p>ScheduledJobLoggingAspect가 자동으로 로깅 및 예외 처리를 수행합니다.
+     */
+    @Scheduled(fixedDelayString = "${job.outbox.polling.fixed-delay:10000}")
+    @Override
+    public void execute() {
+        int publishedCount = outboxEventService.publishPendingEvents(
+            properties.getBatchSize()
+        );
+        
+        if (publishedCount > 0) {
+            log.info("Published {} events from outbox to Kafka", publishedCount);
+        }
+    }
+}
+```
+
+---
+
+## 체크리스트
+
+매 Job 작성 시 확인:
+
+- [ ] BaseScheduledJob 인터페이스 구현?
+- [ ] 1개 클래스에 1개 @Scheduled 메서드만?
+- [ ] 클래스 이름이 *Job으로 끝나는가?
+- [ ] execute() 메서드에 @Scheduled 애노테이션?
+- [ ] Domain Service만 호출?
+- [ ] Repository 직접 호출 안 함?
+- [ ] @ConditionalOnProperty로 활성화 제어?
+- [ ] Properties 클래스로 설정 관리?
+
+---
+
+## 금지 사항
+
+### ❌ 절대 하지 말 것
+
+1. **여러 @Scheduled 메서드를 한 클래스에**
+   ```java
+   // ❌ 금지!
+   @Component
+   public class MultiJob implements BaseScheduledJob {
+       @Scheduled(fixedDelay = 10000)
+       @Override
+       public void execute() { }
+       
+       @Scheduled(cron = "0 0 * * * *")
+       public void anotherJob() { }
+   }
+   ```
+
+2. **Repository 직접 호출**
+   ```java
+   // ❌ 금지!
+   private final OrderRepository orderRepository;
+   ```
+
+3. **비즈니스 로직 직접 구현**
+   ```java
+   // ❌ 금지! Domain Service에서 구현
+   @Override
+   public void execute() {
+       Order order = orderRepository.findById(1L).orElseThrow();
+       order.calculateTotalAmount();  // 비즈니스 로직
+   }
+   ```
+
+4. **트랜잭션 직접 관리**
+   ```java
+   // ❌ 금지! Domain Service에서 관리
+   @Override
+   @Transactional
+   public void execute() { }
+   ```
+
+5. **Job 접미사 없는 이름**
+   ```java
+   // ❌ 금지!
+   public class OutboxPoller implements BaseScheduledJob { }
+   public class OrderStatistics implements BaseScheduledJob { }
+   ```
+
+---
+
+## 중요 원칙
+
+1. **BaseScheduledJob 인터페이스 구현** (필수)
+2. **1개 클래스 = 1개 작업** (필수)
+3. **클래스 이름은 *Job** (필수)
+4. **AOP가 자동 로깅/예외처리** (ScheduledJobLoggingAspect)
+5. **Domain Service만 호출** (비즈니스 로직 금지)
+6. **@ConditionalOnProperty로 활성화 제어**
+7. **Properties 클래스로 설정 관리**

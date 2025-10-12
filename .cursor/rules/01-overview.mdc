@@ -32,12 +32,12 @@ order-service/
 ├── api/                    # 고객용 API
 │   └── web/              # HTTP API
 ├── admin/                  # 관리자용 API (미구현)
-└── worker/                 # 배치/스케줄러 (미구현)
+└── job/                    # Scheduled Job (Outbox Polling, 통계 집계, 데이터 정리)
 ```
 
 ## 의존성 방향 (중요!)
 
-허용: api/admin/worker → infrastructure → core
+허용: api/admin/job → infrastructure → core
 
 금지: core → infrastructure (절대 안 됨!)
 
@@ -71,10 +71,19 @@ order-service/
   - Outbox Client (KafkaOutboxEventClient)
   - Mapper (KafkaOutboxEventMapper)
 
-### Interfaces (api/, admin/, worker/)
+### Interfaces (api/, admin/)
 - 목적: 외부 진입점
 - 허용: Controller, DTO, Facade 호출
 - 금지: 비즈니스 로직, Domain Service 직접 호출
+
+### Job (job/)
+- 목적: Scheduled Job 실행
+- 허용: Domain Service 호출, @Scheduled 사용
+- 금지: Repository 직접 호출, 비즈니스 로직 직접 구현
+- 포함:
+  - BaseScheduledJob (인터페이스)
+  - ScheduledJobLoggingAspect (AOP - 로깅, 예외처리)
+  - OutboxPollingJob, OrderStatisticsJob (구체 클래스)
 
 ## 아키텍처 패턴
 
@@ -174,6 +183,9 @@ infrastructure/
 - [ ] Controller가 Facade만 호출하는가?
 - [ ] 모든 커스텀 Exception이 BaseException을 상속받는가? ⭐
 - [ ] OrderRepository가 통합 인터페이스인가? (Store/Reader 분리 안 함)
+- [ ] Job이 BaseScheduledJob 또는 LoggingScheduledJob을 구현/상속하는가? ⭐
+- [ ] 1개 Job 클래스에 1개 @Scheduled 메서드만 있는가? ⭐
+- [ ] Job 클래스 이름이 *Job으로 끝나는가? ⭐
 
 ## 상세 규칙 문서
 
@@ -184,3 +196,4 @@ infrastructure/
 - Interfaces Layer: 05-interfaces.md
 - Validation: 06-validation.md
 - Testing: 07-testing.md
+- Job Layer: 08-job.md ⭐

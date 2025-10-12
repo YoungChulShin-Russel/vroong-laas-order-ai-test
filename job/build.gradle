@@ -1,29 +1,31 @@
-plugins {
-    id 'java'
-    id 'org.springframework.boot' version '4.0.0-M3'
-    id 'io.spring.dependency-management' version '1.1.7'
-}
+apply plugin: "org.springframework.boot"
 
-group = 'vroong.laas.order'
-version = '0.0.1-SNAPSHOT'
-description = 'job'
-
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
-    }
-}
-
-repositories {
-    mavenCentral()
+springBoot {
+    mainClass = 'vroong.laas.order.job.JobApplication'
 }
 
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-}
+    implementation project(":core")
+    runtimeOnly project(":infrastructure")
 
-tasks.named('test') {
-    useJUnitPlatform()
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
+    
+    // AOP (Scheduled Job 로깅)
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
+    
+    // Actuator (Health Check, Metrics)
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    
+    // Prometheus (Metrics for Production)
+    runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
+    
+    // Micrometer Tracing
+    implementation 'io.micrometer:micrometer-tracing-bridge-brave'
+    
+    // Logstash Encoder (ELK 스택)
+    implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
+    
+    // Test - H2 Database (인메모리 DB)
+    testRuntimeOnly 'com.h2database:h2'
 }
