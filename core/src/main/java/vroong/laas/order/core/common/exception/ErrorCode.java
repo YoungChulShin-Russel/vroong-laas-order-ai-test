@@ -46,6 +46,10 @@ public enum ErrorCode {
   /** 유효하지 않은 주문 */
   INVALID_ORDER("유효하지 않은 주문입니다"),
 
+  // 비즈니스 로직 에러 (주소)
+  /** 주소 정제 실패 */
+  ADDRESS_REFINE_FAILED("주소 정제에 실패했습니다"),
+
   // 5xx: 서버 에러
   /** 알 수 없는 서버 에러 */
   INTERNAL_SERVER_ERROR("서버 오류가 발생했습니다"),
