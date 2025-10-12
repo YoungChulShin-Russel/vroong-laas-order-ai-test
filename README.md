@@ -64,6 +64,13 @@ core/domain/order/
 └── required/                    # ⭐ 모든 외부 의존성 Port
     └── OrderRepository.java     # 영속성 (통합)
 
+core/domain/address/
+├── AddressRefiner.java          # Domain Service (주소 정제)
+├── required/
+│   └── AddressRefinementClient.java  # 역지오코딩 Port
+└── exception/
+    └── AddressRefineFailedException.java  # Domain Exception
+
 core/domain/outbox/
 ├── OutboxEventAppender.java     # Domain Service
 ├── OutboxEventType.java         # Enum
@@ -71,11 +78,19 @@ core/domain/outbox/
     └── OutboxEventClient.java   # Outbox Port
 
 core/application/order/
-└── OrderFacade.java             # Facade (Application Layer)
+└── OrderFacade.java             # Facade (주소 정제 + Order 생성)
 
 infrastructure/
 ├── storage/db/order/
 │   └── OrderRepositoryAdapter   # Repository 구현
+├── external/address/
+│   ├── AddressRefinementAdapter        # Fallback Chain (Neogeo → Naver → Kakao)
+│   ├── provider/
+│   │   ├── NeogeoReverseGeocodingProvider  # Neogeo 구현
+│   │   ├── NaverReverseGeocodingProvider   # Naver 구현
+│   │   └── KakaoReverseGeocodingProvider   # Kakao 구현
+│   └── config/
+│       └── AddressRefinementConfig         # Fallback 순서 설정
 └── outbox/
     ├── KafkaOutboxEventClient   # Outbox 구현
     └── KafkaOutboxEventMapper   # Domain → Kafka Payload
@@ -96,6 +111,12 @@ vroong-laas-order-ai-test/
 │       │   │   │   └── CreateOrderCommand.java  # Domain Command
 │       │   │   └── required/               ⭐ 모든 외부 의존성 Port
 │       │   │       └── OrderRepository.java     # 영속성 (통합)
+│       │   ├── address/    # 주소 정제
+│       │   │   ├── AddressRefiner.java          # Domain Service (주소 정제)
+│       │   │   ├── required/
+│       │   │   │   └── AddressRefinementClient.java  # 역지오코딩 Port
+│       │   │   └── exception/
+│       │   │       └── AddressRefineFailedException.java  # Domain Exception
 │       │   ├── outbox/     # Outbox Pattern
 │       │   │   ├── OutboxEventAppender.java     # Domain Service
 │       │   │   ├── OutboxEventType.java         # Enum
@@ -104,12 +125,22 @@ vroong-laas-order-ai-test/
 │       │   └── shared/     # 공유 Value Objects
 │       └── application/    # Facade (Application Layer)
 │           └── order/
-│               └── OrderFacade.java        # Facade
+│               └── OrderFacade.java        # Facade (주소 정제 + Order 생성)
 ├── infrastructure/         # Infrastructure Layer (Port 구현)
 │   └── src/main/java/vroong/laas/order/infrastructure/
 │       ├── storage/db/     # JPA Entities
 │       │   └── order/
 │       │       └── OrderRepositoryAdapter.java   ⭐ Repository 구현
+│       ├── external/       # 외부 서비스 연동
+│       │   └── address/    # 주소 정제
+│       │       ├── AddressRefinementAdapter.java        # Fallback Chain 구현
+│       │       ├── provider/
+│       │       │   ├── ReverseGeocodingProvider.java        # 공통 인터페이스
+│       │       │   ├── NeogeoReverseGeocodingProvider.java  # Neogeo 구현
+│       │       │   ├── NaverReverseGeocodingProvider.java   # Naver 구현
+│       │       │   └── KakaoReverseGeocodingProvider.java   # Kakao 구현
+│       │       └── config/
+│       │           └── AddressRefinementConfig.java         # Fallback 순서 설정
 │       └── outbox/         # Outbox Pattern
 │           ├── KafkaOutboxEventClient.java   ⭐ OutboxEventClient 구현
 │           └── KafkaOutboxEventMapper.java   # Domain → Kafka Payload
@@ -118,6 +149,100 @@ vroong-laas-order-ai-test/
         ├── web/           # REST Controllers
         └── grpc/          # gRPC Services
 ```
+
+---
+
+## 🗺️ 주소 정제 (Address Refinement)
+
+### 개요
+
+주문 생성 시, 사용자가 입력한 주소가 부정확할 수 있으므로 **위/경도 좌표 기반 역지오코딩**으로 정확한 주소로 정제합니다.
+
+### Fallback Chain
+
+역지오코딩 서비스 장애에 대비하여 **3단계 Fallback Chain**을 구성합니다:
+
+```
+1순위: Neogeo (내부 서비스)
+   ↓ 실패
+2순위: Naver (외부 서비스)
+   ↓ 실패
+3순위: Kakao (외부 서비스)
+   ↓ 모두 실패
+AddressRefineFailedException 발생 → Order 생성 실패
+```
+
+**Fallback 조건:**
+- HTTP 4xx, 5xx 에러
+- Timeout (기본 3초)
+- 네트워크 에러
+
+### 아키텍처
+
+```
+OrderFacade (Application Layer)
+  1. AddressRefiner.refine(latLng, originalAddress)  # Domain Service
+     ↓
+  2. AddressRefinementClient.refineByReverseGeocoding()  # Port (required/)
+     ↓
+  3. AddressRefinementAdapter.refineByReverseGeocoding()  # Infrastructure
+     ↓
+  4. Fallback Chain 순회:
+     - NeogeoReverseGeocodingProvider.reverseGeocode()  # 1순위
+     - NaverReverseGeocodingProvider.reverseGeocode()   # 2순위
+     - KakaoReverseGeocodingProvider.reverseGeocode()   # 3순위
+```
+
+**특징:**
+- ✅ **Fallback 순서 설정 가능** (`application.yml`)
+- ✅ **환경별 Provider 조합** (Local/Prod 다르게 설정 가능)
+- ✅ **상세한 로그** (시도/성공/실패 기록)
+
+### 설정 예시
+
+```yaml
+# application.yml
+address:
+  refinement:
+    # Fallback 순서 (환경별로 변경 가능)
+    fallback-order:
+      - neogeo
+      - naver
+      - kakao
+    
+    # Provider별 설정
+    neogeo:
+      url: ${NEOGEO_URL:http://neogeo-service}
+      timeout-ms: 3000
+    
+    naver:
+      url: https://naveropenapi.apigw.ntruss.com
+      client-id: ${NAVER_CLIENT_ID}
+      client-secret: ${NAVER_CLIENT_SECRET}
+      timeout-ms: 3000
+    
+    kakao:
+      url: https://dapi.kakao.com
+      api-key: ${KAKAO_API_KEY}
+      timeout-ms: 3000
+```
+
+**환경별 설정 변경 예시:**
+
+```yaml
+# application-prod.yml
+address:
+  refinement:
+    # Production에서는 Naver를 1순위로
+    fallback-order:
+      - naver
+      - kakao
+      - neogeo
+```
+
+### 상세 가이드
+
+**더 자세한 주소 정제 정책은 [도메인정책.md](./도메인정책.md)의 "주소 정제" 섹션을 참고하세요.**
 
 ---
 
