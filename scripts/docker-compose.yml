@@ -39,6 +39,8 @@ services:
       - zookeeper
     ports:
       - "9092:9092"
+    volumes:
+      - ./kafka-init.sh:/usr/local/bin/kafka-init.sh:ro
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -47,6 +49,13 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+    command: >
+      bash -c "
+      /etc/confluent/docker/run &
+      chmod +x /usr/local/bin/kafka-init.sh &&
+      /usr/local/bin/kafka-init.sh &&
+      wait
+      "
     platform: linux/arm64
 
 #  redis-cluster:
