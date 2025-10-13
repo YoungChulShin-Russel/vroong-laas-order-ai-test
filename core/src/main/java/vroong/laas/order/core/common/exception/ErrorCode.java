@@ -43,6 +43,9 @@ public enum ErrorCode {
   /** 수정할 수 없는 주문 */
   ORDER_NOT_MODIFIABLE("현재 상태에서는 수정할 수 없습니다"),
 
+  /** 위치 정보를 변경할 수 없는 주문 */
+  ORDER_LOCATION_CHANGE_NOT_ALLOWED("현재 상태에서는 위치 정보를 변경할 수 없습니다"),
+
   /** 유효하지 않은 주문 */
   INVALID_ORDER("유효하지 않은 주문입니다"),
 

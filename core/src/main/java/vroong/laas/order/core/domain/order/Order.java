@@ -7,6 +7,8 @@ import java.util.List;
 import lombok.Getter;
 import lombok.ToString;
 import vroong.laas.order.core.domain.order.event.OrderCreatedEvent;
+import vroong.laas.order.core.domain.order.event.OrderDestinationChangedEvent;
+import vroong.laas.order.core.domain.order.exception.OrderLocationChangeNotAllowedException;
 import vroong.laas.order.core.domain.shared.AggregateRoot;
 
 @Getter
@@ -18,7 +20,7 @@ public class Order extends AggregateRoot {
   private OrderStatus status;
   private final List<OrderItem> items;
   private final Origin origin;
-  private final Destination destination;
+  private Destination destination;
   private final DeliveryPolicy deliveryPolicy;
   private final Instant orderedAt;
   private Instant deliveredAt;
@@ -115,5 +117,33 @@ public class Order extends AggregateRoot {
   // 불변 리스트 반환
   public List<OrderItem> getItems() {
     return Collections.unmodifiableList(items);
+  }
+
+  /**
+   * 도착지 변경
+   *
+   * <p>비즈니스 규칙:
+   * - CREATED 상태에서만 도착지 변경 가능
+   * - 변경 시 OrderDestinationChangedEvent 발행
+   *
+   * @param newDestination 새로운 도착지
+   * @throws OrderLocationChangeNotAllowedException CREATED 상태가 아닐 때
+   */
+  public void changeDestination(Destination newDestination) {
+    // 상태 검증: CREATED 상태에서만 변경 가능
+    if (this.status != OrderStatus.CREATED) {
+      throw new OrderLocationChangeNotAllowedException(
+          "CREATED 상태에서만 도착지를 변경할 수 있습니다. 현재 상태: " + this.status);
+    }
+
+    // 기존 도착지 백업 (이벤트용)
+    Destination oldDestination = this.destination;
+
+    // 도착지 변경
+    this.destination = newDestination;
+
+    // 도메인 이벤트 추가
+    this.addDomainEvent(
+        OrderDestinationChangedEvent.of(this.id, oldDestination, newDestination, Instant.now()));
   }
 }

@@ -65,4 +65,14 @@ public interface OrderRepository {
    * @return 존재 여부
    */
   boolean existsByOrderNumber(OrderNumber orderNumber);
+
+  /**
+   * 도착지 정보 업데이트
+   *
+   * <p>주문의 도착지 정보만 업데이트합니다. (출발지, 아이템 등은 변경하지 않음)
+   *
+   * @param orderId 주문 ID
+   * @param destination 새로운 도착지
+   */
+  void updateDestination(Long orderId, Destination destination);
 }

@@ -2,7 +2,7 @@ package vroong.laas.order.core.domain.order;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import vroong.laas.order.core.common.annotation.ReadOnlyTransactional;
 import vroong.laas.order.core.domain.order.exception.OrderNotFoundException;
 import vroong.laas.order.core.domain.order.required.OrderRepository;
 
@@ -14,7 +14,8 @@ import vroong.laas.order.core.domain.order.required.OrderRepository;
  * - 조회 결과 검증
  *
  * <p>트랜잭션:
- * - readOnly = true (조회 최적화)
+ * - @ReadOnlyTransactional (SUPPORTS propagation)
+ * - 트랜잭션 최소화로 성능 최적화
  */
 @Service
 @RequiredArgsConstructor
@@ -29,7 +30,7 @@ public class OrderReader {
    * @return Order
    * @throws OrderNotFoundException 주문을 찾을 수 없는 경우
    */
-  @Transactional(readOnly = true)
+  @ReadOnlyTransactional
   public Order getOrderById(Long orderId) {
     return orderRepository
         .findById(orderId)
@@ -43,7 +44,7 @@ public class OrderReader {
    * @return Order
    * @throws OrderNotFoundException 주문을 찾을 수 없는 경우
    */
-  @Transactional(readOnly = true)
+  @ReadOnlyTransactional
   public Order getOrderByNumber(String orderNumber) {
     OrderNumber orderNumberVO = new OrderNumber(orderNumber);
     return orderRepository
