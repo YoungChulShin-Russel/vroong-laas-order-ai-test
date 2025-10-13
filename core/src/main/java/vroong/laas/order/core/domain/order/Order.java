@@ -7,9 +7,11 @@ import java.util.List;
 import lombok.Getter;
 import lombok.ToString;
 import vroong.laas.order.core.domain.order.event.OrderCreatedEvent;
-import vroong.laas.order.core.domain.order.event.OrderDestinationChangedEvent;
+import vroong.laas.order.core.domain.order.event.OrderDestinationAddressChangedEvent;
 import vroong.laas.order.core.domain.order.exception.OrderLocationChangeNotAllowedException;
+import vroong.laas.order.core.domain.shared.Address;
 import vroong.laas.order.core.domain.shared.AggregateRoot;
+import vroong.laas.order.core.domain.shared.LatLng;
 
 @Getter
 @ToString
@@ -120,30 +122,50 @@ public class Order extends AggregateRoot {
   }
 
   /**
-   * 도착지 변경
+   * 도착지 주소 변경
    *
    * <p>비즈니스 규칙:
-   * - CREATED 상태에서만 도착지 변경 가능
-   * - 변경 시 OrderDestinationChangedEvent 발행
+   * - CREATED 상태에서만 도착지 주소 변경 가능
+   * - 변경 시 OrderDestinationAddressChangedEvent 발행
    *
-   * @param newDestination 새로운 도착지
+   * <p>변경 범위:
+   * - Address (주소)
+   * - LatLng (위경도)
+   * - EntranceInfo (출입 가이드)
+   *
+   * <p>유지되는 것:
+   * - Contact (연락처) - 변경되지 않음
+   *
+   * @param newAddress 새로운 주소
+   * @param newLatLng 새로운 위경도
+   * @param newEntranceInfo 새로운 출입 정보
    * @throws OrderLocationChangeNotAllowedException CREATED 상태가 아닐 때
    */
-  public void changeDestination(Destination newDestination) {
+  public void changeDestinationAddress(
+      Address newAddress, LatLng newLatLng, EntranceInfo newEntranceInfo) {
     // 상태 검증: CREATED 상태에서만 변경 가능
     if (this.status != OrderStatus.CREATED) {
       throw new OrderLocationChangeNotAllowedException(
-          "CREATED 상태에서만 도착지를 변경할 수 있습니다. 현재 상태: " + this.status);
+          "CREATED 상태에서만 도착지 주소를 변경할 수 있습니다. 현재 상태: " + this.status);
     }
 
     // 기존 도착지 백업 (이벤트용)
     Destination oldDestination = this.destination;
+
+    // 기존 Contact 유지하면서 새로운 Destination 생성
+    Destination newDestination =
+        new Destination(
+            this.destination.contact(), // 기존 Contact 유지
+            newAddress,
+            newLatLng,
+            newEntranceInfo);
 
     // 도착지 변경
     this.destination = newDestination;
 
     // 도메인 이벤트 추가
     this.addDomainEvent(
-        OrderDestinationChangedEvent.of(this.id, oldDestination, newDestination, Instant.now()));
+        OrderDestinationAddressChangedEvent.of(
+            this.id, oldDestination, newDestination, Instant.now()));
   }
 }

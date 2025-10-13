@@ -468,6 +468,194 @@ public interface OrderJpaRepository extends JpaRepository<OrderEntity, Long> {
 }
 ```
 
+---
+
+## 부분 업데이트 패턴 (Partial Update) ⭐
+
+도메인의 특정 필드만 업데이트하는 패턴입니다.
+
+**사용 시기:**
+- ✅ 전체 Aggregate를 교체하지 않고 일부 필드만 변경
+- ✅ 성능 최적화 (불필요한 필드 업데이트 방지)
+- ✅ 명확한 업데이트 의도 표현
+
+### 예시: 주문 도착지 주소 업데이트
+
+**1. Repository Port (Domain Layer)**
+
+```java
+// core/domain/order/required/OrderRepository.java
+public interface OrderRepository {
+    
+    /**
+     * 도착지 주소 업데이트
+     *
+     * <p>변경 범위:
+     * - Address (주소)
+     * - LatLng (위경도)
+     * - EntranceInfo (출입 가이드)
+     *
+     * <p>유지되는 것:
+     * - Contact (연락처) - 변경되지 않음
+     */
+    void updateDestinationAddress(
+        Long orderId, 
+        Address newAddress, 
+        LatLng newLatLng, 
+        EntranceInfo newEntranceInfo
+    );
+}
+```
+
+**2. Repository Adapter (Infrastructure Layer)**
+
+```java
+// infrastructure/storage/db/order/adapter/OrderRepositoryAdapter.java
+@Override
+public void updateDestinationAddress(
+    Long orderId, Address newAddress, LatLng newLatLng, EntranceInfo newEntranceInfo) {
+    
+    // 1. Entity 조회
+    OrderLocationEntity locationEntity = orderLocationJpaRepository
+        .findByOrderId(orderId)
+        .orElseThrow(() -> 
+            new IllegalStateException("OrderLocation이 없습니다. orderId: " + orderId));
+    
+    // 2. Entity의 업데이트 메서드 호출
+    locationEntity.updateDestinationAddress(newAddress, newLatLng, newEntranceInfo);
+    
+    // 3. 명시적 save 호출 (의도 명확)
+    orderLocationJpaRepository.save(locationEntity);
+}
+```
+
+**3. Entity 업데이트 메서드 (Infrastructure Layer)**
+
+```java
+// infrastructure/storage/db/order/OrderLocationEntity.java
+@Entity
+@Table(name = "order_locations")
+public class OrderLocationEntity extends BaseEntity {
+    
+    // Contact 필드 (변경되지 않음)
+    @Column(name = "destination_contact_name")
+    private String destinationContactName;
+    
+    @Column(name = "destination_contact_phone_number")
+    private String destinationContactPhoneNumber;
+    
+    // Address 필드
+    @Column(name = "destination_jibnun_address")
+    private String destinationJibnunAddress;
+    
+    @Column(name = "destination_road_address")
+    private String destinationRoadAddress;
+    
+    @Column(name = "destination_detail_address")
+    private String destinationDetailAddress;
+    
+    // LatLng 필드
+    @Column(name = "destination_latitude")
+    private BigDecimal destinationLatitude;
+    
+    @Column(name = "destination_longitude")
+    private BigDecimal destinationLongitude;
+    
+    // EntranceInfo 필드
+    @Column(name = "destination_entrance_password")
+    private String destinationEntrancePassword;
+    
+    @Column(name = "destination_entrance_guide")
+    private String destinationEntranceGuide;
+    
+    @Column(name = "destination_request_message")
+    private String destinationRequestMessage;
+    
+    /**
+     * Destination 주소 정보만 업데이트
+     *
+     * <p>변경 범위:
+     * - Address (주소)
+     * - LatLng (위경도)
+     * - EntranceInfo (출입 가이드)
+     *
+     * <p>유지되는 것:
+     * - Contact (연락처) - 변경되지 않음
+     */
+    public void updateDestinationAddress(
+        Address newAddress, LatLng newLatLng, EntranceInfo newEntranceInfo) {
+        
+        // Contact는 유지 (destinationContactName, destinationContactPhoneNumber 변경 안 함)
+        
+        // Address 업데이트
+        this.destinationJibnunAddress = newAddress.jibnunAddress();
+        this.destinationRoadAddress = newAddress.roadAddress();
+        this.destinationDetailAddress = newAddress.detailAddress();
+        
+        // LatLng 업데이트
+        this.destinationLatitude = newLatLng.latitude();
+        this.destinationLongitude = newLatLng.longitude();
+        
+        // EntranceInfo 업데이트
+        this.destinationEntrancePassword = newEntranceInfo.password();
+        this.destinationEntranceGuide = newEntranceInfo.guide();
+        this.destinationRequestMessage = newEntranceInfo.requestMessage();
+    }
+}
+```
+
+**4. Domain Service에서 사용 (Domain Layer)**
+
+```java
+// core/domain/order/OrderLocationChanger.java
+@Service
+@RequiredArgsConstructor
+public class OrderLocationChanger {
+    
+    private final OrderRepository orderRepository;
+    
+    @Transactional  // ⭐ 트랜잭션은 Domain Service에서 관리
+    public Order changeDestinationAddress(
+        Order order,
+        Address refinedAddress,
+        LatLng refinedLatLng,
+        EntranceInfo refinedEntranceInfo) {
+        
+        // 1. 도착지 주소 변경 (도메인 이벤트 추가)
+        order.changeDestinationAddress(refinedAddress, refinedLatLng, refinedEntranceInfo);
+        
+        // 2. DB 업데이트 (부분 업데이트)
+        orderRepository.updateDestinationAddress(
+            order.getId(), refinedAddress, refinedLatLng, refinedEntranceInfo);
+        
+        return order;
+    }
+}
+```
+
+### 특징
+
+**장점:**
+- ✅ 특정 필드만 업데이트 (효율적)
+- ✅ 명시적 save() 호출 (의도 명확)
+- ✅ Entity의 업데이트 메서드로 캡슐화
+- ✅ 트랜잭션은 Domain Service에서 관리
+- ✅ 불필요한 데이터 변경 방지
+
+**주의사항:**
+- ⚠️ @Version을 사용한 낙관적 락 권장 (동시성 제어)
+- ⚠️ save() 호출 필수 (JPA Dirty Checking에만 의존하지 말 것)
+- ⚠️ Entity 업데이트 메서드는 단순 필드 변경만 (비즈니스 로직 금지)
+
+**vs 전체 교체:**
+
+| 패턴 | 용도 | 성능 | 명확성 |
+|---|---|---|---|
+| **부분 업데이트** | 특정 필드만 변경 | ✅ 효율적 | ✅ 명확 |
+| **전체 교체** | Aggregate 전체 교체 | ⚠️ 모든 필드 변경 | ⚠️ 의도 불명확 |
+
+---
+
 ## Outbox Pattern 구현
 
 ### 위치

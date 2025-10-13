@@ -4,10 +4,13 @@ import java.util.List;
 import java.util.Optional;
 import vroong.laas.order.core.domain.order.DeliveryPolicy;
 import vroong.laas.order.core.domain.order.Destination;
+import vroong.laas.order.core.domain.order.EntranceInfo;
 import vroong.laas.order.core.domain.order.Order;
 import vroong.laas.order.core.domain.order.OrderItem;
 import vroong.laas.order.core.domain.order.OrderNumber;
 import vroong.laas.order.core.domain.order.Origin;
+import vroong.laas.order.core.domain.shared.Address;
+import vroong.laas.order.core.domain.shared.LatLng;
 
 /**
  * Order Repository Port
@@ -67,12 +70,23 @@ public interface OrderRepository {
   boolean existsByOrderNumber(OrderNumber orderNumber);
 
   /**
-   * 도착지 정보 업데이트
+   * 도착지 주소 업데이트
    *
-   * <p>주문의 도착지 정보만 업데이트합니다. (출발지, 아이템 등은 변경하지 않음)
+   * <p>주문의 도착지 주소만 업데이트합니다.
+   *
+   * <p>변경 범위:
+   * - Address (주소)
+   * - LatLng (위경도)
+   * - EntranceInfo (출입 가이드)
+   *
+   * <p>유지되는 것:
+   * - Contact (연락처) - 변경되지 않음
    *
    * @param orderId 주문 ID
-   * @param destination 새로운 도착지
+   * @param newAddress 새로운 주소
+   * @param newLatLng 새로운 위경도
+   * @param newEntranceInfo 새로운 출입 정보
    */
-  void updateDestination(Long orderId, Destination destination);
+  void updateDestinationAddress(
+      Long orderId, Address newAddress, LatLng newLatLng, EntranceInfo newEntranceInfo);
 }

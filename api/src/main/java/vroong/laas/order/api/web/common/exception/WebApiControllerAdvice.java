@@ -69,6 +69,7 @@ public class WebApiControllerAdvice {
    * - OrderNotFoundException
    * - OrderAlreadyAssignedException
    * - OrderNotCancellableException
+   * - OrderLocationChangeNotAllowedException
    * - InvalidOrderException 등
    *
    * @param e BaseException

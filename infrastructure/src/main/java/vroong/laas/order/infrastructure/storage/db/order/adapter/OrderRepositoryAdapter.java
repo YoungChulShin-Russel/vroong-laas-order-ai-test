@@ -5,15 +5,16 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
-import vroong.laas.order.core.common.annotation.ReadOnlyTransactional;
 import vroong.laas.order.core.domain.order.DeliveryPolicy;
 import vroong.laas.order.core.domain.order.Destination;
+import vroong.laas.order.core.domain.order.EntranceInfo;
 import vroong.laas.order.core.domain.order.Order;
 import vroong.laas.order.core.domain.order.OrderItem;
 import vroong.laas.order.core.domain.order.OrderNumber;
 import vroong.laas.order.core.domain.order.Origin;
 import vroong.laas.order.core.domain.order.required.OrderRepository;
+import vroong.laas.order.core.domain.shared.Address;
+import vroong.laas.order.core.domain.shared.LatLng;
 import vroong.laas.order.infrastructure.storage.db.order.OrderDeliveryPolicyEntity;
 import vroong.laas.order.infrastructure.storage.db.order.OrderDeliveryPolicyJpaRepository;
 import vroong.laas.order.infrastructure.storage.db.order.OrderEntity;
@@ -34,11 +35,8 @@ import vroong.laas.order.infrastructure.storage.db.order.OrderStatus;
  * - Order 조회
  *
  * <p>트랜잭션 관리:
- *
- * <ul>
- *   <li>store(): @Transactional (쓰기)
- *   <li>findById(), findByOrderNumber(), existsByOrderNumber(): @ReadOnlyTransactional (읽기)
- * </ul>
+ * - Domain Service에서 관리 (OrderCreator, OrderLocationChanger, OrderReader)
+ * - Adapter는 단순히 영속성 작업만 수행
  */
 @Repository
 @RequiredArgsConstructor
@@ -61,7 +59,6 @@ public class OrderRepositoryAdapter implements OrderRepository {
    * @param deliveryPolicy 배송 정책
    * @return 저장된 Order (id 할당됨, 도메인 이벤트 포함)
    */
-  @Transactional
   @Override
   public Order store(
       OrderNumber orderNumber,
@@ -91,13 +88,11 @@ public class OrderRepositoryAdapter implements OrderRepository {
 
   // === 조회 ===
 
-  @ReadOnlyTransactional
   @Override
   public Optional<Order> findById(Long orderId) {
     return orderJpaRepository.findById(orderId).map(this::toDomainWithDetails);
   }
 
-  @ReadOnlyTransactional
   @Override
   public Optional<Order> findByOrderNumber(OrderNumber orderNumber) {
     return orderJpaRepository
@@ -105,10 +100,47 @@ public class OrderRepositoryAdapter implements OrderRepository {
         .map(this::toDomainWithDetails);
   }
 
-  @ReadOnlyTransactional
   @Override
   public boolean existsByOrderNumber(OrderNumber orderNumber) {
     return orderJpaRepository.existsByOrderNumber(orderNumber.value());
+  }
+
+  // === 업데이트 ===
+
+  /**
+   * 도착지 주소 업데이트
+   *
+   * <p>OrderLocationEntity의 Destination 주소 필드만 업데이트 (Contact는 유지)
+   *
+   * <p>변경 범위:
+   * - Address (주소)
+   * - LatLng (위경도)
+   * - EntranceInfo (출입 가이드)
+   *
+   * <p>유지되는 것:
+   * - Contact (연락처) - 변경되지 않음
+   *
+   * @param orderId 주문 ID
+   * @param newAddress 새로운 주소
+   * @param newLatLng 새로운 위경도
+   * @param newEntranceInfo 새로운 출입 정보
+   */
+  @Override
+  public void updateDestinationAddress(
+      Long orderId, Address newAddress, LatLng newLatLng, EntranceInfo newEntranceInfo) {
+    // 1. OrderLocationEntity 조회
+    OrderLocationEntity locationEntity =
+        orderLocationJpaRepository
+            .findByOrderId(orderId)
+            .orElseThrow(
+                () ->
+                    new IllegalStateException("OrderLocation이 없습니다. orderId: " + orderId));
+
+    // 2. Destination 주소 필드만 업데이트 (Contact 유지)
+    locationEntity.updateDestinationAddress(newAddress, newLatLng, newEntranceInfo);
+
+    // 3. 명시적으로 저장
+    orderLocationJpaRepository.save(locationEntity);
   }
 
   // === Private Helper Methods ===

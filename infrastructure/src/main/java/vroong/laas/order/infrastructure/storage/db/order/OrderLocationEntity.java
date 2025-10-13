@@ -179,5 +179,40 @@ public class OrderLocationEntity extends BaseEntity {
         new EntranceInfo(
             destinationEntrancePassword, destinationEntranceGuide, destinationRequestMessage));
   }
+
+  /**
+   * Destination 주소 정보만 업데이트
+   *
+   * <p>변경 범위:
+   * - Address (주소)
+   * - LatLng (위경도)
+   * - EntranceInfo (출입 가이드)
+   *
+   * <p>유지되는 것:
+   * - Contact (연락처) - 변경되지 않음
+   * - Origin 정보 - 변경되지 않음
+   *
+   * @param newAddress 새로운 주소
+   * @param newLatLng 새로운 위경도
+   * @param newEntranceInfo 새로운 출입 정보
+   */
+  public void updateDestinationAddress(
+      Address newAddress, LatLng newLatLng, EntranceInfo newEntranceInfo) {
+    // Contact는 유지 (destinationContactName, destinationContactPhoneNumber 변경 안 함)
+
+    // Address 업데이트
+    this.destinationJibnunAddress = newAddress.jibnunAddress();
+    this.destinationRoadAddress = newAddress.roadAddress();
+    this.destinationDetailAddress = newAddress.detailAddress();
+
+    // LatLng 업데이트
+    this.destinationLatitude = newLatLng.latitude();
+    this.destinationLongitude = newLatLng.longitude();
+
+    // EntranceInfo 업데이트
+    this.destinationEntrancePassword = newEntranceInfo.password();
+    this.destinationEntranceGuide = newEntranceInfo.guide();
+    this.destinationRequestMessage = newEntranceInfo.requestMessage();
+  }
 }
 

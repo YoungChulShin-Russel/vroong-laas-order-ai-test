@@ -9,8 +9,9 @@ import vroong.laas.order.core.domain.order.OrderCreator;
 import vroong.laas.order.core.domain.order.OrderLocationChanger;
 import vroong.laas.order.core.domain.order.OrderReader;
 import vroong.laas.order.core.domain.order.Origin;
-import vroong.laas.order.core.domain.order.command.ChangeDestinationCommand;
+import vroong.laas.order.core.domain.order.command.ChangeDestinationAddressCommand;
 import vroong.laas.order.core.domain.order.command.CreateOrderCommand;
+import vroong.laas.order.core.domain.shared.Address;
 
 /**
  * Order Facade
@@ -80,28 +81,38 @@ public class OrderFacade {
   }
 
   /**
-   * 주문 도착지 변경
+   * 주문 도착지 주소 변경
    *
    * <p>흐름:
    * 1. Order 조회 (빠른 실패 - 주문이 없으면 즉시 실패)
-   * 2. Destination 주소 정제 (역지오코딩 - 주문이 있을 때만 실행)
-   * 3. 정제된 주소로 도착지 변경
+   * 2. 주소 정제 (역지오코딩 - 주문이 있을 때만 실행)
+   * 3. 정제된 주소로 도착지 주소 변경
    *
-   * @param command 도착지 변경 Command
+   * <p>변경 범위:
+   * - Address (주소)
+   * - LatLng (위경도)
+   * - EntranceInfo (출입 가이드)
+   *
+   * <p>유지되는 것:
+   * - Contact (연락처) - 변경되지 않음
+   *
+   * @param command 도착지 주소 변경 Command
    * @return 변경된 Order
    * @throws vroong.laas.order.core.domain.order.exception.OrderNotFoundException 주문을 찾을 수 없음
    * @throws vroong.laas.order.core.domain.order.exception.OrderLocationChangeNotAllowedException CREATED 상태가 아님
    * @throws vroong.laas.order.core.domain.address.exception.AddressRefineFailedException 주소 정제 실패 시
    */
-  public Order changeDestination(ChangeDestinationCommand command) {
+  public Order changeDestinationAddress(ChangeDestinationAddressCommand command) {
     // 1. Order 조회 먼저 (빠른 실패)
     Order order = orderReader.getOrderById(command.orderId());
 
     // 2. 주소 정제 (역지오코딩 - Order가 있을 때만)
-    Destination refinedDestination = addressRefiner.refineDestination(command.newDestination());
+    Address refinedAddress =
+        addressRefiner.refine(command.newLatLng(), command.newAddress());
 
-    // 3. 도착지 변경 (정제된 주소로)
-    return orderLocationChanger.changeDestination(order, refinedDestination);
+    // 3. 도착지 주소 변경 (정제된 주소로)
+    return orderLocationChanger.changeDestinationAddress(
+        order, refinedAddress, command.newLatLng(), command.newEntranceInfo());
   }
 }
 

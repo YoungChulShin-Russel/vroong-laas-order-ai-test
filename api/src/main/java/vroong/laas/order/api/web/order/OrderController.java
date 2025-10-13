@@ -3,12 +3,14 @@ package vroong.laas.order.api.web.order;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import vroong.laas.order.api.web.order.request.ChangeDestinationAddressRequest;
 import vroong.laas.order.api.web.order.request.CreateOrderRequest;
 import vroong.laas.order.api.web.order.response.OrderResponse;
 import vroong.laas.order.core.application.order.OrderFacade;
@@ -76,6 +78,37 @@ public class OrderController {
 
     // Facade 실행
     Order order = orderFacade.getOrderByNumber(orderNumber);
+
+    // Order → Response DTO 변환 및 반환
+    return OrderResponse.from(order);
+  }
+
+  /**
+   * 주문 도착지 주소 변경 API
+   *
+   * <p>비즈니스 규칙:
+   * - CREATED 상태에서만 도착지 주소 변경 가능
+   * - 주소 정제(역지오코딩) 자동 수행
+   *
+   * <p>변경 범위:
+   * - Address (주소)
+   * - LatLng (위경도)
+   * - EntranceInfo (출입 가이드)
+   *
+   * <p>유지되는 것:
+   * - Contact (연락처) - 변경되지 않음
+   *
+   * @param orderId 주문 ID
+   * @param request 도착지 주소 변경 요청
+   * @return 변경된 주문 정보 (HTTP 200 OK)
+   */
+  @PatchMapping("/{orderId}/destination-address")
+  public OrderResponse changeDestinationAddress(
+      @PathVariable Long orderId,
+      @RequestBody @Valid ChangeDestinationAddressRequest request) {
+
+    // Facade 실행
+    Order order = orderFacade.changeDestinationAddress(request.toCommand(orderId));
 
     // Order → Response DTO 변환 및 반환
     return OrderResponse.from(order);
