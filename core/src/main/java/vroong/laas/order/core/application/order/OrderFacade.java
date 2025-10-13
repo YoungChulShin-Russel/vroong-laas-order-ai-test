@@ -9,7 +9,6 @@ import vroong.laas.order.core.domain.order.OrderCreator;
 import vroong.laas.order.core.domain.order.OrderReader;
 import vroong.laas.order.core.domain.order.Origin;
 import vroong.laas.order.core.domain.order.command.CreateOrderCommand;
-import vroong.laas.order.core.domain.shared.Address;
 
 /**
  * Order Facade
@@ -49,41 +48,12 @@ public class OrderFacade {
    */
   public Order createOrder(CreateOrderCommand command) {
     // 1. 주소 정제 (역지오코딩)
-    Origin refinedOrigin = refineOriginAddress(command.origin());
-    Destination refinedDestination = refineDestinationAddress(command.destination());
+    Origin refinedOrigin = addressRefiner.refineOrigin(command.origin());
+    Destination refinedDestination = addressRefiner.refineDestination(command.destination());
 
     // 2. Order 생성 및 저장 (정제된 주소로)
     return orderCreator.create(
         command.items(), refinedOrigin, refinedDestination, command.deliveryPolicy());
-  }
-
-  /**
-   * Origin 주소 정제
-   *
-   * <p>역지오코딩을 통해 정제된 주소로 Origin을 재생성합니다.
-   *
-   * @param origin 원본 Origin
-   * @return 정제된 주소가 적용된 Origin
-   */
-  private Origin refineOriginAddress(Origin origin) {
-    Address refinedAddress = addressRefiner.refine(origin.latLng(), origin.address());
-
-    return new Origin(origin.contact(), refinedAddress, origin.latLng(), origin.entranceInfo());
-  }
-
-  /**
-   * Destination 주소 정제
-   *
-   * <p>역지오코딩을 통해 정제된 주소로 Destination을 재생성합니다.
-   *
-   * @param destination 원본 Destination
-   * @return 정제된 주소가 적용된 Destination
-   */
-  private Destination refineDestinationAddress(Destination destination) {
-    Address refinedAddress = addressRefiner.refine(destination.latLng(), destination.address());
-
-    return new Destination(
-        destination.contact(), refinedAddress, destination.latLng(), destination.entranceInfo());
   }
 
   /**
