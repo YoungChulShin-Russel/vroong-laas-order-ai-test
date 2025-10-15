@@ -11,43 +11,47 @@ alwaysApply: true
 
 ```
 core/domain/
-├── order/
-│   ├── Order.java              # Aggregate Root
-│   ├── OrderCreator.java       # Domain Service (생성)
-│   ├── OrderReader.java        # Domain Service (조회)
-│   ├── OrderItem.java          # Value Object
-│   ├── OrderNumber.java        # Value Object
-│   ├── OrderStatus.java        # Enum
-│   ├── Origin.java             # Value Object
-│   ├── Destination.java        # Value Object
-│   ├── DeliveryPolicy.java     # Value Object
+├── {aggregate}/                         # 예: order, payment, delivery
+│   ├── {Aggregate}.java                 # Aggregate Root
+│   ├── {Aggregate}Creator.java          # Domain Service (생성)
+│   ├── {Aggregate}Reader.java           # Domain Service (조회)
+│   ├── {AggregateItem}.java             # Value Object (선택)
+│   ├── {Aggregate}Number.java           # Value Object
+│   ├── {Aggregate}Status.java           # Enum
+│   ├── {Property1}.java                 # Value Object (도메인 특화)
+│   ├── {Property2}.java                 # Value Object (도메인 특화)
 │   ├── command/
-│   │   └── CreateOrderCommand.java  # Domain Command
+│   │   └── Create{Aggregate}Command.java  # Domain Command
 │   ├── event/
-│   │   └── OrderCreatedEvent.java   # Domain Event
+│   │   └── {Aggregate}CreatedEvent.java   # Domain Event
 │   ├── exception/
-│   │   ├── OrderNotFoundException.java
-│   │   └── OrderAlreadyAssignedException.java
-│   └── required/               # ⭐ 모든 Port
-│       └── OrderRepository.java     # 영속성 Port (통합)
+│   │   ├── {Aggregate}NotFoundException.java
+│   │   └── Invalid{Aggregate}Exception.java
+│   └── required/                        # ⭐ 모든 Port
+│       └── {Aggregate}Repository.java   # 영속성 Port (통합)
 │
 ├── outbox/
-│   ├── OutboxEventAppender.java     # Domain Service
-│   ├── OutboxEventType.java         # Enum
+│   ├── OutboxEventAppender.java         # Domain Service
+│   ├── OutboxEventType.java             # Enum
 │   └── required/
-│       └── OutboxEventClient.java   # Outbox Port
+│       └── OutboxEventClient.java       # Outbox Port
 │
 └── shared/
-    ├── AggregateRoot.java      # 추상 클래스 (Domain Event 관리)
-    ├── Money.java              # Value Object
-    ├── Weight.java             # Value Object
-    ├── Volume.java             # Value Object
-    ├── Address.java            # Value Object
-    ├── Contact.java            # Value Object
-    ├── LatLng.java             # Value Object
+    ├── AggregateRoot.java               # 추상 클래스 (Domain Event 관리)
+    ├── Money.java                       # Value Object (공통)
+    ├── Weight.java                      # Value Object (공통)
+    ├── Volume.java                      # Value Object (공통)
+    ├── Address.java                     # Value Object (공통)
+    ├── Contact.java                     # Value Object (공통)
+    ├── LatLng.java                      # Value Object (공통)
     └── event/
-        └── DomainEvent.java    # Domain Event 인터페이스
+        └── DomainEvent.java             # Domain Event 인터페이스
 ```
+
+**예시:**
+- Order: order/, Order.java, OrderCreator.java, OrderItem.java, Origin, Destination
+- Payment: payment/, Payment.java, PaymentCreator.java, PaymentMethod, PaymentAmount
+- Delivery: delivery/, Delivery.java, DeliveryCreator.java, DeliveryAddress, DeliveryDriver
 
 **중요:** 
 - **모든 Port는 required/에 위치** (일관성)
@@ -106,6 +110,86 @@ public abstract class AggregateRoot {
 ---
 
 ## Domain Entity 템플릿
+
+### 일반 템플릿
+
+```java
+// core/domain/{aggregate}/{Aggregate}.java
+@Getter
+@ToString
+public class {Aggregate} extends AggregateRoot {
+    
+    private final Long id;
+    private final {Aggregate}Number {aggregate}Number;
+    private final {Aggregate}Status status;
+    private final List<{AggregateItem}> items;  // (선택)
+    private final {Property1} property1;
+    private final {Property2} property2;
+    private final Instant createdAt;
+    private final Instant completedAt;
+    private final Instant cancelledAt;
+    
+    // 생성자 - 필수 값 검증
+    public {Aggregate}(
+        Long id,
+        {Aggregate}Number {aggregate}Number,
+        {Aggregate}Status status,
+        List<{AggregateItem}> items,
+        {Property1} property1,
+        {Property2} property2,
+        Instant createdAt,
+        Instant completedAt,
+        Instant cancelledAt
+    ) {
+        // 필수 값 검증
+        if (id == null) {
+            throw new IllegalArgumentException("ID는 필수입니다");
+        }
+        if ({aggregate}Number == null) {
+            throw new IllegalArgumentException("{Aggregate} 번호는 필수입니다");
+        }
+        // ... 기타 검증
+        
+        this.id = id;
+        this.{aggregate}Number = {aggregate}Number;
+        this.status = status;
+        this.items = items != null ? List.copyOf(items) : null;
+        this.property1 = property1;
+        this.property2 = property2;
+        this.createdAt = createdAt;
+        this.completedAt = completedAt;
+        this.cancelledAt = cancelledAt;
+    }
+    
+    // 팩토리 메서드 - 비즈니스 규칙 + Domain Event 자동 추가
+    public static {Aggregate} create(
+        Long id,
+        {Aggregate}Number {aggregate}Number,
+        List<{AggregateItem}> items,
+        {Property1} property1,
+        {Property2} property2
+    ) {
+        {Aggregate} {aggregate} = new {Aggregate}(
+            id,
+            {aggregate}Number,
+            {Aggregate}Status.CREATED,
+            items,
+            property1,
+            property2,
+            Instant.now(),
+            null,
+            null
+        );
+        
+        // Domain Event 자동 추가
+        {aggregate}.addDomainEvent({Aggregate}CreatedEvent.from({aggregate}));
+        
+        return {aggregate};
+    }
+}
+```
+
+### 실제 예시 (Order)
 
 ```java
 // core/domain/order/Order.java
@@ -192,7 +276,70 @@ public class Order extends AggregateRoot {
 
 ## Domain Service 템플릿
 
-### OrderCreator (생성 책임)
+### 일반 템플릿
+
+#### {Aggregate}Creator (생성 책임)
+
+```java
+// core/domain/{aggregate}/{Aggregate}Creator.java
+@Service
+@RequiredArgsConstructor
+public class {Aggregate}Creator {
+
+  private final {Aggregate}NumberGenerator {aggregate}NumberGenerator;
+  private final {Aggregate}Repository {aggregate}Repository;
+  private final OutboxEventAppender outboxEventAppender;
+
+  @Transactional
+  public {Aggregate} create(Create{Aggregate}Command command) {
+    // 1. {Aggregate} 번호 생성
+    {Aggregate}Number {aggregate}Number = {aggregate}NumberGenerator.generate();
+
+    // 2. {Aggregate} 저장 ({Aggregate}.create()가 내부에서 호출되어 도메인 이벤트 자동 추가)
+    {Aggregate} {aggregate} =
+        {aggregate}Repository.store(
+            {aggregate}Number,
+            command.items(),
+            command.property1(),
+            command.property2());
+
+    // 3. 도메인 이벤트 발행
+    outboxEventAppender.append(OutboxEventType.{AGGREGATE}_CREATED, {aggregate});
+
+    return {aggregate};
+  }
+}
+```
+
+#### {Aggregate}Reader (조회 책임)
+
+```java
+// core/domain/{aggregate}/{Aggregate}Reader.java
+@Service
+@RequiredArgsConstructor
+public class {Aggregate}Reader {
+
+  private final {Aggregate}Repository {aggregate}Repository;
+
+  @ReadOnlyTransactional
+  public {Aggregate} get{Aggregate}ById(Long id) {
+    return {aggregate}Repository
+        .findById(id)
+        .orElseThrow(() -> new {Aggregate}NotFoundException(id));
+  }
+
+  @ReadOnlyTransactional
+  public {Aggregate} get{Aggregate}By{Aggregate}Number({Aggregate}Number {aggregate}Number) {
+    return {aggregate}Repository
+        .findBy{Aggregate}Number({aggregate}Number)
+        .orElseThrow(() -> new {Aggregate}NotFoundException({aggregate}Number));
+  }
+}
+```
+
+### 실제 예시 (Order)
+
+#### OrderCreator
 
 ```java
 // core/domain/order/OrderCreator.java
@@ -226,7 +373,7 @@ public class OrderCreator {
 }
 ```
 
-### OrderReader (조회 책임)
+#### OrderReader
 
 ```java
 // core/domain/order/OrderReader.java

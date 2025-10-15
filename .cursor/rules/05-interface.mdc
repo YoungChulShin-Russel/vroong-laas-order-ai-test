@@ -40,6 +40,58 @@ alwaysApply: true
 
 ### Web Controller 템플릿
 
+#### 일반 템플릿
+
+```java
+// api/web/{aggregate}/{Aggregate}Controller.java
+@RestController
+@RequestMapping("/api/v1/{aggregates}")
+@RequiredArgsConstructor
+public class {Aggregate}Controller {
+    
+    private final {Aggregate}Facade {aggregate}Facade;  // ⭐ Facade 사용
+    
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public {Aggregate}Response create{Aggregate}(@RequestBody @Valid Create{Aggregate}Request request) {
+        // Request → Command 변환 (Command는 Domain Layer에서 import)
+        Create{Aggregate}Command command = request.toCommand();
+        
+        // Facade 호출
+        {Aggregate} {aggregate} = {aggregate}Facade.create{Aggregate}(command);
+        
+        // Domain → Response 변환
+        return {Aggregate}Response.from({aggregate});
+    }
+    
+    @GetMapping("/{id}")
+    public {Aggregate}Response get{Aggregate}(@PathVariable Long id) {
+        // Facade 호출
+        {Aggregate} {aggregate} = {aggregate}Facade.get{Aggregate}ById(id);
+        
+        return {Aggregate}Response.from({aggregate});
+    }
+    
+    @GetMapping("/{aggregate}-number/{number}")
+    public {Aggregate}Response get{Aggregate}By{Aggregate}Number(@PathVariable String number) {
+        {Aggregate}Number {aggregate}NumberVO = {Aggregate}Number.of(number);
+        
+        // Facade 호출
+        {Aggregate} {aggregate} = {aggregate}Facade.get{Aggregate}By{Aggregate}Number({aggregate}NumberVO);
+        
+        return {Aggregate}Response.from({aggregate});
+    }
+}
+```
+
+**특징:**
+- ✅ Facade만 의존
+- ✅ Command는 Domain Layer에서 import
+- ✅ @ResponseStatus로 간결한 상태 코드 관리
+- ✅ 비즈니스 로직 없음 (단순 위임)
+
+#### 실제 예시 (Order)
+
 ```java
 // api/web/order/OrderController.java
 @RestController
@@ -82,12 +134,6 @@ public class OrderController {
 }
 ```
 
-**특징:**
-- ✅ Facade만 의존
-- ✅ Command는 Domain Layer에서 import
-- ✅ @ResponseStatus로 간결한 상태 코드 관리
-- ✅ 비즈니스 로직 없음 (단순 위임)
-
 ## Request DTO 규칙
 
 ### 위치
@@ -98,6 +144,44 @@ public class OrderController {
 - Bean Validation으로 형식 검증
 
 ### Request DTO 템플릿
+
+#### 일반 템플릿
+
+```java
+// api/web/{aggregate}/dto/request/Create{Aggregate}Request.java
+public record Create{Aggregate}Request(
+    @NotNull(message = "필수 필드입니다")
+    @Size(min = 1, message = "최소 1개 이상 필요합니다")
+    List<{Aggregate}ItemRequest> items,
+    
+    @NotBlank(message = "필수 필드입니다")
+    @Size(max = 500, message = "500자 이내로 입력해주세요")
+    String requiredField,
+    
+    Long optionalId
+) {
+    public record {Aggregate}ItemRequest(
+        @NotNull(message = "ID는 필수입니다")
+        @Positive(message = "ID는 양수여야 합니다")
+        Long id,
+        
+        @Min(value = 1, message = "최소값은 1입니다")
+        @Max(value = 100, message = "최대값은 100입니다")
+        int quantity
+    ) {}
+}
+```
+
+```java
+// api/web/{aggregate}/dto/request/Cancel{Aggregate}Request.java
+public record Cancel{Aggregate}Request(
+    @NotBlank(message = "취소 사유는 필수입니다")
+    @Size(max = 1000, message = "취소 사유는 1000자 이내로 입력해주세요")
+    String reason
+) {}
+```
+
+#### 실제 예시 (Order)
 
 ```java
 // api/web/order/dto/request/CreateOrderRequest.java
@@ -130,19 +214,6 @@ public record CancelOrderRequest(
     @NotBlank(message = "취소 사유는 필수입니다")
     @Size(max = 1000, message = "취소 사유는 1000자 이내로 입력해주세요")
     String reason
-) {}
-```
-
-```java
-// api/web/order/dto/request/ChangeAddressRequest.java
-public record ChangeAddressRequest(
-    @NotBlank(message = "우편번호는 필수입니다")
-    String zipCode,
-    
-    @NotBlank(message = "주소는 필수입니다")
-    String street,
-    
-    String detail
 ) {}
 ```
 

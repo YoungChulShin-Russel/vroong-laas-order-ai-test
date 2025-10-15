@@ -17,18 +17,28 @@ alwaysApply: true
    다음과 같이 작업하겠습니다:
    
    📁 생성할 파일:
-   - core/domain/order/Order.java
-   - core/application/order/CreateOrderUseCase.java
+   - core/domain/{aggregate}/{Aggregate}.java
+   - core/application/{aggregate}/{Aggregate}Facade.java
    
    📝 수정할 파일:
-   - infrastructure/storage/db/order/OrderJpaEntity.java (매핑 추가)
+   - infrastructure/storage/db/{aggregate}/{Aggregate}Entity.java (매핑 추가)
    
    🔧 작업 내용:
-   - Order Domain Entity 생성 (상태, 금액, 배송지 포함)
-   - 주문 생성 UseCase 구현
+   - {Aggregate} Domain Entity 생성 (핵심 필드 포함)
+   - {Aggregate} Facade 구현
    - JPA Entity 매핑
    
    진행할까요?
+   ```
+   
+   **예시 (Order):**
+   ```
+   📁 생성할 파일:
+   - core/domain/order/Order.java
+   - core/application/order/OrderFacade.java
+   
+   🔧 작업 내용:
+   - Order Domain Entity 생성 (상태, 금액, 배송지 포함)
    ```
 
 3. **사용자 확인 대기**
@@ -49,8 +59,15 @@ alwaysApply: true
 
 3. **진행 상황 알림**
    ```
+   1/3 {Aggregate} Domain Entity 생성 중...
+   2/3 {Aggregate}Facade 구현 중...
+   3/3 {Aggregate}Controller 추가 중...
+   ```
+   
+   **예시 (Order):**
+   ```
    1/3 Order Domain Entity 생성 중...
-   2/3 CreateOrderUseCase 구현 중...
+   2/3 OrderFacade 구현 중...
    3/3 OrderController 추가 중...
    ```
 
@@ -63,8 +80,20 @@ alwaysApply: true
    ✅ 작업 완료:
    
    📄 생성된 파일:
+   - {Aggregate}.java (도메인 엔티티)
+   - {Aggregate}Facade.java (Facade)
+   
+   🔧 주요 기능:
+   - {Aggregate} 생성, 취소 기능
+   - 비즈니스 로직
+   - 상태 관리
+   ```
+   
+   **예시 (Order):**
+   ```
+   📄 생성된 파일:
    - Order.java (주문 도메인 엔티티)
-   - CreateOrderUseCase.java (주문 생성 유스케이스)
+   - OrderFacade.java (주문 Facade)
    
    🔧 주요 기능:
    - 주문 생성, 취소 기능
@@ -212,6 +241,60 @@ Option 2: TransactionTemplate 사용 (세밀한 제어)
 
 ## 예시: 전체 작업 흐름
 
+### 템플릿
+
+```
+[사용자 요청]
+"{도메인} 생성 기능을 만들어줘"
+
+[AI 응답 - 1단계: 계획]
+다음과 같이 작업하겠습니다:
+
+📁 생성할 파일:
+1. core/domain/{aggregate}/{Aggregate}.java - 도메인 Entity
+2. core/domain/{aggregate}/{AggregateItem}.java - Value Object (선택)
+3. core/application/{aggregate}/{Aggregate}Facade.java - Facade
+4. core/domain/{aggregate}/command/Create{Aggregate}Command.java - Command
+
+주요 기능:
+- {Aggregate} 생성
+- 비즈니스 로직
+- 상태 관리
+
+진행할까요?
+
+[사용자 확인]
+"네, 진행해주세요"
+
+[AI 작업 - 2단계: 실행]
+1/4 {Aggregate}.java 생성 중...
+2/4 {AggregateItem}.java 생성 중...
+3/4 {Aggregate}Facade.java 생성 중...
+4/4 Create{Aggregate}Command.java 생성 중...
+
+[AI 보고 - 3단계: 완료]
+✅ {도메인} 생성 기능 구현 완료
+
+📄 생성된 파일:
+- {Aggregate}.java
+- {AggregateItem}.java
+- {Aggregate}Facade.java
+- Create{Aggregate}Command.java
+
+🔧 주요 기능:
+- {Aggregate}.create() - 생성 팩토리 메서드
+- 비즈니스 로직
+- 상태 관리
+
+다음 작업:
+- Infrastructure Layer (JPA Entity, Repository Adapter)
+- API Layer (Controller, Request/Response DTO)
+
+어떻게 진행할까요?
+```
+
+### 실제 예시 (Order)
+
 ```
 [사용자 요청]
 "주문 생성 기능을 만들어줘"
@@ -222,8 +305,8 @@ Option 2: TransactionTemplate 사용 (세밀한 제어)
 📁 생성할 파일:
 1. core/domain/order/Order.java - 주문 도메인 Entity
 2. core/domain/order/OrderItem.java - 주문 아이템 VO
-3. core/application/order/CreateOrderUseCase.java - 주문 생성 UseCase
-4. core/application/order/command/CreateOrderCommand.java - Command DTO
+3. core/application/order/OrderFacade.java - 주문 Facade
+4. core/domain/order/command/CreateOrderCommand.java - Command
 
 주요 기능:
 - 주문 생성 (고객, 상품, 수량, 배송지)
@@ -238,7 +321,7 @@ Option 2: TransactionTemplate 사용 (세밀한 제어)
 [AI 작업 - 2단계: 실행]
 1/4 Order.java 생성 중...
 2/4 OrderItem.java 생성 중...
-3/4 CreateOrderUseCase.java 생성 중...
+3/4 OrderFacade.java 생성 중...
 4/4 CreateOrderCommand.java 생성 중...
 
 [AI 보고 - 3단계: 완료]
@@ -247,7 +330,7 @@ Option 2: TransactionTemplate 사용 (세밀한 제어)
 📄 생성된 파일:
 - Order.java (52 lines)
 - OrderItem.java (28 lines)
-- CreateOrderUseCase.java (35 lines)
+- OrderFacade.java (20 lines)
 - CreateOrderCommand.java (15 lines)
 
 🔧 주요 기능:
@@ -272,27 +355,46 @@ Option 2: TransactionTemplate 사용 (세밀한 제어)
 
 #### ❌ 나쁜 예 - FQCN(Fully Qualified Class Name) 사용
 ```java
-public Order toDomain(
-    java.util.List<vroong.laas.order.core.domain.order.OrderItem> items,
-    vroong.laas.order.core.domain.order.Origin origin,
-    vroong.laas.order.core.domain.order.Destination destination) {
+public {Aggregate} toDomain(
+    java.util.List<com.company.service.core.domain.{aggregate}.{AggregateItem}> items,
+    com.company.service.core.domain.{aggregate}.{Property1} property1,
+    com.company.service.core.domain.{aggregate}.{Property2} property2) {
   
-  vroong.laas.order.core.domain.order.OrderStatus domainStatus = 
-      vroong.laas.order.core.domain.order.OrderStatus.valueOf(this.status.name());
+  com.company.service.core.domain.{aggregate}.{Aggregate}Status domainStatus = 
+      com.company.service.core.domain.{aggregate}.{Aggregate}Status.valueOf(this.status.name());
   
-  return new Order(...);
+  return new {Aggregate}(...);
 }
 ```
 
 #### ✅ 좋은 예 - import 사용
 ```java
 import java.util.List;
-import vroong.laas.order.core.domain.order.DeliveryPolicy;
-import vroong.laas.order.core.domain.order.Destination;
+import com.company.service.core.domain.{aggregate}.{Aggregate};
+import com.company.service.core.domain.{aggregate}.{AggregateItem};
+import com.company.service.core.domain.{aggregate}.{Aggregate}Status;
+import com.company.service.core.domain.{aggregate}.{Property1};
+import com.company.service.core.domain.{aggregate}.{Property2};
+
+public {Aggregate} toDomain(
+    List<{AggregateItem}> items,
+    {Property1} property1,
+    {Property2} property2) {
+  
+  {Aggregate}Status domainStatus = {Aggregate}Status.valueOf(this.status.name());
+  
+  return new {Aggregate}(...);
+}
+```
+
+**예시 (Order):**
+```java
+import java.util.List;
 import vroong.laas.order.core.domain.order.Order;
 import vroong.laas.order.core.domain.order.OrderItem;
 import vroong.laas.order.core.domain.order.OrderStatus;
 import vroong.laas.order.core.domain.order.Origin;
+import vroong.laas.order.core.domain.order.Destination;
 
 public Order toDomain(
     List<OrderItem> items,

@@ -14,14 +14,15 @@ alwaysApply: true
 - Gradle (Multi-Module)
 
 ## 목표
-- 일 30만건 이상 주문 처리
+- 대용량 트랜잭션 처리 (일 30만건 이상)
 - 명확한 레이어 분리
 - AI가 이해하고 수정하기 쉬운 구조
+- 도메인 주도 설계 (DDD) 원칙 준수
 
 ## 모듈 구조
 
 ```
-order-service/
+{service-name}/             # 예: order-service, payment-service, delivery-service
 ├── core/                   # 비즈니스 로직 (Spring 의존성 최소화)
 │   ├── domain/            # Domain Entity, Value Object, Domain Service, Command
 │   └── application/       # Facade (흐름 조정)
@@ -31,7 +32,7 @@ order-service/
 │   └── outbox/            # Kafka Outbox
 ├── api/                    # 고객용 API
 │   └── web/              # HTTP API
-├── admin/                  # 관리자용 API (미구현)
+├── admin/                  # 관리자용 API (선택)
 └── job/                    # Scheduled Job (Outbox Polling, 통계 집계, 데이터 정리)
 ```
 
@@ -48,28 +49,43 @@ order-service/
 - 허용: Java, Lombok, Spring @Service (Domain Service용)
 - 금지: JPA, Infrastructure 직접 의존
 - 포함:
-  - Aggregate Root (Order)
-  - Value Objects (OrderNumber, Origin, Destination, etc.)
-  - Domain Services (OrderCreator, OrderReader)
-  - Domain Commands (CreateOrderCommand)
-  - Domain Events (OrderCreatedEvent)
-  - Ports (OrderRepository, OutboxEventClient)
+  - Aggregate Root ({Aggregate})
+  - Value Objects (도메인 특화 Value Objects)
+  - Domain Services ({Aggregate}Creator, {Aggregate}Reader)
+  - Domain Commands (Create{Aggregate}Command)
+  - Domain Events ({Aggregate}CreatedEvent)
+  - Ports ({Aggregate}Repository, OutboxEventClient)
+
+**예시:**
+- Order: Order, OrderNumber, OrderCreator, CreateOrderCommand, OrderRepository
+- Payment: Payment, PaymentNumber, PaymentCreator, CreatePaymentCommand, PaymentRepository
+- Delivery: Delivery, DeliveryNumber, DeliveryCreator, CreateDeliveryCommand, DeliveryRepository
 
 ### Application (core/application/)
 - 목적: Facade 패턴으로 흐름 조정
 - 허용: Domain Service, Port 의존
 - 금지: Infrastructure 직접 의존, 비즈니스 로직 직접 구현
 - 포함:
-  - Facade (OrderFacade)
+  - Facade ({Aggregate}Facade)
+
+**예시:**
+- Order: OrderFacade
+- Payment: PaymentFacade
+- Delivery: DeliveryFacade
 
 ### Infrastructure (infrastructure/)
 - 목적: 기술 구현
 - 허용: JPA, Repository 구현, Port 구현
 - 책임: DB, Cache, 외부 API, 메시징
 - 포함:
-  - Repository Adapter (OrderRepositoryAdapter)
+  - Repository Adapter ({Aggregate}RepositoryAdapter)
   - Outbox Client (KafkaOutboxEventClient)
   - Mapper (KafkaOutboxEventMapper)
+
+**예시:**
+- Order: OrderRepositoryAdapter
+- Payment: PaymentRepositoryAdapter
+- Delivery: DeliveryRepositoryAdapter
 
 ### Interfaces (api/, admin/)
 - 목적: 외부 진입점
@@ -84,8 +100,12 @@ order-service/
   - scheduled/ - BaseScheduledJob (인터페이스)
   - common/aspect/ - ScheduledJobLoggingAspect (AOP)
   - outbox/ - OutboxEventPublishJob
-  - statistics/ - OrderStatisticsJob (예시)
+  - statistics/ - {Aggregate}StatisticsJob
+  - cleanup/ - {Aggregate}CleanupJob
 - 원칙: 기능별 패키지 구성 (outbox/, statistics/, cleanup/ 등)
+
+**예시:**
+- OrderStatisticsJob, PaymentStatisticsJob, DeliveryStatisticsJob
 
 ## 아키텍처 패턴
 
@@ -107,72 +127,91 @@ Controller
 ### 2. Outbox Pattern
 
 ```
-OrderCreator (Domain Service)
-  1. orderRepository.store(order)        → Order 저장 (DB)
-  2. outboxEventAppender.append(order)   → Outbox 저장 (DB, 같은 트랜잭션)
-     → outboxEventClient.save()          → Infrastructure Layer
-       → KafkaOutboxEventMapper.map()    → Order → KafkaEvent 변환
-       → outboxEventService.registerEvent() → Outbox 라이브러리 호출
+{Aggregate}Creator (Domain Service)
+  1. {aggregate}Repository.store({aggregate})        → Aggregate 저장 (DB)
+  2. outboxEventAppender.append({aggregate})         → Outbox 저장 (DB, 같은 트랜잭션)
+     → outboxEventClient.save()                      → Infrastructure Layer
+       → KafkaOutboxEventMapper.map()                → Aggregate → KafkaEvent 변환
+       → outboxEventService.registerEvent()          → Outbox 라이브러리 호출
 ```
 
 **특징:**
 - ✅ DB 트랜잭션과 이벤트 발행의 원자성 보장
-- ✅ Order 저장 + Outbox 저장 = 하나의 트랜잭션
+- ✅ Aggregate 저장 + Outbox 저장 = 하나의 트랜잭션
 - ✅ 별도 Worker가 Outbox → Kafka 전송 (비동기)
+
+**예시:**
+- OrderCreator: orderRepository.store(order) + outboxEventAppender.append(order)
+- PaymentCreator: paymentRepository.store(payment) + outboxEventAppender.append(payment)
 
 ## 파일 구조 핵심 원칙
 
 ### Domain Layer
 ```
 core/domain/
-├── order/
-│   ├── Order.java                   # Aggregate Root
-│   ├── OrderCreator.java            # Domain Service (생성)
-│   ├── OrderReader.java             # Domain Service (조회)
-│   ├── OrderItem.java               # Value Object
-│   ├── OrderNumber.java             # Value Object
-│   ├── OrderStatus.java             # Enum
+├── {aggregate}/                             # 예: order, payment, delivery
+│   ├── {Aggregate}.java                     # Aggregate Root
+│   ├── {Aggregate}Creator.java              # Domain Service (생성)
+│   ├── {Aggregate}Reader.java               # Domain Service (조회)
+│   ├── {AggregateItem}.java                 # Value Object (선택)
+│   ├── {Aggregate}Number.java               # Value Object
+│   ├── {Aggregate}Status.java               # Enum
 │   ├── command/
-│   │   └── CreateOrderCommand.java  # Domain Command
+│   │   └── Create{Aggregate}Command.java    # Domain Command
 │   ├── event/
-│   │   └── OrderCreatedEvent.java   # Domain Event
-│   └── required/                    # ⭐ 모든 Port
-│       └── OrderRepository.java     # 영속성 Port (통합)
+│   │   └── {Aggregate}CreatedEvent.java     # Domain Event
+│   └── required/                            # ⭐ 모든 Port
+│       └── {Aggregate}Repository.java       # 영속성 Port (통합)
 │
 ├── outbox/
-│   ├── OutboxEventAppender.java     # Domain Service
-│   ├── OutboxEventType.java         # Enum
+│   ├── OutboxEventAppender.java             # Domain Service
+│   ├── OutboxEventType.java                 # Enum
 │   └── required/
-│       └── OutboxEventClient.java   # Outbox Port
+│       └── OutboxEventClient.java           # Outbox Port
 │
 └── shared/
-    ├── AggregateRoot.java           # 추상 클래스 (Domain Event 관리)
-    ├── Money.java                   # Value Object
-    ├── Weight.java                  # Value Object
+    ├── AggregateRoot.java                   # 추상 클래스 (Domain Event 관리)
+    ├── Money.java                           # Value Object (공통)
+    ├── Weight.java                          # Value Object (공통)
     └── event/
-        └── DomainEvent.java         # Domain Event 인터페이스
+        └── DomainEvent.java                 # Domain Event 인터페이스
 ```
+
+**예시:**
+- Order: order/, Order.java, OrderCreator.java, CreateOrderCommand.java
+- Payment: payment/, Payment.java, PaymentCreator.java, CreatePaymentCommand.java
+- Delivery: delivery/, Delivery.java, DeliveryCreator.java, CreateDeliveryCommand.java
 
 ### Application Layer
 ```
-core/application/order/
-└── OrderFacade.java                 # Facade (흐름 조정)
+core/application/{aggregate}/                # 예: order, payment, delivery
+└── {Aggregate}Facade.java                   # Facade (흐름 조정)
 ```
+
+**예시:**
+- Order: application/order/OrderFacade.java
+- Payment: application/payment/PaymentFacade.java
+- Delivery: application/delivery/DeliveryFacade.java
 
 ### Infrastructure Layer
 ```
 infrastructure/
-├── storage/db/order/
+├── storage/db/{aggregate}/                      # 예: order, payment, delivery
 │   ├── adapter/
-│   │   └── OrderRepositoryAdapter.java  # Repository 구현
+│   │   └── {Aggregate}RepositoryAdapter.java    # Repository 구현
 │   └── entity/
-│       ├── OrderEntity.java
-│       └── OrderItemEntity.java
+│       ├── {Aggregate}Entity.java
+│       └── {AggregateItem}Entity.java           # (선택)
 └── outbox/
-    ├── KafkaOutboxEventClient.java      # Outbox 구현
-    ├── KafkaOutboxEventMapper.java      # Mapper
-    └── KafkaOutboxEvent.java            # DTO
+    ├── KafkaOutboxEventClient.java              # Outbox 구현
+    ├── KafkaOutboxEventMapper.java              # Mapper
+    └── KafkaOutboxEvent.java                    # DTO
 ```
+
+**예시:**
+- Order: storage/db/order/adapter/OrderRepositoryAdapter.java
+- Payment: storage/db/payment/adapter/PaymentRepositoryAdapter.java
+- Delivery: storage/db/delivery/adapter/DeliveryRepositoryAdapter.java
 
 ## 빠른 체크리스트
 
@@ -181,10 +220,10 @@ infrastructure/
 - [ ] Facade가 Domain Service만 호출하는가?
 - [ ] Command가 Domain Layer에 있는가?
 - [ ] 트랜잭션이 Repository Adapter에 있는가? (@Transactional)
-- [ ] Outbox 저장이 Order 저장과 같은 트랜잭션인가?
+- [ ] Outbox 저장이 Aggregate 저장과 같은 트랜잭션인가?
 - [ ] Controller가 Facade만 호출하는가?
 - [ ] 모든 커스텀 Exception이 BaseException을 상속받는가? ⭐
-- [ ] OrderRepository가 통합 인터페이스인가? (Store/Reader 분리 안 함)
+- [ ] {Aggregate}Repository가 통합 인터페이스인가? (Store/Reader 분리 안 함)
 - [ ] Job이 BaseScheduledJob 또는 LoggingScheduledJob을 구현/상속하는가? ⭐
 - [ ] 1개 Job 클래스에 1개 @Scheduled 메서드만 있는가? ⭐
 - [ ] Job 클래스 이름이 *Job으로 끝나는가? ⭐

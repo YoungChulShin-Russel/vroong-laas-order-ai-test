@@ -10,9 +10,14 @@ alwaysApply: true
 ## 저장소 구조
 
 ```
-core/application/order/
-└── OrderFacade.java             # Facade (흐름 조정)
+core/application/{aggregate}/                # 예: order, payment, delivery
+└── {Aggregate}Facade.java                   # Facade (흐름 조정)
 ```
+
+**예시:**
+- Order: application/order/OrderFacade.java
+- Payment: application/payment/PaymentFacade.java
+- Delivery: application/delivery/DeliveryFacade.java
 
 **중요:**
 - **Facade Pattern 사용** (UseCase 대신)
@@ -59,7 +64,52 @@ Controller (Interface Layer)
 
 ## Facade 템플릿
 
-### OrderFacade
+### 일반 템플릿
+
+```java
+// core/application/{aggregate}/{Aggregate}Facade.java
+@Facade
+@RequiredArgsConstructor
+public class {Aggregate}Facade {
+
+  private final {Aggregate}Creator {aggregate}Creator;
+  private final {Aggregate}Reader {aggregate}Reader;
+
+  /**
+   * {Aggregate} 생성
+   *
+   * <p>{Aggregate}Creator Domain Service를 호출하여 생성합니다.
+   *
+   * @param command 생성 Command (Domain Layer에 위치)
+   * @return 생성된 {Aggregate}
+   */
+  public {Aggregate} create{Aggregate}(Create{Aggregate}Command command) {
+    return {aggregate}Creator.create(command);
+  }
+
+  /**
+   * {Aggregate} 조회 (ID)
+   *
+   * @param id {Aggregate} ID
+   * @return {Aggregate}
+   */
+  public {Aggregate} get{Aggregate}ById(Long id) {
+    return {aggregate}Reader.get{Aggregate}ById(id);
+  }
+
+  /**
+   * {Aggregate} 조회 ({Aggregate}번호)
+   *
+   * @param {aggregate}Number {Aggregate} 번호
+   * @return {Aggregate}
+   */
+  public {Aggregate} get{Aggregate}By{Aggregate}Number({Aggregate}Number {aggregate}Number) {
+    return {aggregate}Reader.get{Aggregate}By{Aggregate}Number({aggregate}Number);
+  }
+}
+```
+
+### 실제 예시 (Order)
 
 ```java
 // core/application/order/OrderFacade.java
@@ -106,7 +156,7 @@ public class OrderFacade {
 
 **특징:**
 - ✅ @Facade 애노테이션
-- ✅ Domain Service(OrderCreator, OrderReader)만 호출
+- ✅ Domain Service만 호출
 - ✅ 비즈니스 로직 없음 (단순 위임)
 - ✅ Command는 Domain Layer에서 가져옴
 
