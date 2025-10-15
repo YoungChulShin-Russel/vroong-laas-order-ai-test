@@ -1,0 +1,6729 @@
+---
+alwaysApply: true
+---
+## 📋 작업 흐름
+
+### 1단계: 요구사항 분석 및 계획 수립
+
+사용자의 요청을 받으면:
+
+1. **요구사항 파악**
+   - 무엇을 만들어야 하는가?
+   - 어떤 파일들이 필요한가?
+   - 기존 코드에 영향은?
+
+2. **작업 계획 공유**
+   ```
+   다음과 같이 작업하겠습니다:
+   
+   📁 생성할 파일:
+   - core/domain/{aggregate}/{Aggregate}.java
+   - core/application/{aggregate}/{Aggregate}Facade.java
+   
+   📝 수정할 파일:
+   - infrastructure/storage/db/{aggregate}/{Aggregate}Entity.java (매핑 추가)
+   
+   🔧 작업 내용:
+   - {Aggregate} Domain Entity 생성 (핵심 필드 포함)
+   - {Aggregate} Facade 구현
+   - JPA Entity 매핑
+   
+   진행할까요?
+   ```
+   
+   **예시 (Order):**
+   ```
+   📁 생성할 파일:
+   - core/domain/order/Order.java
+   - core/application/order/OrderFacade.java
+   
+   🔧 작업 내용:
+   - Order Domain Entity 생성 (상태, 금액, 배송지 포함)
+   ```
+
+3. **사용자 확인 대기**
+   - 사용자가 "좋아요", "네", "진행해주세요" 등으로 응답하면 시작
+   - 사용자가 수정 요청하면 계획 조정
+
+---
+
+### 2단계: 코드 작성/수정
+
+1. **파일 단위로 작업**
+   - 한 번에 하나씩 또는 관련된 파일들을 묶어서
+   - 너무 많은 파일을 동시에 수정하지 말 것 (최대 5개 정도)
+
+2. **작업 순서**
+   - Domain → Application → Infrastructure → Interface 순서 권장
+   - 의존성 방향을 고려
+
+3. **진행 상황 알림**
+   ```
+   1/3 {Aggregate} Domain Entity 생성 중...
+   2/3 {Aggregate}Facade 구현 중...
+   3/3 {Aggregate}Controller 추가 중...
+   ```
+   
+   **예시 (Order):**
+   ```
+   1/3 Order Domain Entity 생성 중...
+   2/3 OrderFacade 구현 중...
+   3/3 OrderController 추가 중...
+   ```
+
+---
+
+### 3단계: 결과 확인 및 보고
+
+1. **수정 내용 요약**
+   ```
+   ✅ 작업 완료:
+   
+   📄 생성된 파일:
+   - {Aggregate}.java (도메인 엔티티)
+   - {Aggregate}Facade.java (Facade)
+   
+   🔧 주요 기능:
+   - {Aggregate} 생성, 취소 기능
+   - 비즈니스 로직
+   - 상태 관리
+   ```
+   
+   **예시 (Order):**
+   ```
+   📄 생성된 파일:
+   - Order.java (주문 도메인 엔티티)
+   - OrderFacade.java (주문 Facade)
+   
+   🔧 주요 기능:
+   - 주문 생성, 취소 기능
+   - 금액 계산 로직
+   - 상태 관리 (PENDING, CONFIRMED, CANCELLED)
+   ```
+
+2. **에러 확인**
+   - 린터 에러 확인 (`read_lints`)
+   - 에러가 있으면 즉시 수정
+
+3. **문서 업데이트** ⭐
+   
+   작업 내용에 따라 관련 문서를 업데이트해야 합니다:
+   
+   **도메인 정책 변경 시:**
+   - `도메인정책.md` 업데이트
+   - 비즈니스 규칙, 상태 전이, 필수 값 등 변경사항 반영
+   - 예시 코드 업데이트
+   
+   **새로운 라이브러리 추가 시:**
+   - `README.md`의 "🛠️ 기술 스택" 섹션 업데이트
+   - 라이브러리 이름, 용도, 공식 링크 추가
+   - 버전 정보 포함 (`gradle.properties` 참고)
+   
+   **체크리스트:**
+   - [ ] 도메인 규칙이 변경되었나? → `도메인정책.md`
+   - [ ] 새로운 라이브러리가 추가되었나? → `README.md`
+   - [ ] 아키텍처가 변경되었나? → `documents/architecture.md`
+
+4. **다음 단계 제안**
+   ```
+   다음 작업:
+   - 테스트 코드 작성
+   - API 문서 업데이트
+   
+   어떻게 진행할까요?
+   ```
+
+---
+
+## 💬 커뮤니케이션 원칙
+
+### 1. 언어
+- **한국어로 대화**
+- 기술 용어는 영어 그대로 사용
+  - ✅ "UseCase를 만들겠습니다"
+  - ✅ "Domain Entity에 비즈니스 로직을 추가합니다"
+  - ❌ "사용 사례를 만들겠습니다" (번역 X)
+
+### 2. 설명 방식
+- **간결하고 명확하게**
+- 불필요한 설명 최소화
+- 중요한 결정 사항은 이유와 함께 설명
+
+### 3. 질문하기
+의사결정이 필요한 경우 사용자에게 질문:
+```
+❓ 선택이 필요합니다:
+
+Option 1: Repository Adapter에 @Transactional (간단)
+Option 2: TransactionTemplate 사용 (세밀한 제어)
+
+어떤 방식으로 진행할까요?
+```
+
+---
+
+## 🔄 반복 작업 시
+
+같은 패턴의 작업을 여러 번 해야 할 때:
+
+1. **첫 번째는 상세히 설명**
+   ```
+   Customer Domain Entity를 만들겠습니다:
+   - 고객 ID, 이름, 연락처
+   - 활성/비활성 상태
+   - 등급 관리
+   ```
+
+2. **두 번째부터는 간략히**
+   ```
+   동일한 패턴으로 Product, Coupon Entity도 만들겠습니다.
+   진행할까요?
+   ```
+
+---
+
+## ⚠️ 주의사항
+
+### 하지 말아야 할 것
+
+❌ **코드부터 수정**
+- 계획 없이 바로 파일 수정
+
+❌ **과도한 설명**
+- 너무 장황한 설명으로 시간 낭비
+
+❌ **독단적 결정**
+- 중요한 아키텍처 결정을 혼자 하기
+
+❌ **에러 무시**
+- 린터 에러를 확인하지 않고 넘어가기
+
+❌ **문서 업데이트 누락** ⭐
+- 도메인 정책이 변경되었는데 `도메인정책.md`를 업데이트하지 않음
+- 새 라이브러리를 추가했는데 `README.md`를 업데이트하지 않음
+
+### 해야 할 것
+
+✅ **계획 먼저**
+- 무엇을 할지 먼저 설명
+
+✅ **확인 요청**
+- 중요한 결정은 사용자 확인
+
+✅ **에러 즉시 수정**
+- 린터 에러 발생 시 바로 고치기
+
+✅ **문서 동기화** ⭐
+- 도메인 정책 변경 시 `도메인정책.md` 업데이트
+- 새 라이브러리 추가 시 `README.md` 업데이트
+
+✅ **작업 단위 적절히**
+- 한 번에 너무 많이 하지 않기
+
+---
+
+## 📚 체크리스트
+
+매 작업마다 다음을 확인하세요:
+
+- [ ] 작업 계획을 먼저 공유했는가?
+- [ ] 사용자 확인을 받았는가?
+- [ ] 파일을 적절한 순서로 작성했는가?
+- [ ] 린터 에러를 확인했는가?
+- [ ] **문서를 업데이트했는가?** ⭐
+  - [ ] 도메인 규칙 변경 → `도메인정책.md`
+  - [ ] 새 라이브러리 추가 → `README.md`
+  - [ ] 아키텍처 변경 → `documents/architecture.md`
+- [ ] 작업 결과를 요약해서 보고했는가?
+- [ ] 다음 단계를 제안했는가?
+
+---
+
+## 예시: 전체 작업 흐름
+
+### 템플릿
+
+```
+[사용자 요청]
+"{도메인} 생성 기능을 만들어줘"
+
+[AI 응답 - 1단계: 계획]
+다음과 같이 작업하겠습니다:
+
+📁 생성할 파일:
+1. core/domain/{aggregate}/{Aggregate}.java - 도메인 Entity
+2. core/domain/{aggregate}/{AggregateItem}.java - Value Object (선택)
+3. core/application/{aggregate}/{Aggregate}Facade.java - Facade
+4. core/domain/{aggregate}/command/Create{Aggregate}Command.java - Command
+
+주요 기능:
+- {Aggregate} 생성
+- 비즈니스 로직
+- 상태 관리
+
+진행할까요?
+
+[사용자 확인]
+"네, 진행해주세요"
+
+[AI 작업 - 2단계: 실행]
+1/4 {Aggregate}.java 생성 중...
+2/4 {AggregateItem}.java 생성 중...
+3/4 {Aggregate}Facade.java 생성 중...
+4/4 Create{Aggregate}Command.java 생성 중...
+
+[AI 보고 - 3단계: 완료]
+✅ {도메인} 생성 기능 구현 완료
+
+📄 생성된 파일:
+- {Aggregate}.java
+- {AggregateItem}.java
+- {Aggregate}Facade.java
+- Create{Aggregate}Command.java
+
+🔧 주요 기능:
+- {Aggregate}.create() - 생성 팩토리 메서드
+- 비즈니스 로직
+- 상태 관리
+
+다음 작업:
+- Infrastructure Layer (JPA Entity, Repository Adapter)
+- API Layer (Controller, Request/Response DTO)
+
+어떻게 진행할까요?
+```
+
+### 실제 예시 (Order)
+
+```
+[사용자 요청]
+"주문 생성 기능을 만들어줘"
+
+[AI 응답 - 1단계: 계획]
+다음과 같이 작업하겠습니다:
+
+📁 생성할 파일:
+1. core/domain/order/Order.java - 주문 도메인 Entity
+2. core/domain/order/OrderItem.java - 주문 아이템 VO
+3. core/application/order/OrderFacade.java - 주문 Facade
+4. core/domain/order/command/CreateOrderCommand.java - Command
+
+주요 기능:
+- 주문 생성 (고객, 상품, 수량, 배송지)
+- 금액 계산
+- 상태 관리
+
+진행할까요?
+
+[사용자 확인]
+"네, 진행해주세요"
+
+[AI 작업 - 2단계: 실행]
+1/4 Order.java 생성 중...
+2/4 OrderItem.java 생성 중...
+3/4 OrderFacade.java 생성 중...
+4/4 CreateOrderCommand.java 생성 중...
+
+[AI 보고 - 3단계: 완료]
+✅ 주문 생성 기능 구현 완료
+
+📄 생성된 파일:
+- Order.java (52 lines)
+- OrderItem.java (28 lines)
+- OrderFacade.java (20 lines)
+- CreateOrderCommand.java (15 lines)
+
+🔧 주요 기능:
+- Order.create() - 주문 생성 팩토리 메서드
+- calculateTotalAmount() - 총 금액 계산
+- 상태: PENDING, CONFIRMED, CANCELLED
+
+다음 작업:
+- Infrastructure Layer (JPA Entity, Repository Adapter)
+- API Layer (Controller, Request/Response DTO)
+
+어떻게 진행할까요?
+```
+
+---
+
+## 🎨 공통 코드 스타일
+
+### FQCN 대신 import 사용
+
+**모든 레이어(Domain, Application, Infrastructure, Interface)에서 적용**
+
+#### ❌ 나쁜 예 - FQCN(Fully Qualified Class Name) 사용
+```java
+public {Aggregate} toDomain(
+    java.util.List<com.company.service.core.domain.{aggregate}.{AggregateItem}> items,
+    com.company.service.core.domain.{aggregate}.{Property1} property1,
+    com.company.service.core.domain.{aggregate}.{Property2} property2) {
+  
+  com.company.service.core.domain.{aggregate}.{Aggregate}Status domainStatus = 
+      com.company.service.core.domain.{aggregate}.{Aggregate}Status.valueOf(this.status.name());
+  
+  return new {Aggregate}(...);
+}
+```
+
+#### ✅ 좋은 예 - import 사용
+```java
+import java.util.List;
+import com.company.service.core.domain.{aggregate}.{Aggregate};
+import com.company.service.core.domain.{aggregate}.{AggregateItem};
+import com.company.service.core.domain.{aggregate}.{Aggregate}Status;
+import com.company.service.core.domain.{aggregate}.{Property1};
+import com.company.service.core.domain.{aggregate}.{Property2};
+
+public {Aggregate} toDomain(
+    List<{AggregateItem}> items,
+    {Property1} property1,
+    {Property2} property2) {
+  
+  {Aggregate}Status domainStatus = {Aggregate}Status.valueOf(this.status.name());
+  
+  return new {Aggregate}(...);
+}
+```
+
+**예시 (Order):**
+```java
+import java.util.List;
+import vroong.laas.order.core.domain.order.Order;
+import vroong.laas.order.core.domain.order.OrderItem;
+import vroong.laas.order.core.domain.order.OrderStatus;
+import vroong.laas.order.core.domain.order.Origin;
+import vroong.laas.order.core.domain.order.Destination;
+
+public Order toDomain(
+    List<OrderItem> items,
+    Origin origin,
+    Destination destination) {
+  
+  OrderStatus domainStatus = OrderStatus.valueOf(this.status.name());
+  
+  return new Order(...);
+}
+```
+
+**장점:**
+- ✅ 가독성 향상
+- ✅ 코드 간결성
+- ✅ IDE 자동완성 지원
+- ✅ 리팩토링 용이
+
+**예외 상황:**
+- 같은 이름의 클래스가 여러 패키지에 있을 때만 FQCN 사용 (예: `OrderStatus`)
+  ```java
+  // Infrastructure OrderStatus vs Domain OrderStatus
+  vroong.laas.order.core.domain.order.OrderStatus domainStatus = 
+      vroong.laas.order.core.domain.order.OrderStatus.valueOf(this.status.name());
+  ```
+
+---
+
+이 가이드를 따라 사용자와 효율적으로 협업하세요! 🚀
+---
+alwaysApply: true
+---
+
+# 프로젝트 개요
+
+## 기술 스택
+- Java 25
+- Spring Boot 4.0.0-M3
+- Spring Data JPA
+- QueryDSL
+- MySQL
+- Kafka
+- Gradle (Multi-Module)
+
+## 목표
+- 대용량 트랜잭션 처리 (일 30만건 이상)
+- 명확한 레이어 분리
+- AI가 이해하고 수정하기 쉬운 구조
+- 도메인 주도 설계 (DDD) 원칙 준수
+
+## 모듈 구조
+
+```
+{service-name}/             # 예: order-service, payment-service, delivery-service
+├── core/                   # 비즈니스 로직 (Spring 의존성 최소화)
+│   ├── domain/            # Domain Entity, Value Object, Domain Service, Command
+│   └── application/       # Facade (흐름 조정)
+├── infrastructure/         # 기술 구현
+│   ├── storage/
+│   │   └── db/            # MySQL (JPA)
+│   └── outbox/            # Kafka Outbox
+├── api/                    # 고객용 API
+│   └── web/              # HTTP API
+├── admin/                  # 관리자용 API (선택)
+└── job/                    # Scheduled Job (Outbox Polling, 통계 집계, 데이터 정리)
+```
+
+## 의존성 방향 (중요!)
+
+허용: api/admin/job → infrastructure → core
+
+금지: core → infrastructure (절대 안 됨!)
+
+## 레이어별 책임
+
+### Domain (core/domain/)
+- 목적: 순수 비즈니스 규칙
+- 허용: Java, Lombok, Spring @Service (Domain Service용)
+- 금지: JPA, Infrastructure 직접 의존
+- 포함:
+  - Aggregate Root ({Aggregate})
+  - Value Objects (도메인 특화 Value Objects)
+  - Domain Services ({Aggregate}Creator, {Aggregate}Reader)
+  - Domain Commands (Create{Aggregate}Command)
+  - Domain Events ({Aggregate}CreatedEvent)
+  - Ports ({Aggregate}Repository, OutboxEventClient)
+
+**예시:**
+- Order: Order, OrderNumber, OrderCreator, CreateOrderCommand, OrderRepository
+- Payment: Payment, PaymentNumber, PaymentCreator, CreatePaymentCommand, PaymentRepository
+- Delivery: Delivery, DeliveryNumber, DeliveryCreator, CreateDeliveryCommand, DeliveryRepository
+
+### Application (core/application/)
+- 목적: Facade 패턴으로 흐름 조정
+- 허용: Domain Service, Port 의존
+- 금지: Infrastructure 직접 의존, 비즈니스 로직 직접 구현
+- 포함:
+  - Facade ({Aggregate}Facade)
+
+**예시:**
+- Order: OrderFacade
+- Payment: PaymentFacade
+- Delivery: DeliveryFacade
+
+### Infrastructure (infrastructure/)
+- 목적: 기술 구현
+- 허용: JPA, Repository 구현, Port 구현
+- 책임: DB, Cache, 외부 API, 메시징
+- 포함:
+  - Repository Adapter ({Aggregate}RepositoryAdapter)
+  - Outbox Client (KafkaOutboxEventClient)
+  - Mapper (KafkaOutboxEventMapper)
+
+**예시:**
+- Order: OrderRepositoryAdapter
+- Payment: PaymentRepositoryAdapter
+- Delivery: DeliveryRepositoryAdapter
+
+### Interfaces (api/, admin/)
+- 목적: 외부 진입점
+- 허용: Controller, DTO, Facade 호출
+- 금지: 비즈니스 로직, Domain Service 직접 호출
+
+### Job (job/)
+- 목적: Scheduled Job 실행
+- 허용: Domain Service 호출, @Scheduled 사용
+- 금지: Repository 직접 호출, 비즈니스 로직 직접 구현
+- 패키지 구조:
+  - scheduled/ - BaseScheduledJob (인터페이스)
+  - common/aspect/ - ScheduledJobLoggingAspect (AOP)
+  - outbox/ - OutboxEventPublishJob
+  - statistics/ - {Aggregate}StatisticsJob
+  - cleanup/ - {Aggregate}CleanupJob
+- 원칙: 기능별 패키지 구성 (outbox/, statistics/, cleanup/ 등)
+
+**예시:**
+- OrderStatisticsJob, PaymentStatisticsJob, DeliveryStatisticsJob
+
+## 아키텍처 패턴
+
+### 1. Facade + Domain Service 패턴
+
+```
+Controller
+  → Facade (Application Layer)
+    → Domain Service (Domain Layer)
+      → Repository (Port)
+        → Adapter (Infrastructure Layer)
+```
+
+**특징:**
+- ✅ Facade는 흐름만 조정
+- ✅ Domain Service가 비즈니스 로직 수행
+- ✅ Repository는 통합 인터페이스 (Store/Reader 분리 안 함)
+
+### 2. Outbox Pattern
+
+```
+{Aggregate}Creator (Domain Service)
+  1. {aggregate}Repository.store({aggregate})        → Aggregate 저장 (DB)
+  2. outboxEventAppender.append({aggregate})         → Outbox 저장 (DB, 같은 트랜잭션)
+     → outboxEventClient.save()                      → Infrastructure Layer
+       → KafkaOutboxEventMapper.map()                → Aggregate → KafkaEvent 변환
+       → outboxEventService.registerEvent()          → Outbox 라이브러리 호출
+```
+
+**특징:**
+- ✅ DB 트랜잭션과 이벤트 발행의 원자성 보장
+- ✅ Aggregate 저장 + Outbox 저장 = 하나의 트랜잭션
+- ✅ 별도 Worker가 Outbox → Kafka 전송 (비동기)
+
+**예시:**
+- OrderCreator: orderRepository.store(order) + outboxEventAppender.append(order)
+- PaymentCreator: paymentRepository.store(payment) + outboxEventAppender.append(payment)
+
+## 파일 구조 핵심 원칙
+
+### Domain Layer
+```
+core/domain/
+├── {aggregate}/                             # 예: order, payment, delivery
+│   ├── {Aggregate}.java                     # Aggregate Root
+│   ├── {Aggregate}Creator.java              # Domain Service (생성)
+│   ├── {Aggregate}Reader.java               # Domain Service (조회)
+│   ├── {AggregateItem}.java                 # Value Object (선택)
+│   ├── {Aggregate}Number.java               # Value Object
+│   ├── {Aggregate}Status.java               # Enum
+│   ├── command/
+│   │   └── Create{Aggregate}Command.java    # Domain Command
+│   ├── event/
+│   │   └── {Aggregate}CreatedEvent.java     # Domain Event
+│   └── required/                            # ⭐ 모든 Port
+│       └── {Aggregate}Repository.java       # 영속성 Port (통합)
+│
+├── outbox/
+│   ├── OutboxEventAppender.java             # Domain Service
+│   ├── OutboxEventType.java                 # Enum
+│   └── required/
+│       └── OutboxEventClient.java           # Outbox Port
+│
+└── shared/
+    ├── AggregateRoot.java                   # 추상 클래스 (Domain Event 관리)
+    ├── Money.java                           # Value Object (공통)
+    ├── Weight.java                          # Value Object (공통)
+    └── event/
+        └── DomainEvent.java                 # Domain Event 인터페이스
+```
+
+**예시:**
+- Order: order/, Order.java, OrderCreator.java, CreateOrderCommand.java
+- Payment: payment/, Payment.java, PaymentCreator.java, CreatePaymentCommand.java
+- Delivery: delivery/, Delivery.java, DeliveryCreator.java, CreateDeliveryCommand.java
+
+### Application Layer
+```
+core/application/{aggregate}/                # 예: order, payment, delivery
+└── {Aggregate}Facade.java                   # Facade (흐름 조정)
+```
+
+**예시:**
+- Order: application/order/OrderFacade.java
+- Payment: application/payment/PaymentFacade.java
+- Delivery: application/delivery/DeliveryFacade.java
+
+### Infrastructure Layer
+```
+infrastructure/
+├── storage/db/{aggregate}/                      # 예: order, payment, delivery
+│   ├── adapter/
+│   │   └── {Aggregate}RepositoryAdapter.java    # Repository 구현
+│   └── entity/
+│       ├── {Aggregate}Entity.java
+│       └── {AggregateItem}Entity.java           # (선택)
+└── outbox/
+    ├── KafkaOutboxEventClient.java              # Outbox 구현
+    ├── KafkaOutboxEventMapper.java              # Mapper
+    └── KafkaOutboxEvent.java                    # DTO
+```
+
+**예시:**
+- Order: storage/db/order/adapter/OrderRepositoryAdapter.java
+- Payment: storage/db/payment/adapter/PaymentRepositoryAdapter.java
+- Delivery: storage/db/delivery/adapter/DeliveryRepositoryAdapter.java
+
+## 빠른 체크리스트
+
+- [ ] Domain에 @Entity, @Table 등 JPA 어노테이션 없는가?
+- [ ] Domain Service에 @Service 애노테이션 사용하는가?
+- [ ] Facade가 Domain Service만 호출하는가?
+- [ ] Command가 Domain Layer에 있는가?
+- [ ] 트랜잭션이 Repository Adapter에 있는가? (@Transactional)
+- [ ] Outbox 저장이 Aggregate 저장과 같은 트랜잭션인가?
+- [ ] Controller가 Facade만 호출하는가?
+- [ ] 모든 커스텀 Exception이 BaseException을 상속받는가? ⭐
+- [ ] {Aggregate}Repository가 통합 인터페이스인가? (Store/Reader 분리 안 함)
+- [ ] Job이 BaseScheduledJob 또는 LoggingScheduledJob을 구현/상속하는가? ⭐
+- [ ] 1개 Job 클래스에 1개 @Scheduled 메서드만 있는가? ⭐
+- [ ] Job 클래스 이름이 *Job으로 끝나는가? ⭐
+
+## 상세 규칙 문서
+
+더 상세한 규칙은 다음 파일들을 참고하세요:
+- Domain Layer: 02-domain.md
+- Application Layer: 03-application.md
+- Infrastructure Layer: 04-infrastructure.md
+- Interfaces Layer: 05-interfaces.md
+- Validation: 06-validation.md
+- Testing: 07-testing.md
+- Job Layer: 08-job.md ⭐
+---
+alwaysApply: true
+---
+
+# Domain Layer 규칙
+
+## 위치
+`core/domain/`
+
+## 저장소 구조
+
+```
+core/domain/
+├── {aggregate}/                         # 예: order, payment, delivery
+│   ├── {Aggregate}.java                 # Aggregate Root
+│   ├── {Aggregate}Creator.java          # Domain Service (생성)
+│   ├── {Aggregate}Reader.java           # Domain Service (조회)
+│   ├── {AggregateItem}.java             # Value Object (선택)
+│   ├── {Aggregate}Number.java           # Value Object
+│   ├── {Aggregate}Status.java           # Enum
+│   ├── {Property1}.java                 # Value Object (도메인 특화)
+│   ├── {Property2}.java                 # Value Object (도메인 특화)
+│   ├── command/
+│   │   └── Create{Aggregate}Command.java  # Domain Command
+│   ├── event/
+│   │   └── {Aggregate}CreatedEvent.java   # Domain Event
+│   ├── exception/
+│   │   ├── {Aggregate}NotFoundException.java
+│   │   └── Invalid{Aggregate}Exception.java
+│   └── required/                        # ⭐ 모든 Port
+│       └── {Aggregate}Repository.java   # 영속성 Port (통합)
+│
+├── outbox/
+│   ├── OutboxEventAppender.java         # Domain Service
+│   ├── OutboxEventType.java             # Enum
+│   └── required/
+│       └── OutboxEventClient.java       # Outbox Port
+│
+└── shared/
+    ├── AggregateRoot.java               # 추상 클래스 (Domain Event 관리)
+    ├── Money.java                       # Value Object (공통)
+    ├── Weight.java                      # Value Object (공통)
+    ├── Volume.java                      # Value Object (공통)
+    ├── Address.java                     # Value Object (공통)
+    ├── Contact.java                     # Value Object (공통)
+    ├── LatLng.java                      # Value Object (공통)
+    └── event/
+        └── DomainEvent.java             # Domain Event 인터페이스
+```
+
+**예시:**
+- Order: order/, Order.java, OrderCreator.java, OrderItem.java, Origin, Destination
+- Payment: payment/, Payment.java, PaymentCreator.java, PaymentMethod, PaymentAmount
+- Delivery: delivery/, Delivery.java, DeliveryCreator.java, DeliveryAddress, DeliveryDriver
+
+**중요:** 
+- **모든 Port는 required/에 위치** (일관성)
+- **Domain Service는 domain/{aggregate}/ 직속** (OrderCreator, OrderReader)
+- **Command는 domain/{aggregate}/command/에 위치**
+- **Repository는 통합 인터페이스** (Store/Reader 분리 안 함)
+- Infrastructure에서 Adapter로 구현
+
+## 책임
+- 순수 비즈니스 규칙과 로직
+- 핵심 불변식 유지
+- 자기 검증
+- 모든 외부 의존성 Port 인터페이스 정의 (required/)
+- Domain Service로 비즈니스 로직 수행
+
+## 반드시 해야 할 것
+1. Aggregate Root는 AggregateRoot 추상 클래스 상속
+2. 엔티티 내부에서 자기 검증 구현
+3. 비즈니스 계산 로직 포함
+4. 팩토리 메서드 제공 (create, from 등)
+5. Domain Service에 @Service 애노테이션 사용
+6. Setter 사용 금지 (@Getter만, @Setter 금지)
+7. 모든 외부 의존성 Port는 required/에 위치
+
+## 절대 하지 말 것
+1. @Entity, @Table, @Column, @Id 등 JPA 어노테이션 사용 금지
+2. Infrastructure 의존 금지
+3. Repository 구현체 의존 금지 (인터페이스만)
+
+---
+
+## AggregateRoot 추상 클래스
+
+모든 Aggregate Root는 `AggregateRoot`를 상속받아 Domain Event를 관리합니다.
+
+```java
+// core/domain/shared/AggregateRoot.java
+public abstract class AggregateRoot {
+
+  private final List<DomainEvent> domainEvents = new ArrayList<>();
+
+  protected void addDomainEvent(DomainEvent event) {
+    this.domainEvents.add(event);
+  }
+
+  public List<DomainEvent> getDomainEvents() {
+    return Collections.unmodifiableList(domainEvents);
+  }
+
+  public void clearDomainEvents() {
+    this.domainEvents.clear();
+  }
+}
+```
+
+---
+
+## Domain Entity 템플릿
+
+### 일반 템플릿
+
+```java
+// core/domain/{aggregate}/{Aggregate}.java
+@Getter
+@ToString
+public class {Aggregate} extends AggregateRoot {
+    
+    private final Long id;
+    private final {Aggregate}Number {aggregate}Number;
+    private final {Aggregate}Status status;
+    private final List<{AggregateItem}> items;  // (선택)
+    private final {Property1} property1;
+    private final {Property2} property2;
+    private final Instant createdAt;
+    private final Instant completedAt;
+    private final Instant cancelledAt;
+    
+    // 생성자 - 필수 값 검증
+    public {Aggregate}(
+        Long id,
+        {Aggregate}Number {aggregate}Number,
+        {Aggregate}Status status,
+        List<{AggregateItem}> items,
+        {Property1} property1,
+        {Property2} property2,
+        Instant createdAt,
+        Instant completedAt,
+        Instant cancelledAt
+    ) {
+        // 필수 값 검증
+        if (id == null) {
+            throw new IllegalArgumentException("ID는 필수입니다");
+        }
+        if ({aggregate}Number == null) {
+            throw new IllegalArgumentException("{Aggregate} 번호는 필수입니다");
+        }
+        // ... 기타 검증
+        
+        this.id = id;
+        this.{aggregate}Number = {aggregate}Number;
+        this.status = status;
+        this.items = items != null ? List.copyOf(items) : null;
+        this.property1 = property1;
+        this.property2 = property2;
+        this.createdAt = createdAt;
+        this.completedAt = completedAt;
+        this.cancelledAt = cancelledAt;
+    }
+    
+    // 팩토리 메서드 - 비즈니스 규칙 + Domain Event 자동 추가
+    public static {Aggregate} create(
+        Long id,
+        {Aggregate}Number {aggregate}Number,
+        List<{AggregateItem}> items,
+        {Property1} property1,
+        {Property2} property2
+    ) {
+        {Aggregate} {aggregate} = new {Aggregate}(
+            id,
+            {aggregate}Number,
+            {Aggregate}Status.CREATED,
+            items,
+            property1,
+            property2,
+            Instant.now(),
+            null,
+            null
+        );
+        
+        // Domain Event 자동 추가
+        {aggregate}.addDomainEvent({Aggregate}CreatedEvent.from({aggregate}));
+        
+        return {aggregate};
+    }
+}
+```
+
+### 실제 예시 (Order)
+
+```java
+// core/domain/order/Order.java
+@Getter
+@ToString
+public class Order extends AggregateRoot {
+    
+    private final Long id;
+    private final OrderNumber orderNumber;
+    private final OrderStatus status;
+    private final List<OrderItem> items;
+    private final Origin origin;
+    private final Destination destination;
+    private final DeliveryPolicy deliveryPolicy;
+    private final Instant orderedAt;
+    private final Instant deliveredAt;
+    private final Instant cancelledAt;
+    
+    // 생성자 - 필수 값 검증
+    public Order(
+        Long id,
+        OrderNumber orderNumber,
+        OrderStatus status,
+        List<OrderItem> items,
+        Origin origin,
+        Destination destination,
+        DeliveryPolicy deliveryPolicy,
+        Instant orderedAt,
+        Instant deliveredAt,
+        Instant cancelledAt
+    ) {
+        // 필수 값 검증
+        if (id == null) {
+            throw new IllegalArgumentException("ID는 필수입니다");
+        }
+        if (orderNumber == null) {
+            throw new IllegalArgumentException("주문번호는 필수입니다");
+        }
+        // ... 기타 검증
+        
+        this.id = id;
+        this.orderNumber = orderNumber;
+        this.status = status;
+        this.items = List.copyOf(items);
+        this.origin = origin;
+        this.destination = destination;
+        this.deliveryPolicy = deliveryPolicy;
+        this.orderedAt = orderedAt;
+        this.deliveredAt = deliveredAt;
+        this.cancelledAt = cancelledAt;
+    }
+    
+    // 팩토리 메서드 - 비즈니스 규칙 + Domain Event 자동 추가
+    public static Order create(
+        Long id,
+        OrderNumber orderNumber,
+        List<OrderItem> items,
+        Origin origin,
+        Destination destination,
+        DeliveryPolicy deliveryPolicy
+    ) {
+        Order order = new Order(
+            id,
+            orderNumber,
+            OrderStatus.CREATED,
+            items,
+            origin,
+            destination,
+            deliveryPolicy,
+            Instant.now(),
+            null,
+            null
+        );
+        
+        // Domain Event 자동 추가
+        order.addDomainEvent(OrderCreatedEvent.from(order));
+        
+        return order;
+    }
+}
+```
+
+---
+
+## Domain Service 템플릿
+
+### 일반 템플릿
+
+#### {Aggregate}Creator (생성 책임)
+
+```java
+// core/domain/{aggregate}/{Aggregate}Creator.java
+@Service
+@RequiredArgsConstructor
+public class {Aggregate}Creator {
+
+  private final {Aggregate}NumberGenerator {aggregate}NumberGenerator;
+  private final {Aggregate}Repository {aggregate}Repository;
+  private final OutboxEventAppender outboxEventAppender;
+
+  @Transactional
+  public {Aggregate} create(Create{Aggregate}Command command) {
+    // 1. {Aggregate} 번호 생성
+    {Aggregate}Number {aggregate}Number = {aggregate}NumberGenerator.generate();
+
+    // 2. {Aggregate} 저장 ({Aggregate}.create()가 내부에서 호출되어 도메인 이벤트 자동 추가)
+    {Aggregate} {aggregate} =
+        {aggregate}Repository.store(
+            {aggregate}Number,
+            command.items(),
+            command.property1(),
+            command.property2());
+
+    // 3. 도메인 이벤트 발행
+    outboxEventAppender.append(OutboxEventType.{AGGREGATE}_CREATED, {aggregate});
+
+    return {aggregate};
+  }
+}
+```
+
+#### {Aggregate}Reader (조회 책임)
+
+```java
+// core/domain/{aggregate}/{Aggregate}Reader.java
+@Service
+@RequiredArgsConstructor
+public class {Aggregate}Reader {
+
+  private final {Aggregate}Repository {aggregate}Repository;
+
+  @ReadOnlyTransactional
+  public {Aggregate} get{Aggregate}ById(Long id) {
+    return {aggregate}Repository
+        .findById(id)
+        .orElseThrow(() -> new {Aggregate}NotFoundException(id));
+  }
+
+  @ReadOnlyTransactional
+  public {Aggregate} get{Aggregate}By{Aggregate}Number({Aggregate}Number {aggregate}Number) {
+    return {aggregate}Repository
+        .findBy{Aggregate}Number({aggregate}Number)
+        .orElseThrow(() -> new {Aggregate}NotFoundException({aggregate}Number));
+  }
+}
+```
+
+### 실제 예시 (Order)
+
+#### OrderCreator
+
+```java
+// core/domain/order/OrderCreator.java
+@Service
+@RequiredArgsConstructor
+public class OrderCreator {
+
+  private final OrderNumberGenerator orderNumberGenerator;
+  private final OrderRepository orderRepository;
+  private final OutboxEventAppender outboxEventAppender;
+
+  @Transactional
+  public Order create(CreateOrderCommand command) {
+    // 1. 주문번호 생성
+    OrderNumber orderNumber = orderNumberGenerator.generate();
+
+    // 2. Order 저장 (Order.create()가 내부에서 호출되어 도메인 이벤트 자동 추가)
+    Order order =
+        orderRepository.store(
+            orderNumber,
+            command.items(),
+            command.origin(),
+            command.destination(),
+            command.deliveryPolicy());
+
+    // 3. 도메인 이벤트 발행
+    outboxEventAppender.append(OutboxEventType.ORDER_CREATED, order);
+
+    return order;
+  }
+}
+```
+
+#### OrderReader
+
+```java
+// core/domain/order/OrderReader.java
+@Service
+@RequiredArgsConstructor
+public class OrderReader {
+
+  private final OrderRepository orderRepository;
+
+  @ReadOnlyTransactional
+  public Order getOrderById(Long id) {
+    return orderRepository
+        .findById(id)
+        .orElseThrow(() -> new OrderNotFoundException(id));
+  }
+
+  @ReadOnlyTransactional
+  public Order getOrderByOrderNumber(OrderNumber orderNumber) {
+    return orderRepository
+        .findByOrderNumber(orderNumber)
+        .orElseThrow(() -> new OrderNotFoundException(orderNumber));
+  }
+}
+```
+
+**특징:**
+- ✅ @Service 애노테이션 사용
+- ✅ 책임 분리 (Creator: 생성, Reader: 조회)
+- ✅ 비즈니스 로직은 여기서 수행
+- ✅ Repository Port(인터페이스)만 의존
+
+---
+
+## OrderRepository Port 템플릿 (통합)
+
+**중요:** Store/Reader 분리하지 않고 **하나의 Repository로 통합**
+
+```java
+// core/domain/order/required/OrderRepository.java
+public interface OrderRepository {
+
+  /**
+   * Order 생성 및 저장
+   *
+   * <p>Order Entity를 생성하고 저장한 후, 완전한 Order 모델(id 포함)을 반환합니다.
+   *
+   * @param orderNumber 주문번호
+   * @param items 주문 아이템 목록
+   * @param origin 출발지
+   * @param destination 도착지
+   * @param deliveryPolicy 배송 정책
+   * @return 저장된 Order (id 할당됨)
+   */
+  Order store(
+      OrderNumber orderNumber,
+      List<OrderItem> items,
+      Origin origin,
+      Destination destination,
+      DeliveryPolicy deliveryPolicy);
+
+  /**
+   * ID로 Order 조회
+   */
+  Optional<Order> findById(Long id);
+
+  /**
+   * 주문번호로 Order 조회
+   */
+  Optional<Order> findByOrderNumber(OrderNumber orderNumber);
+
+  /**
+   * 주문번호 존재 여부 확인
+   */
+  boolean existsByOrderNumber(OrderNumber orderNumber);
+}
+```
+
+**특징:**
+- ✅ Domain Layer의 required/에 위치
+- ✅ **Store/Reader 분리하지 않음** (통합 인터페이스)
+- ✅ 순수 Java 인터페이스 (JPA 어노테이션 없음)
+- ✅ Infrastructure에서 Adapter로 구현
+
+---
+
+## Outbox Pattern
+
+### OutboxEventAppender (Domain Service)
+
+```java
+// core/domain/outbox/OutboxEventAppender.java
+@Service
+@RequiredArgsConstructor
+public class OutboxEventAppender {
+
+  private final OutboxEventClient outboxEventClient;
+
+  /**
+   * AggregateRoot를 Outbox에 저장
+   */
+  public void append(OutboxEventType type, AggregateRoot aggregateRoot) {
+    outboxEventClient.save(type, aggregateRoot);
+  }
+}
+```
+
+### OutboxEventClient Port
+
+```java
+// core/domain/outbox/required/OutboxEventClient.java
+public interface OutboxEventClient {
+
+  /**
+   * AggregateRoot를 Outbox에 저장
+   *
+   * @param type Outbox Event Type (ORDER_CREATED, ORDER_CANCELLED 등)
+   * @param aggregateRoot AggregateRoot (Order, Payment 등)
+   */
+  void save(OutboxEventType type, AggregateRoot aggregateRoot);
+}
+```
+
+### OutboxEventType
+
+```java
+// core/domain/outbox/OutboxEventType.java
+public enum OutboxEventType {
+  /** 주문 생성 이벤트 */
+  ORDER_CREATED,
+}
+```
+
+**Outbox 패턴 흐름:**
+```
+OrderCreator (Domain Service)
+  1. orderRepository.store(order)        → Order 저장 (DB)
+  2. outboxEventAppender.append(order)   → Outbox 저장 (DB, 같은 트랜잭션)
+     → outboxEventClient.save()          → Infrastructure Layer
+       → KafkaOutboxEventMapper.map()    → Order → KafkaEvent 변환
+       → outboxEventService.registerEvent() → Outbox 라이브러리 호출
+```
+
+---
+
+## Domain Command 템플릿
+
+Command는 **Domain Layer**에 위치합니다.
+
+```java
+// core/domain/order/command/CreateOrderCommand.java
+@Builder
+public record CreateOrderCommand(
+    List<OrderItem> items,
+    Origin origin,
+    Destination destination,
+    DeliveryPolicy deliveryPolicy
+) {
+    // 필수 값 검증
+    public CreateOrderCommand {
+        if (items == null || items.isEmpty()) {
+            throw new IllegalArgumentException("주문 아이템은 최소 1개 이상이어야 합니다");
+        }
+        if (origin == null) {
+            throw new IllegalArgumentException("출발지는 필수입니다");
+        }
+        if (destination == null) {
+            throw new IllegalArgumentException("도착지는 필수입니다");
+        }
+        if (deliveryPolicy == null) {
+            throw new IllegalArgumentException("배송 정책은 필수입니다");
+        }
+    }
+}
+```
+
+**특징:**
+- ✅ Domain Layer에 위치 (domain/{aggregate}/command/)
+- ✅ record 사용 (불변성)
+- ✅ 필수 값 검증만 (비즈니스 규칙은 Domain Service에서)
+
+---
+
+## Domain Event 템플릿
+
+### DomainEvent 인터페이스
+
+```java
+// core/domain/shared/event/DomainEvent.java
+public interface DomainEvent {
+  Instant occurredAt();
+  
+  default String eventType() {
+    return this.getClass().getSimpleName();
+  }
+  
+  String aggregateType();
+  String aggregateId();
+}
+```
+
+### OrderCreatedEvent
+
+```java
+// core/domain/order/event/OrderCreatedEvent.java
+public record OrderCreatedEvent(
+    Long orderId,
+    OrderNumber orderNumber,
+    OrderStatus status,
+    List<OrderItem> items,
+    Origin origin,
+    Destination destination,
+    DeliveryPolicy deliveryPolicy,
+    Instant orderedAt,
+    Instant occurredAt
+) implements DomainEvent {
+  
+  public static OrderCreatedEvent from(Order order) {
+    return new OrderCreatedEvent(
+        order.getId(),
+        order.getOrderNumber(),
+        order.getStatus(),
+        List.copyOf(order.getItems()),
+        order.getOrigin(),
+        order.getDestination(),
+        order.getDeliveryPolicy(),
+        order.getOrderedAt(),
+        Instant.now());
+  }
+
+  @Override
+  public String aggregateType() {
+    return "Order";
+  }
+
+  @Override
+  public String aggregateId() {
+    return String.valueOf(orderId);
+  }
+}
+```
+
+---
+
+## Value Object 템플릿
+
+```java
+// core/domain/shared/Money.java
+public record Money(BigDecimal amount) {
+    
+    public static final Money ZERO = new Money(BigDecimal.ZERO);
+    
+    public Money {
+        if (amount == null) {
+            throw new IllegalArgumentException("금액은 null일 수 없습니다");
+        }
+    }
+    
+    public static Money of(long amount) {
+        return new Money(BigDecimal.valueOf(amount));
+    }
+    
+    public boolean isNegative() {
+        return amount.compareTo(BigDecimal.ZERO) < 0;
+    }
+    
+    public Money add(Money other) {
+        return new Money(amount.add(other.amount));
+    }
+    
+    public Money multiply(int multiplier) {
+        return new Money(amount.multiply(BigDecimal.valueOf(multiplier)));
+    }
+}
+
+// core/domain/shared/Address.java
+public record Address(
+    String jibnunAddress,
+    String roadAddress,
+    String detailAddress
+) {
+    public Address {
+        if (jibnunAddress == null || jibnunAddress.isBlank()) {
+            throw new IllegalArgumentException("지번 주소는 필수입니다");
+        }
+        if (roadAddress == null || roadAddress.isBlank()) {
+            throw new IllegalArgumentException("도로명 주소는 필수입니다");
+        }
+    }
+}
+```
+
+---
+
+## Domain Exception 규칙
+
+### 저장소 구조
+
+```
+core/
+├── common/
+│   └── exception/
+│       ├── BaseException.java      # ⭐ 모든 커스텀 예외의 기반 클래스
+│       └── ErrorCode.java          # 에러 코드 enum
+│
+└── domain/
+    └── order/
+        └── exception/              # Domain Exception
+            ├── OrderNotFoundException.java
+            ├── OrderAlreadyAssignedException.java
+            └── InvalidOrderException.java
+```
+
+### BaseException 템플릿
+```java
+// core/common/exception/BaseException.java
+@Getter
+public abstract class BaseException extends RuntimeException {
+  
+  private final ErrorCode errorCode;
+  
+  protected BaseException(ErrorCode errorCode, String message) {
+    super(message);
+    this.errorCode = errorCode;
+  }
+  
+  protected BaseException(ErrorCode errorCode) {
+    super(errorCode.getMessage());
+    this.errorCode = errorCode;
+  }
+}
+```
+
+### Domain Exception 템플릿
+
+```java
+// core/domain/order/exception/OrderNotFoundException.java
+public class OrderNotFoundException extends BaseException {
+  
+  public OrderNotFoundException(Long orderId) {
+    super(ErrorCode.ORDER_NOT_FOUND, "주문을 찾을 수 없습니다. ID: " + orderId);
+  }
+  
+  public OrderNotFoundException(OrderNumber orderNumber) {
+    super(ErrorCode.ORDER_NOT_FOUND, "주문을 찾을 수 없습니다. 주문번호: " + orderNumber.value());
+  }
+}
+```
+
+---
+
+## 중요 원칙
+1. Domain은 순수 비즈니스 로직만
+2. **모든 Port는 required/에 위치** (일관성)
+3. **Repository는 통합 인터페이스** (Store/Reader 분리 안 함)
+4. **Domain Service는 domain/{aggregate}/ 직속**
+5. **Command는 domain/{aggregate}/command/에 위치**
+6. **모든 커스텀 Exception은 BaseException을 상속**
+7. Domain Service는 @Service 애노테이션 사용
+8. Aggregate Root는 AggregateRoot 상속으로 Domain Event 관리
+9. Infrastructure는 절대 의존하지 않음 (인터페이스로만 의존)
+---
+alwaysApply: true
+---
+
+# Application Layer 규칙
+
+## 위치
+`core/application/`
+
+## 저장소 구조
+
+```
+core/application/{aggregate}/                # 예: order, payment, delivery
+└── {Aggregate}Facade.java                   # Facade (흐름 조정)
+```
+
+**예시:**
+- Order: application/order/OrderFacade.java
+- Payment: application/payment/PaymentFacade.java
+- Delivery: application/delivery/DeliveryFacade.java
+
+**중요:**
+- **Facade Pattern 사용** (UseCase 대신)
+- **Domain Service만 호출** (비즈니스 로직은 Domain에서)
+- **Command는 Domain Layer에 위치** (application에 없음)
+
+## 책임
+- Facade로 흐름 조정
+- Domain Service 호출
+- 트랜잭션 관리 (필요 시)
+
+## 반드시 해야 할 것
+1. @Facade 애노테이션 사용
+2. Domain Service만 의존
+3. 비즈니스 로직은 절대 직접 구현 금지
+4. 간단한 흐름 조정만
+
+## 절대 하지 말 것
+1. 비즈니스 로직 직접 구현 금지
+2. JPA, Infrastructure 직접 의존 금지
+3. Repository 직접 호출 금지 (Domain Service를 통해서만)
+4. 복잡한 로직 작성 금지
+
+---
+
+## Facade 패턴
+
+### 아키텍처
+
+```
+Controller (Interface Layer)
+  → Facade (Application Layer) - 흐름만 조정
+    → Domain Service (Domain Layer) - 비즈니스 로직 수행
+      → Repository (Port) - 영속성
+        → Adapter (Infrastructure Layer) - 기술 구현
+```
+
+**특징:**
+- ✅ Facade는 흐름만 조정 (비즈니스 로직 없음)
+- ✅ Domain Service가 실제 비즈니스 로직 수행
+- ✅ 트랜잭션은 Domain Service에서 관리
+
+---
+
+## Facade 템플릿
+
+### 일반 템플릿
+
+```java
+// core/application/{aggregate}/{Aggregate}Facade.java
+@Facade
+@RequiredArgsConstructor
+public class {Aggregate}Facade {
+
+  private final {Aggregate}Creator {aggregate}Creator;
+  private final {Aggregate}Reader {aggregate}Reader;
+
+  /**
+   * {Aggregate} 생성
+   *
+   * <p>{Aggregate}Creator Domain Service를 호출하여 생성합니다.
+   *
+   * @param command 생성 Command (Domain Layer에 위치)
+   * @return 생성된 {Aggregate}
+   */
+  public {Aggregate} create{Aggregate}(Create{Aggregate}Command command) {
+    return {aggregate}Creator.create(command);
+  }
+
+  /**
+   * {Aggregate} 조회 (ID)
+   *
+   * @param id {Aggregate} ID
+   * @return {Aggregate}
+   */
+  public {Aggregate} get{Aggregate}ById(Long id) {
+    return {aggregate}Reader.get{Aggregate}ById(id);
+  }
+
+  /**
+   * {Aggregate} 조회 ({Aggregate}번호)
+   *
+   * @param {aggregate}Number {Aggregate} 번호
+   * @return {Aggregate}
+   */
+  public {Aggregate} get{Aggregate}By{Aggregate}Number({Aggregate}Number {aggregate}Number) {
+    return {aggregate}Reader.get{Aggregate}By{Aggregate}Number({aggregate}Number);
+  }
+}
+```
+
+### 실제 예시 (Order)
+
+```java
+// core/application/order/OrderFacade.java
+@Facade
+@RequiredArgsConstructor
+public class OrderFacade {
+
+  private final OrderCreator orderCreator;
+  private final OrderReader orderReader;
+
+  /**
+   * 주문 생성
+   *
+   * <p>OrderCreator Domain Service를 호출하여 주문을 생성합니다.
+   *
+   * @param command 주문 생성 Command (Domain Layer에 위치)
+   * @return 생성된 Order
+   */
+  public Order createOrder(CreateOrderCommand command) {
+    return orderCreator.create(command);
+  }
+
+  /**
+   * 주문 조회 (ID)
+   *
+   * @param orderId 주문 ID
+   * @return Order
+   */
+  public Order getOrderById(Long orderId) {
+    return orderReader.getOrderById(orderId);
+  }
+
+  /**
+   * 주문 조회 (주문번호)
+   *
+   * @param orderNumber 주문번호
+   * @return Order
+   */
+  public Order getOrderByOrderNumber(OrderNumber orderNumber) {
+    return orderReader.getOrderByOrderNumber(orderNumber);
+  }
+}
+```
+
+**특징:**
+- ✅ @Facade 애노테이션
+- ✅ Domain Service만 호출
+- ✅ 비즈니스 로직 없음 (단순 위임)
+- ✅ Command는 Domain Layer에서 가져옴
+
+---
+
+## @Facade 애노테이션
+
+```java
+// core/application/common/annotation/Facade.java
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@Service
+public @interface Facade {
+}
+```
+
+**특징:**
+- ✅ Spring @Service를 포함
+- ✅ 의미론적으로 Facade임을 명시
+- ✅ Component Scan에서 자동 등록
+
+---
+
+## 트랜잭션 전략
+
+### 기본: Domain Service에서 @Transactional
+
+**Facade는 트랜잭션 관리 안 함**
+
+```java
+// Domain Service에서 트랜잭션
+@Service
+@RequiredArgsConstructor
+public class OrderCreator {
+
+  @Transactional  // ⭐ Domain Service에서 트랜잭션
+  public Order create(CreateOrderCommand command) {
+    // 1. 주문번호 생성
+    OrderNumber orderNumber = orderNumberGenerator.generate();
+
+    // 2. Order 저장
+    Order order = orderRepository.store(...);
+
+    // 3. Outbox 저장 (같은 트랜잭션)
+    outboxEventAppender.append(OutboxEventType.ORDER_CREATED, order);
+
+    return order;
+  }
+}
+
+// Facade는 단순 호출
+@Facade
+@RequiredArgsConstructor
+public class OrderFacade {
+
+  public Order createOrder(CreateOrderCommand command) {
+    return orderCreator.create(command);  // 트랜잭션은 Domain Service에서
+  }
+}
+```
+
+---
+
+## Command 위치
+
+**Command는 Application이 아닌 Domain Layer에 위치합니다.**
+
+```
+❌ 잘못된 위치:
+core/application/order/command/CreateOrderCommand.java
+
+✅ 올바른 위치:
+core/domain/order/command/CreateOrderCommand.java
+```
+
+**이유:**
+- Command는 Domain 개념 (비즈니스 요구사항)
+- Domain Service가 직접 사용
+- Application은 단순히 전달만
+
+---
+
+## Facade vs UseCase 비교
+
+### UseCase 패턴 (이전)
+
+```java
+@UseCase
+@RequiredArgsConstructor
+public class CreateOrderUseCase {
+  
+  private final OrderRepository orderRepository;
+  private final OrderNumberGenerator orderNumberGenerator;
+  private final OutboxEventPublisher outboxEventPublisher;
+
+  @Transactional
+  public Order execute(CreateOrderCommand command) {
+    // UseCase에서 비즈니스 로직 직접 수행
+    OrderNumber orderNumber = orderNumberGenerator.generate();
+    
+    Order order = Order.create(...);
+    Order saved = orderRepository.save(order);
+    
+    outboxEventPublisher.publish(saved.getDomainEvents());
+    
+    return saved;
+  }
+}
+```
+
+**문제점:**
+- ❌ UseCase가 비즈니스 로직을 직접 수행
+- ❌ Domain Service 개념 없음
+- ❌ 재사용 어려움
+
+### Facade 패턴 (현재)
+
+```java
+@Facade
+@RequiredArgsConstructor
+public class OrderFacade {
+  
+  private final OrderCreator orderCreator;
+
+  public Order createOrder(CreateOrderCommand command) {
+    // Facade는 단순 호출만
+    return orderCreator.create(command);
+  }
+}
+
+@Service
+@RequiredArgsConstructor
+public class OrderCreator {
+  
+  @Transactional
+  public Order create(CreateOrderCommand command) {
+    // Domain Service가 비즈니스 로직 수행
+    OrderNumber orderNumber = orderNumberGenerator.generate();
+    Order order = orderRepository.store(...);
+    outboxEventAppender.append(OutboxEventType.ORDER_CREATED, order);
+    return order;
+  }
+}
+```
+
+**장점:**
+- ✅ Facade는 흐름만 조정
+- ✅ Domain Service가 비즈니스 로직 수행
+- ✅ Domain Service 재사용 가능
+- ✅ 책임 분리 명확
+
+---
+
+## 여러 Domain Service 조합
+
+여러 Domain Service를 조합해야 할 때는 **Facade에서 흐름 조정**
+
+```java
+@Facade
+@RequiredArgsConstructor
+public class OrderFacade {
+  
+  private final OrderCreator orderCreator;
+  private final OrderValidator orderValidator;
+  private final InventoryChecker inventoryChecker;
+
+  public Order createOrderWithValidation(CreateOrderCommand command) {
+    // 1. 재고 확인 (Domain Service)
+    inventoryChecker.checkAvailability(command.items());
+    
+    // 2. 주문 검증 (Domain Service)
+    orderValidator.validate(command);
+    
+    // 3. 주문 생성 (Domain Service)
+    return orderCreator.create(command);
+  }
+}
+```
+
+**특징:**
+- ✅ Facade가 여러 Domain Service 조합
+- ✅ 각 Domain Service는 독립적
+- ✅ Facade는 흐름만 제어
+
+---
+
+## 복잡한 흐름 처리
+
+### TransactionTemplate 사용 (선택적)
+
+여러 Aggregate를 수정하고 외부 API 호출이 있는 경우
+
+```java
+@Facade
+@RequiredArgsConstructor
+public class OrderFacade {
+  
+  private final TransactionTemplate transactionTemplate;
+  private final OrderCreator orderCreator;
+  private final PaymentProcessor paymentProcessor;
+  private final OrderStatusUpdater orderStatusUpdater;
+
+  public Order createAndPayOrder(CreateOrderCommand command, PaymentInfo paymentInfo) {
+    
+    // 1. 트랜잭션 1: 주문 생성
+    Order order = transactionTemplate.execute(status -> 
+      orderCreator.create(command)
+    );
+    
+    // 2. 외부 API: 결제 처리 (트랜잭션 밖)
+    PaymentResult result = paymentProcessor.process(order.getId(), paymentInfo);
+    
+    // 3. 트랜잭션 2: 주문 상태 업데이트
+    return transactionTemplate.execute(status -> 
+      orderStatusUpdater.updateToPaid(order.getId(), result)
+    );
+  }
+}
+```
+
+**언제 사용:**
+- ✅ 여러 Aggregate 수정 + 외부 API 호출
+- ✅ 트랜잭션 분리가 필요한 경우
+
+---
+
+## 예외 처리
+
+### Domain Exception은 그대로 전파
+
+```java
+@Facade
+@RequiredArgsConstructor
+public class OrderFacade {
+  
+  private final OrderReader orderReader;
+
+  public Order getOrderById(Long orderId) {
+    // Domain Service에서 발생한 예외를 그대로 전파
+    return orderReader.getOrderById(orderId);  // OrderNotFoundException 발생 가능
+  }
+}
+```
+
+**특징:**
+- ✅ Facade는 예외를 변환하지 않음
+- ✅ Domain Exception을 그대로 전파
+- ✅ Controller의 ExceptionHandler에서 처리
+
+---
+
+## 금지 사항
+
+### ❌ Facade에서 비즈니스 로직 직접 구현
+
+```java
+// ❌ 나쁜 예
+@Facade
+public class OrderFacade {
+  
+  public Order createOrder(CreateOrderCommand command) {
+    // Facade에서 비즈니스 로직 직접 수행 금지!
+    OrderNumber orderNumber = orderNumberGenerator.generate();
+    Order order = Order.create(...);
+    Order saved = orderRepository.store(...);
+    outboxEventAppender.append(...);
+    return saved;
+  }
+}
+
+// ✅ 좋은 예
+@Facade
+public class OrderFacade {
+  
+  public Order createOrder(CreateOrderCommand command) {
+    // Domain Service에게 위임
+    return orderCreator.create(command);
+  }
+}
+```
+
+### ❌ Repository 직접 호출
+
+```java
+// ❌ 나쁜 예
+@Facade
+public class OrderFacade {
+  
+  private final OrderRepository orderRepository;  // 금지!
+
+  public Order getOrder(Long id) {
+    return orderRepository.findById(id).orElseThrow();
+  }
+}
+
+// ✅ 좋은 예
+@Facade
+public class OrderFacade {
+  
+  private final OrderReader orderReader;  // Domain Service
+
+  public Order getOrder(Long id) {
+    return orderReader.getOrderById(id);
+  }
+}
+```
+
+---
+
+## 체크리스트
+
+- [ ] Facade에 @Facade 애노테이션이 있는가?
+- [ ] Facade가 Domain Service만 호출하는가?
+- [ ] Facade에 비즈니스 로직이 없는가?
+- [ ] Command가 Domain Layer에 있는가?
+- [ ] Repository를 직접 호출하지 않는가?
+- [ ] 트랜잭션이 Domain Service에 있는가?
+- [ ] 예외를 변환하지 않고 그대로 전파하는가?
+
+---
+
+## 중요 원칙
+
+1. **Facade는 흐름만 조정** (비즈니스 로직 없음)
+2. **Domain Service가 비즈니스 로직 수행**
+3. **Command는 Domain Layer에 위치**
+4. **트랜잭션은 Domain Service에서 관리**
+5. **Repository는 Domain Service를 통해서만 호출**
+6. **여러 Domain Service 조합 시 Facade에서 흐름 제어**
+---
+alwaysApply: true
+---
+
+# Infrastructure Layer 규칙
+
+## 위치
+`infrastructure/`
+
+## 책임
+- 기술 구현 (JPA, Kafka, Feign, Redis)
+- Domain Port 인터페이스 구현 (Store/Reader)
+- 외부 시스템 연동
+
+## 저장소 구조
+
+**infrastructure/**
+- **storage/** - 저장소
+  - **db/** - 데이터베이스 (JPA)
+    - {aggregate}/                   # 예: order, payment, delivery
+      - entity/
+      - adapter/
+  - **cache/** - 캐시 (Redis) [선택]
+    - {aggregate}/
+    - config/
+- **outbox/** - Outbox Pattern
+  - KafkaOutboxEventClient.java
+  - KafkaOutboxEventMapper.java
+  - KafkaOutboxEvent.java
+- **external/** - 외부 API [선택]
+  - client/
+  - adapter/
+- **config/** - 공통 설정
+
+**예시:**
+- Order: storage/db/order/entity/, storage/db/order/adapter/
+- Payment: storage/db/payment/entity/, storage/db/payment/adapter/
+- Delivery: storage/db/delivery/entity/, storage/db/delivery/adapter/
+
+## JPA Entity 규칙
+
+### 반드시 해야 할 것
+1. @Entity, @Table 등 JPA 어노테이션 사용
+2. from(Domain) 정적 메서드로 Domain → Entity 변환
+3. toDomain() 인스턴스 메서드로 Entity → Domain 변환
+4. @NoArgsConstructor(access = AccessLevel.PROTECTED)
+5. Getter만 사용 (Setter 금지)
+6. **공통 코드 스타일 준수** (00-workflow.mdc 참고)
+   - FQCN 대신 import 사용
+
+### 절대 하지 말 것
+1. Entity에 비즈니스 로직 작성 금지
+2. Entity가 Domain을 상속받는 것 금지
+3. FQCN(Fully Qualified Class Name) 사용 금지
+4. EAGER fetch 사용 금지
+5. 양방향 연관관계 최소화
+
+### JPA Entity 템플릿
+
+#### 일반 템플릿
+
+```java
+// infrastructure/storage/db/{aggregate}/entity/{Aggregate}Entity.java
+@Entity
+@Table(name = "{aggregates}")  # 테이블명은 복수형
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class {Aggregate}Entity {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(nullable = false, unique = true)
+    private String {aggregate}Number;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private {Aggregate}Status status;
+    
+    @Column(nullable = false)
+    private BigDecimal amount;  // 도메인 특화 필드
+    
+    @Embedded
+    private Property1Embed property1;  // Embedded Value Object
+    
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "{aggregate}_id")
+    private List<{Aggregate}ItemEntity> items = new ArrayList<>();  // (선택)
+    
+    @Column(nullable = false, updatable = false)
+    private Instant createdAt;
+    
+    // Domain → Entity 변환
+    public static {Aggregate}Entity from({Aggregate} domain) {
+        {Aggregate}Entity entity = new {Aggregate}Entity();
+        entity.id = domain.getId();
+        entity.{aggregate}Number = domain.get{Aggregate}Number().value();
+        entity.status = domain.getStatus();
+        entity.amount = domain.getAmount().amount();
+        entity.property1 = Property1Embed.from(domain.getProperty1());
+        entity.items = domain.getItems().stream()
+            .map({Aggregate}ItemEntity::from)
+            .collect(Collectors.toList());
+        entity.createdAt = domain.getCreatedAt();
+        return entity;
+    }
+    
+    // Entity → Domain 변환
+    public {Aggregate} toDomain() {
+        return {Aggregate}.builder()
+            .id(this.id)
+            .{aggregate}Number({Aggregate}Number.of(this.{aggregate}Number))
+            .status(this.status)
+            .amount(Money.of(this.amount))
+            .property1(this.property1.toDomain())
+            .items(this.items.stream()
+                .map({Aggregate}ItemEntity::toDomain)
+                .collect(Collectors.toList()))
+            .createdAt(this.createdAt)
+            .build();
+    }
+}
+```
+
+#### 실제 예시 (Order)
+
+```java
+// infrastructure/storage/db/order/entity/OrderEntity.java
+@Entity
+@Table(name = "orders")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class OrderEntity {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(nullable = false, unique = true)
+    private String orderNumber;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private OrderStatus status;
+    
+    @Column(nullable = false)
+    private BigDecimal totalAmount;
+    
+    @Embedded
+    private AddressEmbed deliveryAddress;
+    
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "order_id")
+    private List<OrderItemEntity> items = new ArrayList<>();
+    
+    @Column(nullable = false, updatable = false)
+    private Instant orderedAt;
+    
+    // Domain → Entity 변환
+    public static OrderEntity from(Order domain) {
+        OrderEntity entity = new OrderEntity();
+        entity.id = domain.getId();
+        entity.orderNumber = domain.getOrderNumber().value();
+        entity.status = domain.getStatus();
+        entity.totalAmount = domain.getTotalAmount().amount();
+        entity.deliveryAddress = AddressEmbed.from(domain.getDeliveryAddress());
+        entity.items = domain.getItems().stream()
+            .map(OrderItemEntity::from)
+            .collect(Collectors.toList());
+        entity.orderedAt = domain.getOrderedAt();
+        return entity;
+    }
+    
+    // Entity → Domain 변환
+    public Order toDomain() {
+        return Order.builder()
+            .id(this.id)
+            .orderNumber(OrderNumber.of(this.orderNumber))
+            .status(this.status)
+            .totalAmount(Money.of(this.totalAmount))
+            .deliveryAddress(this.deliveryAddress.toDomain())
+            .items(this.items.stream()
+                .map(OrderItemEntity::toDomain)
+                .collect(Collectors.toList()))
+            .orderedAt(this.orderedAt)
+            .build();
+    }
+}
+```
+
+```java
+// infrastructure/storage/db/order/entity/OrderItemJpaEntity.java
+@Entity
+@Table(name = "order_items")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class OrderItemJpaEntity {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(nullable = false)
+    private Long productId;
+    
+    @Column(nullable = false)
+    private String productName;
+    
+    @Column(nullable = false)
+    private Integer quantity;
+    
+    @Column(nullable = false)
+    private BigDecimal unitPrice;
+    
+    public static OrderItemJpaEntity from(OrderItem domain) {
+        OrderItemJpaEntity entity = new OrderItemJpaEntity();
+        entity.id = domain.getId();
+        entity.productId = domain.getProductId();
+        entity.productName = domain.getProductName();
+        entity.quantity = domain.getQuantity();
+        entity.unitPrice = domain.getUnitPrice().value();
+        return entity;
+    }
+    
+    public OrderItem toDomain() {
+        return OrderItem.builder()
+            .id(this.id)
+            .productId(this.productId)
+            .productName(this.productName)
+            .quantity(this.quantity)
+            .unitPrice(Money.of(this.unitPrice))
+            .build();
+    }
+}
+```
+
+```java
+// infrastructure/storage/db/order/entity/AddressEmbed.java
+@Embeddable
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+public class AddressEmbed {
+    
+    @Column(name = "zip_code", nullable = false)
+    private String zipCode;
+    
+    @Column(name = "street", nullable = false)
+    private String street;
+    
+    @Column(name = "detail")
+    private String detail;
+    
+    public static AddressEmbed from(Address domain) {
+        return new AddressEmbed(
+            domain.zipCode(),
+            domain.street(),
+            domain.detail()
+        );
+    }
+    
+    public Address toDomain() {
+        return new Address(zipCode, street, detail);
+    }
+}
+```
+
+---
+
+## Flyway 마이그레이션 규칙 ⭐
+
+### 위치
+`infrastructure/src/main/resources/db/migration/`
+
+### 필수 원칙
+**Domain Entity나 JPA Entity가 변경되면 반드시 Flyway 마이그레이션 파일을 추가해야 합니다.**
+
+### 파일 네이밍 규칙
+
+```
+V{YYYYMMDD}_{NNN}__{Description}.sql
+```
+
+**예시:**
+```
+V20250106_001__Create_order_aggregate.sql
+V20250107_001__Add_order_memo_column.sql
+V20250107_002__Add_index_on_order_number.sql
+```
+
+**구성:**
+- **V**: Version prefix (필수, 대문자)
+- **YYYYMMDD**: 날짜 (8자리)
+- **NNN**: 일련번호 (3자리, 001부터)
+- **__**: 구분자 (언더스코어 2개)
+- **Description**: 영문 설명 (Snake_case)
+
+### Entity 변경 시 워크플로우
+
+#### 1. Domain Entity 변경
+```java
+// core/domain/order/Order.java
+@Getter
+@Builder
+public class Order {
+    private String memo;  // ⭐ 새 필드 추가
+}
+```
+
+#### 2. JPA Entity 변경
+```java
+// infrastructure/storage/db/order/entity/OrderJpaEntity.java
+@Column(name = "memo")
+private String memo;  // ⭐ 새 컬럼 추가
+```
+
+#### 3. Flyway 마이그레이션 파일 생성 (필수!)
+```sql
+-- infrastructure/src/main/resources/db/migration/V20250107_001__Add_order_memo_column.sql
+ALTER TABLE orders 
+ADD COLUMN memo VARCHAR(1000) NULL COMMENT '주문 메모';
+```
+
+#### 4. 로컬 테스트
+```bash
+# 1. 애플리케이션 실행 (Flyway 자동 실행)
+./gradlew :api:bootRun
+
+# 2. 테이블 확인
+docker exec order-mysql mysql -u order_user -porder_password order -e "DESC orders;"
+
+# 3. Flyway 이력 확인
+docker exec order-mysql mysql -u order_user -porder_password order \
+  -e "SELECT * FROM flyway_schema_history;"
+```
+
+### 변경 타입별 파일명
+
+| 변경 타입 | 파일명 형식 | 예시 |
+|----------|-----------|------|
+| Aggregate 생성 | `V{YYYYMMDD}_001__Create_{aggregate}_aggregate.sql` | `V20250106_001__Create_order_aggregate.sql` |
+| 컬럼 추가 | `V{YYYYMMDD}_{NNN}__Add_{table}_{column}_column.sql` | `V20250107_001__Add_order_memo_column.sql` |
+| 컬럼 변경 | `V{YYYYMMDD}_{NNN}__Alter_{table}_{column}.sql` | `V20250107_002__Alter_order_memo_increase_length.sql` |
+| 인덱스 추가 | `V{YYYYMMDD}_{NNN}__Add_index_on_{table}_{column}.sql` | `V20250107_003__Add_index_on_order_number.sql` |
+| 테이블 삭제 | `V{YYYYMMDD}_{NNN}__Drop_{table}_table.sql` | `V20250107_004__Drop_old_order_history_table.sql` |
+
+### 체크리스트
+
+Entity 변경 시 다음을 반드시 확인:
+
+- [ ] Domain Entity가 변경되었는가?
+- [ ] JPA Entity가 변경되었는가?
+- [ ] **Flyway 마이그레이션 파일을 생성했는가?** ⭐
+- [ ] 파일명이 네이밍 규칙을 따르는가?
+- [ ] 로컬에서 테스트했는가?
+- [ ] 테이블 변경사항이 정확한가?
+- [ ] 롤백 스크립트를 문서화했는가?
+
+### 절대 하지 말 것
+
+❌ **이미 적용된 마이그레이션 파일 수정 금지**
+```sql
+-- V20250106_001__Create_order_aggregate.sql (이미 적용됨)
+-- 이 파일을 수정하지 마세요! 새로운 마이그레이션 파일을 만드세요.
+```
+
+❌ **같은 날짜에 일련번호 중복 금지**
+```
+V20250107_001__Add_column_A.sql
+V20250107_001__Add_column_B.sql  // ❌ 일련번호 중복!
+```
+
+❌ **JPA `ddl-auto`에 의존 금지**
+```yaml
+# application.yml
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: none  # 반드시 none! (Flyway가 관리)
+```
+
+### 반드시 해야 할 것
+
+✅ **롤백 스크립트 준비**
+```sql
+-- V20250107_001__Add_order_memo_column.sql
+ALTER TABLE orders ADD COLUMN memo VARCHAR(1000) NULL;
+
+-- 롤백 스크립트 (별도 문서화)
+-- ALTER TABLE orders DROP COLUMN memo;
+```
+
+✅ **Production 적용 전 Staging 테스트**
+
+✅ **대용량 테이블 변경 시 점검 시간 확보**
+
+### FlywayConfig 설정
+
+```java
+// infrastructure/common/config/FlywayConfig.java
+@Configuration
+@Profile("local")  // Local 환경에서만 실행
+class FlywayConfig {
+    
+    @Bean(initMethod = "migrate")
+    public Flyway flyway(DataSource dataSource) {
+        return Flyway.configure()
+            .dataSource(dataSource)
+            .locations("classpath:db/migration")
+            .baselineOnMigrate(true)
+            .baselineVersion("0")
+            .validateOnMigrate(true)
+            .outOfOrder(false)
+            .cleanDisabled(true)
+            .load();
+    }
+}
+```
+
+### 환경별 실행 전략
+
+**Local 환경:**
+- Flyway가 자동으로 마이그레이션 실행
+- `@Profile("local")` 활성화
+
+**Production 환경:**
+- DBA가 수동으로 SQL 스크립트 실행
+- Flyway 비활성화
+
+### 자세한 가이드
+
+**더 상세한 마이그레이션 가이드는 [documents/flyway-guide.md](../documents/flyway-guide.md)를 참고하세요.**
+
+---
+
+## Repository Adapter 규칙
+
+### 위치
+`infrastructure/storage/db/*/adapter/`
+
+### 책임
+- OrderRepository 인터페이스 구현 (통합)
+- JpaRepository 사용
+- Domain ↔ Entity 변환
+- **@Transactional 관리 (트랜잭션 경계)**
+
+### Repository Adapter 템플릿
+
+```java
+// infrastructure/storage/db/order/adapter/OrderRepositoryAdapter.java
+@Repository
+@RequiredArgsConstructor
+public class OrderRepositoryAdapter implements OrderRepository {
+    
+    private final OrderJpaRepository orderJpaRepository;
+    private final OrderItemJpaRepository orderItemJpaRepository;
+    private final OrderLocationJpaRepository orderLocationJpaRepository;
+    private final OrderDeliveryPolicyJpaRepository orderDeliveryPolicyJpaRepository;
+    
+    /**
+     * Order 생성 및 저장
+     *
+     * <p>Order Entity를 생성하고 저장한 후, Order.create()로 완전한 Domain Model 반환
+     */
+    @Transactional  // ⭐ 여기서 트랜잭션 관리
+    @Override
+    public Order store(
+        OrderNumber orderNumber,
+        List<OrderItem> items,
+        Origin origin,
+        Destination destination,
+        DeliveryPolicy deliveryPolicy) {
+
+      // 1. OrderEntity 생성 및 저장
+      OrderEntity orderEntity =
+          OrderEntity.builder()
+              .orderNumber(orderNumber.value())
+              .status(OrderStatus.CREATED)
+              .orderedAt(Instant.now())
+              .build();
+      OrderEntity savedOrderEntity = orderJpaRepository.save(orderEntity);
+      Long orderId = savedOrderEntity.getId();
+
+      // 2. 연관 Entity 저장
+      saveOrderItems(items, orderId);
+      saveOrderLocation(origin, destination, orderId);
+      saveOrderDeliveryPolicy(deliveryPolicy, orderId);
+
+      // 3. Order.create()로 완전한 Domain Model 생성 (Domain Event 자동 추가)
+      return Order.create(orderId, orderNumber, items, origin, destination, deliveryPolicy);
+    }
+    
+    @Transactional(readOnly = true)
+    @Override
+    public Optional<Order> findById(Long id) {
+        return orderJpaRepository.findById(id)
+            .map(entity -> reconstructOrder(entity));
+    }
+    
+    @Transactional(readOnly = true)
+    @Override
+    public Optional<Order> findByOrderNumber(OrderNumber orderNumber) {
+        return orderJpaRepository.findByOrderNumber(orderNumber.value())
+            .map(entity -> reconstructOrder(entity));
+    }
+    
+    @Override
+    public boolean existsByOrderNumber(OrderNumber orderNumber) {
+        return orderJpaRepository.existsByOrderNumber(orderNumber.value());
+    }
+    
+    // private 헬퍼 메서드들
+    private void saveOrderItems(List<OrderItem> items, Long orderId) { /* ... */ }
+    private void saveOrderLocation(Origin origin, Destination destination, Long orderId) { /* ... */ }
+    private void saveOrderDeliveryPolicy(DeliveryPolicy deliveryPolicy, Long orderId) { /* ... */ }
+    private Order reconstructOrder(OrderEntity entity) { /* ... */ }
+}
+```
+
+**특징:**
+- ✅ **Store/Reader 통합** (하나의 Repository)
+- ✅ `store()` 메서드가 Order Entity 생성 및 저장
+- ✅ `Order.create()`로 Domain Model 생성 (Domain Event 자동 추가)
+- ✅ 메서드 단위로 짧은 트랜잭션
+- ✅ Domain Service에서 @Transactional로 트랜잭션 관리
+
+```java
+// infrastructure/storage/db/order/adapter/OrderJpaRepository.java
+public interface OrderJpaRepository extends JpaRepository<OrderEntity, Long> {
+    
+    Optional<OrderEntity> findByOrderNumber(String orderNumber);
+    boolean existsByOrderNumber(String orderNumber);
+}
+```
+
+---
+
+## 부분 업데이트 패턴 (Partial Update) ⭐
+
+도메인의 특정 필드만 업데이트하는 패턴입니다.
+
+**사용 시기:**
+- ✅ 전체 Aggregate를 교체하지 않고 일부 필드만 변경
+- ✅ 성능 최적화 (불필요한 필드 업데이트 방지)
+- ✅ 명확한 업데이트 의도 표현
+
+### 예시: 주문 도착지 주소 업데이트
+
+**1. Repository Port (Domain Layer)**
+
+```java
+// core/domain/order/required/OrderRepository.java
+public interface OrderRepository {
+    
+    /**
+     * 도착지 주소 업데이트
+     *
+     * <p>변경 범위:
+     * - Address (주소)
+     * - LatLng (위경도)
+     * - EntranceInfo (출입 가이드)
+     *
+     * <p>유지되는 것:
+     * - Contact (연락처) - 변경되지 않음
+     */
+    void updateDestinationAddress(
+        Long orderId, 
+        Address newAddress, 
+        LatLng newLatLng, 
+        EntranceInfo newEntranceInfo
+    );
+}
+```
+
+**2. Repository Adapter (Infrastructure Layer)**
+
+```java
+// infrastructure/storage/db/order/adapter/OrderRepositoryAdapter.java
+@Override
+public void updateDestinationAddress(
+    Long orderId, Address newAddress, LatLng newLatLng, EntranceInfo newEntranceInfo) {
+    
+    // 1. Entity 조회
+    OrderLocationEntity locationEntity = orderLocationJpaRepository
+        .findByOrderId(orderId)
+        .orElseThrow(() -> 
+            new IllegalStateException("OrderLocation이 없습니다. orderId: " + orderId));
+    
+    // 2. Entity의 업데이트 메서드 호출
+    locationEntity.updateDestinationAddress(newAddress, newLatLng, newEntranceInfo);
+    
+    // 3. 명시적 save 호출 (의도 명확)
+    orderLocationJpaRepository.save(locationEntity);
+}
+```
+
+**3. Entity 업데이트 메서드 (Infrastructure Layer)**
+
+```java
+// infrastructure/storage/db/order/OrderLocationEntity.java
+@Entity
+@Table(name = "order_locations")
+public class OrderLocationEntity extends BaseEntity {
+    
+    // Contact 필드 (변경되지 않음)
+    @Column(name = "destination_contact_name")
+    private String destinationContactName;
+    
+    @Column(name = "destination_contact_phone_number")
+    private String destinationContactPhoneNumber;
+    
+    // Address 필드
+    @Column(name = "destination_jibnun_address")
+    private String destinationJibnunAddress;
+    
+    @Column(name = "destination_road_address")
+    private String destinationRoadAddress;
+    
+    @Column(name = "destination_detail_address")
+    private String destinationDetailAddress;
+    
+    // LatLng 필드
+    @Column(name = "destination_latitude")
+    private BigDecimal destinationLatitude;
+    
+    @Column(name = "destination_longitude")
+    private BigDecimal destinationLongitude;
+    
+    // EntranceInfo 필드
+    @Column(name = "destination_entrance_password")
+    private String destinationEntrancePassword;
+    
+    @Column(name = "destination_entrance_guide")
+    private String destinationEntranceGuide;
+    
+    @Column(name = "destination_request_message")
+    private String destinationRequestMessage;
+    
+    /**
+     * Destination 주소 정보만 업데이트
+     *
+     * <p>변경 범위:
+     * - Address (주소)
+     * - LatLng (위경도)
+     * - EntranceInfo (출입 가이드)
+     *
+     * <p>유지되는 것:
+     * - Contact (연락처) - 변경되지 않음
+     */
+    public void updateDestinationAddress(
+        Address newAddress, LatLng newLatLng, EntranceInfo newEntranceInfo) {
+        
+        // Contact는 유지 (destinationContactName, destinationContactPhoneNumber 변경 안 함)
+        
+        // Address 업데이트
+        this.destinationJibnunAddress = newAddress.jibnunAddress();
+        this.destinationRoadAddress = newAddress.roadAddress();
+        this.destinationDetailAddress = newAddress.detailAddress();
+        
+        // LatLng 업데이트
+        this.destinationLatitude = newLatLng.latitude();
+        this.destinationLongitude = newLatLng.longitude();
+        
+        // EntranceInfo 업데이트
+        this.destinationEntrancePassword = newEntranceInfo.password();
+        this.destinationEntranceGuide = newEntranceInfo.guide();
+        this.destinationRequestMessage = newEntranceInfo.requestMessage();
+    }
+}
+```
+
+**4. Domain Service에서 사용 (Domain Layer)**
+
+```java
+// core/domain/order/OrderLocationChanger.java
+@Service
+@RequiredArgsConstructor
+public class OrderLocationChanger {
+    
+    private final OrderRepository orderRepository;
+    
+    @Transactional  // ⭐ 트랜잭션은 Domain Service에서 관리
+    public Order changeDestinationAddress(
+        Order order,
+        Address refinedAddress,
+        LatLng refinedLatLng,
+        EntranceInfo refinedEntranceInfo) {
+        
+        // 1. 도착지 주소 변경 (도메인 이벤트 추가)
+        order.changeDestinationAddress(refinedAddress, refinedLatLng, refinedEntranceInfo);
+        
+        // 2. DB 업데이트 (부분 업데이트)
+        orderRepository.updateDestinationAddress(
+            order.getId(), refinedAddress, refinedLatLng, refinedEntranceInfo);
+        
+        return order;
+    }
+}
+```
+
+### 특징
+
+**장점:**
+- ✅ 특정 필드만 업데이트 (효율적)
+- ✅ 명시적 save() 호출 (의도 명확)
+- ✅ Entity의 업데이트 메서드로 캡슐화
+- ✅ 트랜잭션은 Domain Service에서 관리
+- ✅ 불필요한 데이터 변경 방지
+
+**주의사항:**
+- ⚠️ @Version을 사용한 낙관적 락 권장 (동시성 제어)
+- ⚠️ save() 호출 필수 (JPA Dirty Checking에만 의존하지 말 것)
+- ⚠️ Entity 업데이트 메서드는 단순 필드 변경만 (비즈니스 로직 금지)
+
+**vs 전체 교체:**
+
+| 패턴 | 용도 | 성능 | 명확성 |
+|---|---|---|---|
+| **부분 업데이트** | 특정 필드만 변경 | ✅ 효율적 | ✅ 명확 |
+| **전체 교체** | Aggregate 전체 교체 | ⚠️ 모든 필드 변경 | ⚠️ 의도 불명확 |
+
+---
+
+## Outbox Pattern 구현
+
+### 위치
+`infrastructure/outbox/`
+
+### 책임
+- OutboxEventClient Port 구현
+- Domain Model → Kafka Event Payload 변환
+- Outbox 라이브러리 호출
+
+### Outbox 흐름
+
+```
+OrderCreator (Domain Service)
+  1. orderRepository.store(order)        → Order 저장 (DB)
+  2. outboxEventAppender.append(order)   → Outbox 저장 (DB, 같은 트랜잭션)
+     → outboxEventClient.save()          → Infrastructure Layer
+       → KafkaOutboxEventMapper.map()    → Order → KafkaEvent 변환
+       → outboxEventService.registerEvent() → Outbox 라이브러리 호출
+```
+
+### KafkaOutboxEventClient (Adapter)
+
+```java
+// infrastructure/outbox/KafkaOutboxEventClient.java
+@Repository
+@RequiredArgsConstructor
+@Slf4j
+public class KafkaOutboxEventClient implements OutboxEventClient {
+
+  private final OutboxEventService outboxEventService;
+  private final KafkaOutboxEventMapper outboxEventMapper = new KafkaOutboxEventMapper();
+
+  /**
+   * Domain Event를 Outbox에 저장
+   */
+  @Override
+  public void save(OutboxEventType eventType, AggregateRoot aggregateRoot) {
+    KafkaOutboxEvent event = outboxEventMapper.map(eventType, aggregateRoot);
+    outboxEventService.registerEvent(event.kafkaEvent(), event.eventKey());
+  }
+}
+```
+
+### KafkaOutboxEventMapper
+
+```java
+// infrastructure/outbox/KafkaOutboxEventMapper.java
+class KafkaOutboxEventMapper {
+
+  private final KafkaEventSource ORDER_EVENT_SOURCE = KafkaEventSource.ORDER;
+
+  public KafkaOutboxEvent map(OutboxEventType eventType, AggregateRoot aggregateRoot) {
+    if (eventType == OutboxEventType.ORDER_CREATED) {
+      Order order = (Order) aggregateRoot;
+      return mapToOrderCreatedEvent(order);
+    }
+
+    throw new IllegalArgumentException("지원하지 않는 이벤트 타입입니다: " + eventType);
+  }
+
+  private KafkaOutboxEvent mapToOrderCreatedEvent(Order order) {
+    // 1. Items 매핑
+    List<OrderCreatedOrderItem> items = order.getItems().stream()
+        .map(item -> OrderCreatedOrderItem.builder()
+            .itemName(item.itemName())
+            .quantity(item.quantity())
+            .price(item.price().amount())
+            .category(item.category())
+            .weight(item.weight() != null ? item.weight().value() : null)
+            .build())
+        .toList();
+
+    // 2. Origin/Destination 매핑
+    OrderCreatedOrderLocation originLocation = mapToLocation(order.getOrigin());
+    OrderCreatedOrderLocation destinationLocation = mapToLocation(order.getDestination());
+
+    // 3. Delivery Policy 매핑
+    OrderCreatedOrderDeliveryPolicy deliveryPolicy = mapToDeliveryPolicy(order.getDeliveryPolicy());
+
+    // 4. Payload 생성
+    OrderCreatedKafkaEventPayload payload = OrderCreatedKafkaEventPayload.builder()
+        .orderId(order.getId())
+        .orderNumber(order.getOrderNumber().value())
+        .orderStatus(order.getStatus().name())
+        .items(items)
+        .originLocation(originLocation)
+        .destinationLocation(destinationLocation)
+        .deliveryPolicy(deliveryPolicy)
+        .orderedAt(order.getOrderedAt())
+        .build();
+
+    // 5. KafkaEvent 생성
+    KafkaEvent<KafkaEventPayload> kafkaEvent = KafkaEvent.of(
+        KafkaEventType.ORDER_ORDER_CREATED,
+        ORDER_EVENT_SOURCE,
+        payload);
+
+    // 6. KafkaOutboxEvent 반환
+    return new KafkaOutboxEvent(String.valueOf(order.getId()), kafkaEvent);
+  }
+
+  // 헬퍼 메서드들
+  private OrderCreatedOrderLocation mapToLocation(Origin origin) { /* ... */ }
+  private OrderCreatedOrderDeliveryPolicy mapToDeliveryPolicy(DeliveryPolicy policy) { /* ... */ }
+}
+```
+
+### KafkaOutboxEvent (DTO)
+
+```java
+// infrastructure/outbox/KafkaOutboxEvent.java
+record KafkaOutboxEvent(
+    String eventKey,
+    KafkaEvent<KafkaEventPayload> kafkaEvent
+) { }
+```
+
+**특징:**
+- ✅ DB 트랜잭션과 이벤트 발행의 원자성 보장
+- ✅ Order 저장 + Outbox 저장 = 하나의 트랜잭션
+- ✅ 별도 Worker가 Outbox → Kafka 전송 (비동기)
+- ✅ 메시지 전송 실패 시 재시도 보장
+
+## 외부 API Adapter 규칙
+
+### 위치
+`infrastructure/external/`
+
+### 책임
+- 외부 시스템 연동
+- Application Port 구현
+- Feign Client 사용
+
+### 외부 API Adapter 템플릿
+
+```java
+// infrastructure/external/client/PaymentFeignClient.java
+@FeignClient(name = "payment-service", url = "${payment.service.url}")
+public interface PaymentFeignClient {
+    
+    @PostMapping("/api/v1/payments")
+    PaymentApiResponse processPayment(@RequestBody PaymentApiRequest request);
+    
+    @PostMapping("/api/v1/payments/{paymentId}/cancel")
+    void cancelPayment(@PathVariable Long paymentId);
+    
+    @PostMapping("/api/v1/payments/{paymentId}/refund")
+    void refundPayment(
+        @PathVariable Long paymentId,
+        @RequestBody RefundApiRequest request
+    );
+}
+```
+
+```java
+// infrastructure/external/adapter/PaymentAdapter.java
+@Component
+@RequiredArgsConstructor
+public class PaymentAdapter implements PaymentPort {
+    
+    private final PaymentFeignClient paymentClient;
+    
+    @Override
+    public Payment processPayment(Long orderId, Money amount, PaymentMethod method) {
+        PaymentApiRequest request = PaymentApiRequest.builder()
+            .orderId(orderId)
+            .amount(amount.value())
+            .method(method.name())
+            .build();
+        
+        try {
+            PaymentApiResponse response = paymentClient.processPayment(request);
+            
+            return Payment.builder()
+                .id(response.paymentId())
+                .orderId(orderId)
+                .amount(Money.of(response.amount()))
+                .method(method)
+                .status(PaymentStatus.valueOf(response.status()))
+                .build();
+                
+        } catch (FeignException e) {
+            throw new PaymentProcessingException("결제 처리 실패", e);
+        }
+    }
+    
+    @Override
+    public void cancelPayment(Long paymentId) {
+        try {
+            paymentClient.cancelPayment(paymentId);
+        } catch (FeignException e) {
+            throw new PaymentCancellationException("결제 취소 실패", e);
+        }
+    }
+}
+```
+
+## Kafka Event Publisher 규칙
+
+### 위치
+`infrastructure/messaging/adapter/`
+
+### Kafka Event Publisher 템플릿
+
+```java
+// infrastructure/messaging/adapter/KafkaEventPublisher.java
+@Component
+@RequiredArgsConstructor
+public class KafkaEventPublisher implements EventPublisher {
+    
+    private final KafkaTemplate<String, Object> kafkaTemplate;
+    
+    @Override
+    public void publish(DomainEvent event) {
+        String topic = resolveTopicName(event);
+        String key = event.getAggregateId().toString();
+        
+        kafkaTemplate.send(topic, key, event)
+            .whenComplete((result, ex) -> {
+                if (ex != null) {
+                    log.error("Failed to publish event: {}", event, ex);
+                } else {
+                    log.info("Event published successfully: {}", event);
+                }
+            });
+    }
+    
+    private String resolveTopicName(DomainEvent event) {
+        return switch (event) {
+            case OrderCreatedEvent e -> "order.created";
+            case OrderCancelledEvent e -> "order.cancelled";
+            case OrderStatusChangedEvent e -> "order.status-changed";
+            default -> throw new IllegalArgumentException("Unknown event type");
+        };
+    }
+}
+```
+
+```java
+// infrastructure/messaging/adapter/OrderEventConsumer.java
+@Component
+@RequiredArgsConstructor
+public class OrderEventConsumer {
+    
+    private final OrderStore orderStore;
+    
+    @KafkaListener(topics = "inventory.reserved", groupId = "order-service")
+    public void handleInventoryReserved(InventoryReservedEvent event) {
+        Order order = orderStore.findById(event.orderId())
+            .orElseThrow();
+        
+        order.confirmInventoryReserved();
+        orderStore.save(order);
+    }
+    
+    @KafkaListener(topics = "payment.completed", groupId = "order-service")
+    public void handlePaymentCompleted(PaymentCompletedEvent event) {
+        Order order = orderStore.findById(event.orderId())
+            .orElseThrow();
+        
+        order.completePayment(event.paymentId());
+        orderStore.save(order);
+    }
+}
+```
+
+## Cache Adapter 규칙
+
+### 위치
+`infrastructure/storage/cache/`
+
+### Cache Adapter 템플릿
+
+```java
+// infrastructure/storage/cache/order/OrderCacheAdapter.java
+@Component
+@RequiredArgsConstructor
+public class OrderCacheAdapter {
+    
+    private final RedisTemplate<String, OrderCacheDto> redisTemplate;
+    
+    private static final String CACHE_KEY_PREFIX = "order:";
+    private static final Duration CACHE_TTL = Duration.ofMinutes(10);
+    
+    public Optional<Order> findById(Long orderId) {
+        String key = CACHE_KEY_PREFIX + orderId;
+        OrderCacheDto cached = redisTemplate.opsForValue().get(key);
+        
+        return Optional.ofNullable(cached)
+            .map(OrderCacheDto::toDomain);
+    }
+    
+    public void save(Order order) {
+        String key = CACHE_KEY_PREFIX + order.getId();
+        OrderCacheDto dto = OrderCacheDto.from(order);
+        redisTemplate.opsForValue().set(key, dto, CACHE_TTL);
+    }
+    
+    public void evict(Long orderId) {
+        String key = CACHE_KEY_PREFIX + orderId;
+        redisTemplate.delete(key);
+    }
+}
+```
+
+## 설정 파일
+
+### JPA Config
+
+```java
+// infrastructure/config/JpaConfig.java
+@Configuration
+@EnableJpaAuditing
+@EnableJpaRepositories(basePackages = "vroong.laas.order.infrastructure.storage.db")
+public class JpaConfig {
+}
+```
+
+### QueryDSL Config
+
+```java
+// infrastructure/config/QueryDslConfig.java
+@Configuration
+public class QueryDslConfig {
+    
+    @Bean
+    public JPAQueryFactory jpaQueryFactory(EntityManager entityManager) {
+        return new JPAQueryFactory(entityManager);
+    }
+}
+```
+
+### Feign Config
+
+```java
+// infrastructure/config/FeignConfig.java
+@Configuration
+public class FeignConfig {
+    
+    @Bean
+    public Logger.Level feignLoggerLevel() {
+        return Logger.Level.FULL;
+    }
+    
+    @Bean
+    public ErrorDecoder errorDecoder() {
+        return new CustomErrorDecoder();
+    }
+}
+```
+
+## 절대 금지 사항
+1. Entity에 비즈니스 로직 작성 금지
+2. EAGER fetch 사용 금지
+3. Entity가 Domain을 상속하는 것 금지
+4. Adapter에서 직접 Domain 로직 실행 금지
+5. 양방향 연관관계 남발 금지
+
+## 중요 원칙
+1. Entity는 단순 데이터 구조체
+2. from/toDomain으로 명확한 변환
+3. Adapter는 인터페이스 구현만
+4. QueryDSL로 동적 쿼리
+5. 외부 API 오류는 Domain 예외로 변환---
+alwaysApply: true
+---
+
+# Interfaces Layer 규칙
+
+## 위치
+`api/`, `admin/`, `worker/`
+
+## 책임
+- 외부 진입점 (Controller, gRPC Service, Batch Job)
+- Facade 호출
+- DTO 변환 (Request → Command, Domain → Response)
+- 예외 처리
+- Command는 Domain Layer에 위치
+
+## Web Controller 규칙 (api/web/)
+
+### 위치
+`api/web/*/`
+
+### 책임
+- HTTP API 제공
+- Facade만 호출
+- Request → Command 변환 (Command는 Domain Layer에서 가져옴)
+- Domain → Response 변환
+
+### 반드시 해야 할 것
+1. @RestController 사용
+2. Facade만 의존
+3. Request DTO에서 Command 변환 (Command는 Domain Layer에서 import)
+4. Domain에서 Response DTO 변환
+5. Bean Validation 사용
+
+### 절대 하지 말 것
+1. 비즈니스 로직 작성 금지
+2. Domain Service 직접 호출 금지
+3. Repository 직접 의존 금지
+4. 트랜잭션 관리 금지 (Domain Service에서)
+
+### Web Controller 템플릿
+
+#### 일반 템플릿
+
+```java
+// api/web/{aggregate}/{Aggregate}Controller.java
+@RestController
+@RequestMapping("/api/v1/{aggregates}")
+@RequiredArgsConstructor
+public class {Aggregate}Controller {
+    
+    private final {Aggregate}Facade {aggregate}Facade;  // ⭐ Facade 사용
+    
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public {Aggregate}Response create{Aggregate}(@RequestBody @Valid Create{Aggregate}Request request) {
+        // Request → Command 변환 (Command는 Domain Layer에서 import)
+        Create{Aggregate}Command command = request.toCommand();
+        
+        // Facade 호출
+        {Aggregate} {aggregate} = {aggregate}Facade.create{Aggregate}(command);
+        
+        // Domain → Response 변환
+        return {Aggregate}Response.from({aggregate});
+    }
+    
+    @GetMapping("/{id}")
+    public {Aggregate}Response get{Aggregate}(@PathVariable Long id) {
+        // Facade 호출
+        {Aggregate} {aggregate} = {aggregate}Facade.get{Aggregate}ById(id);
+        
+        return {Aggregate}Response.from({aggregate});
+    }
+    
+    @GetMapping("/{aggregate}-number/{number}")
+    public {Aggregate}Response get{Aggregate}By{Aggregate}Number(@PathVariable String number) {
+        {Aggregate}Number {aggregate}NumberVO = {Aggregate}Number.of(number);
+        
+        // Facade 호출
+        {Aggregate} {aggregate} = {aggregate}Facade.get{Aggregate}By{Aggregate}Number({aggregate}NumberVO);
+        
+        return {Aggregate}Response.from({aggregate});
+    }
+}
+```
+
+**특징:**
+- ✅ Facade만 의존
+- ✅ Command는 Domain Layer에서 import
+- ✅ @ResponseStatus로 간결한 상태 코드 관리
+- ✅ 비즈니스 로직 없음 (단순 위임)
+
+#### 실제 예시 (Order)
+
+```java
+// api/web/order/OrderController.java
+@RestController
+@RequestMapping("/api/v1/orders")
+@RequiredArgsConstructor
+public class OrderController {
+    
+    private final OrderFacade orderFacade;  // ⭐ Facade 사용
+    
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public OrderResponse createOrder(@RequestBody @Valid CreateOrderRequest request) {
+        // Request → Command 변환 (Command는 Domain Layer에서 import)
+        CreateOrderCommand command = request.toCommand();
+        
+        // Facade 호출
+        Order order = orderFacade.createOrder(command);
+        
+        // Domain → Response 변환
+        return OrderResponse.from(order);
+    }
+    
+    @GetMapping("/{orderId}")
+    public OrderResponse getOrder(@PathVariable Long orderId) {
+        // Facade 호출
+        Order order = orderFacade.getOrderById(orderId);
+        
+        return OrderResponse.from(order);
+    }
+    
+    @GetMapping("/order-number/{orderNumber}")
+    public OrderResponse getOrderByOrderNumber(@PathVariable String orderNumber) {
+        OrderNumber orderNumberVO = OrderNumber.of(orderNumber);
+        
+        // Facade 호출
+        Order order = orderFacade.getOrderByOrderNumber(orderNumberVO);
+        
+        return OrderResponse.from(order);
+    }
+}
+```
+
+## Request DTO 규칙
+
+### 위치
+`api/web/*/dto/request/`
+
+### 책임
+- HTTP 요청 데이터 수신
+- Bean Validation으로 형식 검증
+
+### Request DTO 템플릿
+
+#### 일반 템플릿
+
+```java
+// api/web/{aggregate}/dto/request/Create{Aggregate}Request.java
+public record Create{Aggregate}Request(
+    @NotNull(message = "필수 필드입니다")
+    @Size(min = 1, message = "최소 1개 이상 필요합니다")
+    List<{Aggregate}ItemRequest> items,
+    
+    @NotBlank(message = "필수 필드입니다")
+    @Size(max = 500, message = "500자 이내로 입력해주세요")
+    String requiredField,
+    
+    Long optionalId
+) {
+    public record {Aggregate}ItemRequest(
+        @NotNull(message = "ID는 필수입니다")
+        @Positive(message = "ID는 양수여야 합니다")
+        Long id,
+        
+        @Min(value = 1, message = "최소값은 1입니다")
+        @Max(value = 100, message = "최대값은 100입니다")
+        int quantity
+    ) {}
+}
+```
+
+```java
+// api/web/{aggregate}/dto/request/Cancel{Aggregate}Request.java
+public record Cancel{Aggregate}Request(
+    @NotBlank(message = "취소 사유는 필수입니다")
+    @Size(max = 1000, message = "취소 사유는 1000자 이내로 입력해주세요")
+    String reason
+) {}
+```
+
+#### 실제 예시 (Order)
+
+```java
+// api/web/order/dto/request/CreateOrderRequest.java
+public record CreateOrderRequest(
+    @NotNull(message = "상품 목록은 필수입니다")
+    @Size(min = 1, message = "최소 1개 이상의 상품이 필요합니다")
+    List<OrderItemRequest> items,
+    
+    @NotBlank(message = "배송지는 필수입니다")
+    @Size(max = 500, message = "배송지는 500자 이내로 입력해주세요")
+    String deliveryAddress,
+    
+    Long couponId
+) {
+    public record OrderItemRequest(
+        @NotNull(message = "상품 ID는 필수입니다")
+        @Positive(message = "상품 ID는 양수여야 합니다")
+        Long productId,
+        
+        @Min(value = 1, message = "수량은 최소 1개 이상이어야 합니다")
+        @Max(value = 100, message = "수량은 최대 100개까지 가능합니다")
+        int quantity
+    ) {}
+}
+```
+
+```java
+// api/web/order/dto/request/CancelOrderRequest.java
+public record CancelOrderRequest(
+    @NotBlank(message = "취소 사유는 필수입니다")
+    @Size(max = 1000, message = "취소 사유는 1000자 이내로 입력해주세요")
+    String reason
+) {}
+```
+
+## Response DTO 규칙
+
+### 위치
+`api/web/*/dto/response/`
+
+### 책임
+- HTTP 응답 데이터 반환
+- Domain에서 DTO 변환
+
+### Response DTO 템플릿
+
+```java
+// api/web/order/dto/response/OrderResponse.java
+public record OrderResponse(
+    Long id,
+    String orderNumber,
+    String status,
+    BigDecimal totalAmount,
+    String deliveryAddress,
+    List<OrderItemResponse> items,
+    LocalDateTime createdAt
+) {
+    public static OrderResponse from(Order order) {
+        return new OrderResponse(
+            order.getId(),
+            order.getOrderNumber(),
+            order.getStatus().name(),
+            order.getTotalAmount().value(),
+            order.getDeliveryAddress().getFullAddress(),
+            order.getItems().stream()
+                .map(OrderItemResponse::from)
+                .toList(),
+            order.getCreatedAt()
+        );
+    }
+    
+    public record OrderItemResponse(
+        Long productId,
+        String productName,
+        int quantity,
+        BigDecimal unitPrice,
+        BigDecimal subtotal
+    ) {
+        public static OrderItemResponse from(OrderItem item) {
+            return new OrderItemResponse(
+                item.getProductId(),
+                item.getProductName(),
+                item.getQuantity(),
+                item.getUnitPrice().value(),
+                item.getSubtotal().value()
+            );
+        }
+    }
+}
+```
+
+```java
+// api/web/order/dto/response/OrderSummaryResponse.java
+public record OrderSummaryResponse(
+    Long id,
+    String orderNumber,
+    String status,
+    BigDecimal totalAmount,
+    int itemCount,
+    LocalDateTime createdAt
+) {
+    public static OrderSummaryResponse from(OrderSummary summary) {
+        return new OrderSummaryResponse(
+            summary.id(),
+            summary.orderNumber(),
+            summary.status(),
+            summary.totalAmount(),
+            summary.itemCount(),
+            summary.createdAt()
+        );
+    }
+}
+```
+
+## Exception Handler 규칙
+
+### 위치
+`api/web/config/`
+
+### Exception Handler 템플릿
+
+```java
+// api/web/config/ApiExceptionHandler.java
+@RestControllerAdvice
+@Slf4j
+public class ApiExceptionHandler {
+    
+    // Domain 예외
+    @ExceptionHandler(OrderNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleOrderNotFound(
+        OrderNotFoundException e
+    ) {
+        log.warn("Order not found: {}", e.getMessage());
+        
+        ErrorResponse response = ErrorResponse.of(
+            "ORDER_NOT_FOUND",
+            e.getMessage()
+        );
+        
+        return ResponseEntity
+            .status(HttpStatus.NOT_FOUND)
+            .body(response);
+    }
+    
+    @ExceptionHandler(OrderNotCancellableException.class)
+    public ResponseEntity<ErrorResponse> handleOrderNotCancellable(
+        OrderNotCancellableException e
+    ) {
+        log.warn("Order not cancellable: {}", e.getMessage());
+        
+        ErrorResponse response = ErrorResponse.of(
+            "ORDER_NOT_CANCELLABLE",
+            e.getMessage()
+        );
+        
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(response);
+    }
+    
+    // Validation 예외
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidation(
+        MethodArgumentNotValidException e
+    ) {
+        Map<String, String> errors = new HashMap<>();
+        
+        e.getBindingResult().getFieldErrors().forEach(error ->
+            errors.put(error.getField(), error.getDefaultMessage())
+        );
+        
+        ErrorResponse response = ErrorResponse.of(
+            "VALIDATION_ERROR",
+            "입력값 검증 실패",
+            errors
+        );
+        
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(response);
+    }
+    
+    // 일반 예외
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleException(Exception e) {
+        log.error("Unexpected error", e);
+        
+        ErrorResponse response = ErrorResponse.of(
+            "INTERNAL_SERVER_ERROR",
+            "서버 오류가 발생했습니다"
+        );
+        
+        return ResponseEntity
+            .status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(response);
+    }
+}
+```
+
+```java
+// api/web/config/ErrorResponse.java
+public record ErrorResponse(
+    String code,
+    String message,
+    Map<String, String> errors,
+    LocalDateTime timestamp
+) {
+    public static ErrorResponse of(String code, String message) {
+        return new ErrorResponse(
+            code,
+            message,
+            Collections.emptyMap(),
+            LocalDateTime.now()
+        );
+    }
+    
+    public static ErrorResponse of(
+        String code,
+        String message,
+        Map<String, String> errors
+    ) {
+        return new ErrorResponse(
+            code,
+            message,
+            errors,
+            LocalDateTime.now()
+        );
+    }
+}
+```
+
+## gRPC Service 규칙 (api/grpc/)
+
+### 위치
+`api/grpc/*/`
+
+### gRPC Service 템플릿
+
+```java
+// api/grpc/order/OrderGrpcService.java
+@GrpcService
+@RequiredArgsConstructor
+public class OrderGrpcService extends OrderServiceGrpc.OrderServiceImplBase {
+    
+    private final CreateOrderUseCase createOrderUseCase;
+    private final GetOrderUseCase getOrderUseCase;
+    private final OrderGrpcMapper mapper;
+    
+    @Override
+    public void createOrder(
+        CreateOrderGrpcRequest request,
+        StreamObserver<OrderGrpcResponse> responseObserver
+    ) {
+        try {
+            // gRPC Request → Command
+            CreateOrderCommand command = mapper.toCommand(request);
+            
+            // Use Case 실행
+            Order order = createOrderUseCase.execute(command);
+            
+            // Domain → gRPC Response
+            OrderGrpcResponse response = mapper.toResponse(order);
+            
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+            
+        } catch (Exception e) {
+            responseObserver.onError(
+                Status.INTERNAL
+                    .withDescription(e.getMessage())
+                    .asRuntimeException()
+            );
+        }
+    }
+    
+    @Override
+    public void getOrder(
+        GetOrderGrpcRequest request,
+        StreamObserver<OrderGrpcResponse> responseObserver
+    ) {
+        try {
+            GetOrderQuery query = new GetOrderQuery(
+                request.getOrderId(),
+                request.getUserId()
+            );
+            
+            Order order = getOrderUseCase.execute(query);
+            
+            OrderGrpcResponse response = mapper.toResponse(order);
+            
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+            
+        } catch (OrderNotFoundException e) {
+            responseObserver.onError(
+                Status.NOT_FOUND
+                    .withDescription(e.getMessage())
+                    .asRuntimeException()
+            );
+        } catch (Exception e) {
+            responseObserver.onError(
+                Status.INTERNAL
+                    .withDescription(e.getMessage())
+                    .asRuntimeException()
+            );
+        }
+    }
+}
+```
+
+```java
+// api/grpc/order/mapper/OrderGrpcMapper.java
+@Component
+public class OrderGrpcMapper {
+    
+    public CreateOrderCommand toCommand(CreateOrderGrpcRequest request) {
+        List<CreateOrderCommand.OrderItemCommand> items = request.getItemsList()
+            .stream()
+            .map(item -> new CreateOrderCommand.OrderItemCommand(
+                item.getProductId(),
+                item.getQuantity()
+            ))
+            .toList();
+        
+        return CreateOrderCommand.builder()
+            .userId(request.getUserId())
+            .items(items)
+            .deliveryAddress(request.getDeliveryAddress())
+            .couponId(request.hasCouponId() ? request.getCouponId() : null)
+            .build();
+    }
+    
+    public OrderGrpcResponse toResponse(Order order) {
+        List<OrderItemGrpcResponse> items = order.getItems().stream()
+            .map(item -> OrderItemGrpcResponse.newBuilder()
+                .setProductId(item.getProductId())
+                .setProductName(item.getProductName())
+                .setQuantity(item.getQuantity())
+                .setUnitPrice(item.getUnitPrice().value().doubleValue())
+                .build())
+            .toList();
+        
+        return OrderGrpcResponse.newBuilder()
+            .setOrderId(order.getId())
+            .setOrderNumber(order.getOrderNumber())
+            .setStatus(order.getStatus().name())
+            .setTotalAmount(order.getTotalAmount().value().doubleValue())
+            .addAllItems(items)
+            .build();
+    }
+}
+```
+
+## Admin Controller 규칙 (admin/web/)
+
+### 위치
+`admin/web/*/`
+
+### Admin Controller 템플릿
+
+```java
+// admin/web/order/OrderAdminController.java
+@RestController
+@RequestMapping("/admin/api/v1/orders")
+@RequiredArgsConstructor
+public class OrderAdminController {
+    
+    private final OrderAdminQueryService orderAdminQueryService;
+    private final OrderAdminCommandService orderAdminCommandService;
+    
+    @GetMapping
+    public ResponseEntity<Page<OrderAdminResponse>> searchOrders(
+        @ModelAttribute OrderSearchRequest request,
+        Pageable pageable
+    ) {
+        OrderSearchCondition condition = OrderSearchCondition.builder()
+            .userId(request.userId())
+            .status(request.status())
+            .startDate(request.startDate())
+            .endDate(request.endDate())
+            .build();
+        
+        Page<Order> orders = orderAdminQueryService.searchOrders(condition, pageable);
+        
+        Page<OrderAdminResponse> response = orders.map(OrderAdminResponse::from);
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    @PostMapping("/{orderId}/force-cancel")
+    public ResponseEntity<Void> forceCancel(
+        @PathVariable Long orderId,
+        @RequestBody @Valid AdminCancelRequest request
+    ) {
+        CancelOrderCommand command = CancelOrderCommand.builder()
+            .orderId(orderId)
+            .reason(request.reason())
+            .cancelType(CancelType.ADMIN)
+            .adminId(request.adminId())
+            .adminMemo(request.adminMemo())
+            .build();
+        
+        orderAdminCommandService.forceCancel(command);
+        
+        return ResponseEntity.noContent().build();
+    }
+    
+    @GetMapping("/statistics")
+    public ResponseEntity<OrderStatisticsResponse> getStatistics(
+        @RequestParam LocalDate startDate,
+        @RequestParam LocalDate endDate
+    ) {
+        OrderStatistics statistics = orderAdminQueryService.getStatistics(
+            startDate,
+            endDate
+        );
+        
+        return ResponseEntity.ok(OrderStatisticsResponse.from(statistics));
+    }
+}
+```
+
+## Batch Job 규칙 (worker/job/)
+
+### 위치
+`worker/job/*/`
+
+### Batch Job 템플릿
+
+```java
+// worker/job/order/OrderCleanupJob.java
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class OrderCleanupJob {
+    
+    private final OrderReader orderReader;
+    private final OrderStore orderStore;
+    
+    @Scheduled(cron = "0 0 2 * * *")  // 매일 새벽 2시
+    public void cleanupExpiredOrders() {
+        log.info("Starting order cleanup job");
+        
+        LocalDate cutoffDate = LocalDate.now().minusDays(30);
+        
+        OrderSearchCondition condition = OrderSearchCondition.builder()
+            .status(OrderStatus.CANCELLED)
+            .endDate(cutoffDate)
+            .build();
+        
+        Page<Order> orders = orderReader.searchOrders(
+            condition,
+            PageRequest.of(0, 100)
+        );
+        
+        orders.forEach(order -> {
+            orderStore.delete(order);
+            log.info("Deleted expired order: {}", order.getOrderNumber());
+        });
+        
+        log.info("Order cleanup job completed. Deleted {} orders", orders.getSize());
+    }
+}
+```
+
+```java
+// worker/job/order/OrderStatisticsJob.java
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class OrderStatisticsJob {
+    
+    private final OrderReader orderReader;
+    private final StatisticsStore statisticsStore;
+    
+    @Scheduled(cron = "0 30 0 * * *")  // 매일 0시 30분
+    public void calculateDailyStatistics() {
+        log.info("Starting daily statistics calculation");
+        
+        LocalDate yesterday = LocalDate.now().minusDays(1);
+        
+        OrderStatistics statistics = orderReader.calculateStatistics(
+            yesterday,
+            yesterday
+        );
+        
+        statisticsStore.save(statistics);
+        
+        log.info("Daily statistics calculated for {}", yesterday);
+    }
+}
+```
+
+## Controller 응답 규칙
+
+### @ResponseStatus 사용 (권장) ⭐
+
+**사용 시기:**
+- 상태 코드가 고정된 경우
+- 생성(201), 삭제(204) 등
+
+**장점:**
+- 코드 간결
+- 의도 명확 (메서드 선언부에 상태 코드)
+- 불필요한 래핑 제거
+
+**예시:**
+```java
+// 생성 (201 Created)
+@PostMapping
+@ResponseStatus(HttpStatus.CREATED)
+public OrderResponse createOrder(@RequestBody @Valid CreateOrderRequest request) {
+    Order order = createOrderUseCase.execute(request.toCommand());
+    return OrderResponse.from(order);
+}
+
+// 조회 (200 OK - 기본값)
+@GetMapping("/{orderId}")
+public OrderResponse getOrder(@PathVariable Long orderId) {
+    Order order = getOrderUseCase.execute(orderId);
+    return OrderResponse.from(order);
+}
+
+// 삭제 (204 No Content)
+@DeleteMapping("/{orderId}")
+@ResponseStatus(HttpStatus.NO_CONTENT)
+public void cancelOrder(@PathVariable Long orderId) {
+    cancelOrderUseCase.execute(orderId);
+}
+```
+
+### ResponseEntity 사용 (필요시만)
+
+**사용 시기:**
+- Location 헤더 추가 필요
+- 조건부 상태 코드
+- 커스텀 헤더 추가
+
+**예시:**
+```java
+// Location 헤더 추가
+@PostMapping
+public ResponseEntity<OrderResponse> createOrder(...) {
+    Order order = createOrderUseCase.execute(...);
+    OrderResponse response = OrderResponse.from(order);
+    
+    return ResponseEntity
+        .status(HttpStatus.CREATED)
+        .header("Location", "/api/v1/orders/" + order.getId())
+        .body(response);
+}
+
+// 조건부 상태 코드
+@GetMapping("/{orderId}")
+public ResponseEntity<OrderResponse> getOrder(@PathVariable Long orderId) {
+    Optional<Order> order = getOrderUseCase.execute(orderId);
+    
+    return order
+        .map(o -> ResponseEntity.ok(OrderResponse.from(o)))
+        .orElse(ResponseEntity.notFound().build());
+}
+```
+
+### REST API 상태 코드 관례
+
+| 상황 | 상태 코드 | 권장 방법 |
+|---|---|---|
+| 조회 성공 | 200 OK | 객체 직접 반환 |
+| 생성 성공 | 201 Created | @ResponseStatus |
+| 수정 성공 | 200 OK | 객체 직접 반환 |
+| 삭제 성공 | 204 No Content | @ResponseStatus + void |
+| 유효성 검증 실패 | 400 Bad Request | 자동 (Bean Validation) |
+| 인증 실패 | 401 Unauthorized | Security 설정 |
+| 권한 없음 | 403 Forbidden | Security 설정 |
+| 리소스 없음 | 404 Not Found | Exception Handler |
+| 서버 오류 | 500 Internal Server Error | Exception Handler |
+
+## 중요 원칙
+1. Controller는 Use Case만 호출
+2. Request → Command, Domain → Response 변환
+3. 비즈니스 로직 절대 금지
+4. Bean Validation으로 형식 검증
+5. Exception Handler로 통일된 오류 응답# Validation 규칙
+
+## 검증 레이어별 책임
+
+### 전체 흐름
+
+```
+Controller (형식 검증)
+    ↓
+Command (기본 정합성 검증)
+    ↓
+Application Support (비즈니스 규칙 사전 검증)
+    ↓
+Domain Service (복잡한 비즈니스 규칙 검증)
+    ↓
+Domain Entity (핵심 불변식 검증)
+```
+
+## 1. Controller - 형식 검증
+
+### 위치
+`api/web/*/dto/request/`
+
+### 책임
+- HTTP 요청의 형식 검증
+- Bean Validation 사용
+- null, 빈 값, 타입, 길이, 범위 등
+
+### 검증 내용
+- ✅ null 체크
+- ✅ 빈 문자열 체크
+- ✅ 길이 제한
+- ✅ 숫자 범위
+- ✅ 이메일 형식
+- ✅ 정규식 패턴
+
+### 예시
+
+```java
+// api/web/order/dto/request/CreateOrderRequest.java
+public record CreateOrderRequest(
+    @NotNull(message = "상품 목록은 필수입니다")
+    @Size(min = 1, max = 100, message = "상품은 1~100개까지 주문 가능합니다")
+    List<OrderItemRequest> items,
+    
+    @NotBlank(message = "배송지는 필수입니다")
+    @Size(max = 500, message = "배송지는 500자 이내로 입력해주세요")
+    String deliveryAddress,
+    
+    @Pattern(regexp = "^01[0-9]-[0-9]{3,4}-[0-9]{4}$", message = "올바른 전화번호 형식이 아닙니다")
+    String phoneNumber,
+    
+    @Email(message = "올바른 이메일 형식이 아닙니다")
+    String email,
+    
+    Long couponId
+) {
+    public record OrderItemRequest(
+        @NotNull(message = "상품 ID는 필수입니다")
+        @Positive(message = "상품 ID는 양수여야 합니다")
+        Long productId,
+        
+        @Min(value = 1, message = "수량은 최소 1개 이상이어야 합니다")
+        @Max(value = 100, message = "수량은 최대 100개까지 가능합니다")
+        int quantity,
+        
+        @Positive(message = "가격은 양수여야 합니다")
+        BigDecimal price
+    ) {}
+}
+```
+
+**검증 실패 시:**
+```json
+{
+  "code": "VALIDATION_ERROR",
+  "message": "입력값 검증 실패",
+  "errors": {
+    "items": "상품 목록은 필수입니다",
+    "phoneNumber": "올바른 전화번호 형식이 아닙니다"
+  }
+}
+```
+
+---
+
+## 2. Command - 기본 정합성 검증
+
+### 위치
+`core/application/*/usecase/command/`
+
+### 책임
+- 데이터 정합성 검증
+- null 체크
+- 빈 컬렉션 체크
+- 중복 체크
+- 논리적 모순 체크
+
+### 검증 내용
+- ✅ 필수 값 체크
+- ✅ 빈 리스트/컬렉션 체크
+- ✅ 중복 데이터 체크
+- ✅ 상호 배타적 필드 체크
+- ✅ 조건부 필수 필드 체크
+
+### 예시
+
+```java
+// core/application/order/usecase/command/CreateOrderCommand.java
+@Builder
+public record CreateOrderCommand(
+    Long userId,
+    List<OrderItemCommand> items,
+    String deliveryAddress,
+    String phoneNumber,
+    Long couponId
+) {
+    // Compact Constructor에서 검증
+    public CreateOrderCommand {
+        // 필수 값 체크
+        if (userId == null || userId <= 0) {
+            throw new IllegalArgumentException("유효하지 않은 사용자 ID입니다");
+        }
+        
+        // 빈 컬렉션 체크
+        if (items == null || items.isEmpty()) {
+            throw new IllegalArgumentException("주문 상품이 없습니다");
+        }
+        
+        // 필수 문자열 체크
+        if (deliveryAddress == null || deliveryAddress.isBlank()) {
+            throw new IllegalArgumentException("배송지는 필수입니다");
+        }
+        
+        if (phoneNumber == null || phoneNumber.isBlank()) {
+            throw new IllegalArgumentException("전화번호는 필수입니다");
+        }
+        
+        // 중복 상품 체크
+        long distinctCount = items.stream()
+            .map(OrderItemCommand::productId)
+            .distinct()
+            .count();
+        
+        if (distinctCount != items.size()) {
+            throw new IllegalArgumentException("중복된 상품이 있습니다");
+        }
+        
+        // 각 OrderItem 검증
+        items.forEach(item -> {
+            if (item.productId() == null || item.productId() <= 0) {
+                throw new IllegalArgumentException("유효하지 않은 상품 ID입니다");
+            }
+            if (item.quantity() < 1 || item.quantity() > 100) {
+                throw new IllegalArgumentException("수량은 1~100 사이여야 합니다");
+            }
+        });
+    }
+    
+    public record OrderItemCommand(
+        Long productId,
+        int quantity
+    ) {}
+}
+```
+
+```java
+// core/application/order/usecase/command/CancelOrderCommand.java
+@Builder
+public record CancelOrderCommand(
+    Long orderId,
+    String reason,
+    CancelType cancelType,
+    
+    // 조건부 필수 필드
+    Long userId,
+    Long adminId,
+    String adminMemo,
+    String systemCode
+) {
+    public CancelOrderCommand {
+        if (orderId == null || orderId <= 0) {
+            throw new IllegalArgumentException("유효하지 않은 주문 ID입니다");
+        }
+        
+        if (reason == null || reason.isBlank()) {
+            throw new IllegalArgumentException("취소 사유는 필수입니다");
+        }
+        
+        if (cancelType == null) {
+            throw new IllegalArgumentException("취소 타입은 필수입니다");
+        }
+        
+        // 타입별 필수 필드 검증
+        switch (cancelType) {
+            case CUSTOMER -> {
+                if (userId == null) {
+                    throw new IllegalArgumentException("고객 ID는 필수입니다");
+                }
+            }
+            case ADMIN -> {
+                if (adminId == null) {
+                    throw new IllegalArgumentException("관리자 ID는 필수입니다");
+                }
+                if (adminMemo == null || adminMemo.isBlank()) {
+                    throw new IllegalArgumentException("관리자 메모는 필수입니다");
+                }
+            }
+            case SYSTEM -> {
+                if (systemCode == null || systemCode.isBlank()) {
+                    throw new IllegalArgumentException("시스템 코드는 필수입니다");
+                }
+            }
+        }
+    }
+}
+```
+
+---
+
+## 3. Application Support - 비즈니스 규칙 사전 검증
+
+### 위치
+`core/application/*/support/`
+
+### 책임
+- 저장소 조회를 통한 존재 여부 확인
+- 상태 확인
+- 권한 확인
+- 기간 확인
+- 유효성 확인
+
+### 검증 내용
+- ✅ 엔티티 존재 여부
+- ✅ 엔티티 상태 확인 (활성화, 만료 등)
+- ✅ 권한 확인
+- ✅ 유효 기간 확인
+- ✅ 사용 가능 여부 확인
+
+### 예시
+
+```java
+// core/application/order/support/OrderPreparationHelper.java
+@Component
+@RequiredArgsConstructor
+public class OrderPreparationHelper {
+    
+    private final CustomerStore customerStore;
+    private final CouponReader couponReader;
+    private final ProductReader productReader;
+    private final OrderValidationService orderValidationService;
+    
+    public OrderPreparationResult prepare(CreateOrderCommand command) {
+        
+        // 1. Customer 존재 및 상태 확인
+        Customer customer = customerStore.findById(command.userId())
+            .orElseThrow(() -> new CustomerNotFoundException(
+                "고객을 찾을 수 없습니다: " + command.userId()
+            ));
+        
+        if (!customer.isActive()) {
+            throw new InactiveCustomerException(
+                "비활성화된 고객입니다"
+            );
+        }
+        
+        if (customer.isSuspended()) {
+            throw new CustomerSuspendedException(
+                "정지된 고객입니다"
+            );
+        }
+        
+        // 2. Product 존재 및 판매 가능 여부 확인
+        List<Product> products = command.items().stream()
+            .map(item -> {
+                Product product = productReader.findById(item.productId())
+                    .orElseThrow(() -> new ProductNotFoundException(
+                        "상품을 찾을 수 없습니다: " + item.productId()
+                    ));
+                
+                if (!product.isOnSale()) {
+                    throw new ProductNotOnSaleException(
+                        "판매 중이 아닌 상품입니다: " + product.getName()
+                    );
+                }
+                
+                if (product.getStock() < item.quantity()) {
+                    throw new InsufficientStockException(
+                        "재고가 부족합니다: " + product.getName()
+                    );
+                }
+                
+                return product;
+            })
+            .toList();
+        
+        // 3. Coupon 존재 및 유효성 확인
+        Coupon coupon = null;
+        if (command.couponId() != null) {
+            coupon = couponReader.findById(command.couponId())
+                .orElseThrow(() -> new CouponNotFoundException(
+                    "쿠폰을 찾을 수 없습니다: " + command.couponId()
+                ));
+            
+            if (coupon.isExpired()) {
+                throw new CouponExpiredException(
+                    "만료된 쿠폰입니다"
+                );
+            }
+            
+            if (coupon.isUsed()) {
+                throw new CouponAlreadyUsedException(
+                    "이미 사용된 쿠폰입니다"
+                );
+            }
+            
+            if (!coupon.isOwnedBy(customer.getId())) {
+                throw new CouponOwnershipException(
+                    "본인 소유의 쿠폰이 아닙니다"
+                );
+            }
+        }
+        
+        // 4. Domain Service로 비즈니스 규칙 검증 위임
+        orderValidationService.validateOrderCreation(
+            command.items(),
+            coupon,
+            customer
+        );
+        
+        return OrderPreparationResult.builder()
+            .customer(customer)
+            .products(products)
+            .coupon(coupon)
+            .items(command.items())
+            .build();
+    }
+}
+```
+
+```java
+// core/application/order/support/OrderRetriever.java
+@Component
+@RequiredArgsConstructor
+public class OrderRetriever {
+    
+    private final OrderStore orderStore;
+    
+    public Order getOrder(Long orderId) {
+        return orderStore.findByIdWithItems(orderId)
+            .orElseThrow(() -> new OrderNotFoundException(
+                "주문을 찾을 수 없습니다: " + orderId
+            ));
+    }
+    
+    public Order getOrderWithOwnershipCheck(Long orderId, Long userId) {
+        Order order = getOrder(orderId);
+        
+        // 권한 확인
+        if (!order.isOwnedBy(userId)) {
+            throw new OrderAccessDeniedException(
+                "해당 주문에 접근할 권한이 없습니다"
+            );
+        }
+        
+        return order;
+    }
+}
+```
+
+---
+
+## 4. Domain Service - 복잡한 비즈니스 규칙 검증
+
+### 위치
+`core/domain/service/`
+
+### 책임
+- 여러 Aggregate를 조합한 복잡한 규칙 검증
+- 정책 기반 검증
+- 계산 기반 검증
+
+### 검증 내용
+- ✅ 일일 주문 한도
+- ✅ 등급별 할인 제한
+- ✅ 쿠폰 적용 조건
+- ✅ 최소/최대 주문 금액
+- ✅ 배송 가능 지역
+
+### 예시
+
+```java
+// core/domain/service/OrderValidationService.java
+@DomainService
+public class OrderValidationService {
+    
+    /**
+     * 주문 생성 비즈니스 규칙 검증
+     */
+    public void validateOrderCreation(
+        List<OrderItemCommand> items,
+        Coupon coupon,
+        Customer customer
+    ) {
+        // 1. 일일 주문 한도 확인
+        validateDailyOrderLimit(customer);
+        
+        // 2. 최소 주문 금액 확인
+        validateMinimumOrderAmount(items, customer.getGrade());
+        
+        // 3. 최대 주문 금액 확인
+        validateMaximumOrderAmount(items, customer.getGrade());
+        
+        // 4. 쿠폰 적용 가능 여부 확인
+        if (coupon != null) {
+            validateCouponApplicability(items, coupon, customer);
+        }
+        
+        // 5. 등급별 구매 제한 확인
+        validateGradeRestriction(items, customer.getGrade());
+    }
+    
+    /**
+     * 일일 주문 한도 검증
+     */
+    private void validateDailyOrderLimit(Customer customer) {
+        int dailyLimit = switch (customer.getGrade()) {
+            case VIP -> 10;
+            case GOLD -> 7;
+            case SILVER -> 5;
+            case BRONZE -> 3;
+        };
+        
+        if (customer.getTodayOrderCount() >= dailyLimit) {
+            throw new DailyOrderLimitExceededException(
+                String.format("일일 주문 한도(%d건)를 초과했습니다", dailyLimit)
+            );
+        }
+    }
+    
+    /**
+     * 최소 주문 금액 검증
+     */
+    private void validateMinimumOrderAmount(
+        List<OrderItemCommand> items,
+        CustomerGrade grade
+    ) {
+        Money totalAmount = calculateTotalAmount(items);
+        
+        Money minimumAmount = switch (grade) {
+            case VIP -> Money.of(0);
+            case GOLD -> Money.of(10_000);
+            case SILVER -> Money.of(20_000);
+            case BRONZE -> Money.of(30_000);
+        };
+        
+        if (totalAmount.isLessThan(minimumAmount)) {
+            throw new MinimumOrderAmountException(
+                String.format(
+                    "최소 주문 금액은 %s원입니다",
+                    minimumAmount.value()
+                )
+            );
+        }
+    }
+    
+    /**
+     * 최대 주문 금액 검증
+     */
+    private void validateMaximumOrderAmount(
+        List<OrderItemCommand> items,
+        CustomerGrade grade
+    ) {
+        Money totalAmount = calculateTotalAmount(items);
+        
+        Money maximumAmount = switch (grade) {
+            case VIP -> Money.of(10_000_000);
+            case GOLD -> Money.of(5_000_000);
+            case SILVER -> Money.of(3_000_000);
+            case BRONZE -> Money.of(1_000_000);
+        };
+        
+        if (totalAmount.isGreaterThan(maximumAmount)) {
+            throw new MaximumOrderAmountException(
+                String.format(
+                    "최대 주문 금액은 %s원입니다",
+                    maximumAmount.value()
+                )
+            );
+        }
+    }
+    
+    /**
+     * 쿠폰 적용 가능 여부 검증
+     */
+    private void validateCouponApplicability(
+        List<OrderItemCommand> items,
+        Coupon coupon,
+        Customer customer
+    ) {
+        Money totalAmount = calculateTotalAmount(items);
+        
+        // 최소 사용 금액 확인
+        if (totalAmount.isLessThan(coupon.getMinimumAmount())) {
+            throw new CouponMinimumAmountException(
+                String.format(
+                    "쿠폰 사용 가능 최소 금액은 %s원입니다",
+                    coupon.getMinimumAmount().value()
+                )
+            );
+        }
+        
+        // 등급 제한 확인
+        if (!coupon.isApplicableForGrade(customer.getGrade())) {
+            throw new CouponGradeRestrictionException(
+                "해당 등급에서는 사용할 수 없는 쿠폰입니다"
+            );
+        }
+    }
+    
+    /**
+     * 등급별 구매 제한 검증
+     */
+    private void validateGradeRestriction(
+        List<OrderItemCommand> items,
+        CustomerGrade grade
+    ) {
+        int maxQuantityPerItem = switch (grade) {
+            case VIP -> 100;
+            case GOLD -> 50;
+            case SILVER -> 30;
+            case BRONZE -> 10;
+        };
+        
+        items.forEach(item -> {
+            if (item.quantity() > maxQuantityPerItem) {
+                throw new ItemQuantityLimitException(
+                    String.format(
+                        "상품당 최대 구매 가능 수량은 %d개입니다",
+                        maxQuantityPerItem
+                    )
+                );
+            }
+        });
+    }
+    
+    private Money calculateTotalAmount(List<OrderItemCommand> items) {
+        // 계산 로직
+        return Money.ZERO;
+    }
+}
+```
+
+---
+
+## 5. Domain Entity - 핵심 불변식 검증
+
+### 위치
+`core/domain/*/model/`
+
+### 책임
+- 엔티티의 핵심 불변식 유지
+- 상태 일관성 보장
+- 계산 결과 검증
+
+### 검증 내용
+- ✅ 필수 값 존재
+- ✅ 상태 전이 규칙
+- ✅ 계산 결과 일치
+- ✅ 불변식 유지
+- ✅ 비즈니스 제약사항
+
+### 예시
+
+```java
+// core/domain/order/model/Order.java
+@Getter
+@Builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+public class Order {
+    
+    private Long id;
+    private Long userId;
+    private String orderNumber;
+    private OrderStatus status;
+    private List<OrderItem> items;
+    private Address deliveryAddress;
+    private Money totalAmount;
+    private LocalDateTime createdAt;
+    
+    public static Order create(
+        Long userId,
+        List<OrderItem> items,
+        Address deliveryAddress,
+        Money totalAmount
+    ) {
+        Order order = Order.builder()
+            .userId(userId)
+            .orderNumber(generateOrderNumber())
+            .status(OrderStatus.PENDING)
+            .items(new ArrayList<>(items))
+            .deliveryAddress(deliveryAddress)
+            .totalAmount(totalAmount)
+            .createdAt(LocalDateTime.now())
+            .build();
+        
+        // 생성 시 검증
+        order.validate();
+        
+        return order;
+    }
+    
+    /**
+     * 핵심 불변식 검증
+     */
+    private void validate() {
+        // 1. 필수 값 검증
+        if (userId == null || userId <= 0) {
+            throw new InvalidOrderException("유효하지 않은 사용자 ID입니다");
+        }
+        
+        if (orderNumber == null || orderNumber.isBlank()) {
+            throw new InvalidOrderException("주문번호는 필수입니다");
+        }
+        
+        if (items == null || items.isEmpty()) {
+            throw new EmptyOrderException("주문 상품이 없습니다");
+        }
+        
+        if (deliveryAddress == null) {
+            throw new InvalidOrderException("배송지는 필수입니다");
+        }
+        
+        if (totalAmount == null || totalAmount.isNegative()) {
+            throw new InvalidOrderException("유효하지 않은 주문 금액입니다");
+        }
+        
+        // 2. 각 OrderItem 검증
+        items.forEach(OrderItem::validate);
+        
+        // 3. 계산된 금액과 실제 금액 일치 검증
+        Money calculatedAmount = items.stream()
+            .map(OrderItem::getSubtotal)
+            .reduce(Money.ZERO, Money::add);
+        
+        if (!totalAmount.equals(calculatedAmount)) {
+            throw new OrderAmountMismatchException(
+                String.format(
+                    "주문 금액 불일치 - 입력: %s, 계산: %s",
+                    totalAmount.value(),
+                    calculatedAmount.value()
+                )
+            );
+        }
+    }
+    
+    /**
+     * 취소 가능 여부 확인 (비즈니스 규칙)
+     */
+    public boolean isCancellable() {
+        return status == OrderStatus.PENDING || 
+               status == OrderStatus.PAID;
+    }
+    
+    /**
+     * 주문 취소 (상태 전이 검증)
+     */
+    public void cancel(String reason) {
+        if (!isCancellable()) {
+            throw new OrderNotCancellableException(
+                String.format(
+                    "현재 상태(%s)에서는 취소할 수 없습니다",
+                    status
+                )
+            );
+        }
+        
+        if (reason == null || reason.isBlank()) {
+            throw new InvalidOrderException("취소 사유는 필수입니다");
+        }
+        
+        this.status = OrderStatus.CANCELLED;
+    }
+    
+    /**
+     * 배송지 변경 (상태 검증)
+     */
+    public void changeAddress(Address newAddress) {
+        if (!isModifiable()) {
+            throw new OrderNotModifiableException(
+                "배송 준비 중이거나 배송 중인 주문은 수정할 수 없습니다"
+            );
+        }
+        
+        if (newAddress == null) {
+            throw new InvalidOrderException("배송지는 필수입니다");
+        }
+        
+        this.deliveryAddress = newAddress;
+    }
+    
+    public boolean isModifiable() {
+        return status == OrderStatus.PENDING;
+    }
+}
+```
+
+---
+
+## 검증 레이어별 정리
+
+| 레이어 | 위치 | 검증 내용 | 예시 |
+|--------|------|-----------|------|
+| **Controller** | api/web/*/dto/request/ | 형식 검증 | @NotNull, @Size, @Email |
+| **Command** | core/application/*/usecase/command/ | 정합성 검증 | null 체크, 중복 체크 |
+| **Application Support** | core/application/*/support/ | 비즈니스 규칙 사전 검증 | 존재 여부, 상태, 권한 |
+| **Domain Service** | core/domain/service/ | 복잡한 비즈니스 규칙 | 일일 한도, 등급별 제한 |
+| **Domain Entity** | core/domain/*/model/ | 핵심 불변식 | 상태 전이, 계산 일치 |
+
+## 중요 원칙
+1. 검증은 가능한 빠른 레이어에서
+2. 각 레이어는 자신의 책임에 맞는 검증만
+3. Domain Entity는 항상 유효한 상태 유지
+4. 명확한 예외 메시지 제공
+5. 검증 실패 시 구체적인 원인 전달
+</artifact>
+
+------
+alwaysApply: true
+---
+## 🛠 기술 스택
+
+### 필수 라이브러리
+
+```gradle
+dependencies {
+    // JUnit 5
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
+    
+    // AssertJ (가독성 좋은 assertion)
+    testImplementation 'org.assertj:assertj-core:3.24.0'
+    
+    // Mockito (Mock 객체)
+    testImplementation 'org.mockito:mockito-core:5.5.0'
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.5.0'
+    
+    // Fixture Monkey (테스트 객체 생성)
+    testImplementation 'com.navercorp.fixturemonkey:fixture-monkey-starter:1.0.0'
+    
+    // Spring Boot Test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+```
+
+### 주요 도구
+
+| 도구 | 용도 | 사용 위치 |
+|------|------|-----------|
+| **JUnit 5** | 테스트 프레임워크 | 모든 테스트 |
+| **AssertJ** | Assertion | 모든 테스트 |
+| **Mockito** | Mock 객체 | Application, Interface Layer |
+| **Fixture Monkey** | 테스트 객체 생성 | 모든 테스트 |
+| **@DataJpaTest** | Repository 테스트 | Infrastructure Layer |
+| **@WebMvcTest** | Controller 테스트 | Interface Layer |
+
+---
+
+## 📋 계층별 테스트 전략
+
+### 1. Domain Layer 테스트
+
+**특징:**
+- 순수 Java 단위 테스트
+- 외부 의존성 없음
+- 비즈니스 로직 검증
+
+**테스트 대상:**
+- Domain Entity
+- Value Object
+- Domain Service
+- Domain Exception
+
+**예시:**
+```java
+// core/src/test/java/vroong/laas/order/domain/order/OrderTest.java
+class OrderTest {
+    
+    private FixtureMonkey fixtureMonkey;
+    
+    @BeforeEach
+    void setUp() {
+        fixtureMonkey = FixtureMonkey.builder()
+            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
+            .build();
+    }
+    
+    @Test
+    @DisplayName("주문을 취소하면 상태가 CANCELLED로 변경된다")
+    void cancel_order_changes_status_to_cancelled() {
+        // given
+        Order order = fixtureMonkey.giveMeBuilder(Order.class)
+            .set("status", OrderStatus.PENDING)
+            .sample();
+        
+        String reason = "고객 요청";
+        
+        // when
+        order.cancel(reason);
+        
+        // then
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(order.getCancelReason()).isEqualTo(reason);
+    }
+    
+    @Test
+    @DisplayName("이미 취소된 주문은 다시 취소할 수 없다")
+    void cannot_cancel_already_cancelled_order() {
+        // given
+        Order order = fixtureMonkey.giveMeBuilder(Order.class)
+            .set("status", OrderStatus.CANCELLED)
+            .sample();
+        
+        // when & then
+        assertThatThrownBy(() -> order.cancel("재취소"))
+            .isInstanceOf(OrderAlreadyCancelledException.class)
+            .hasMessage("이미 취소된 주문입니다");
+    }
+}
+```
+
+---
+
+### 📌 Domain Layer 테스트 실전 가이드
+
+#### 1. Spring Context 사용 금지 ⭐⭐⭐
+
+**Domain Layer는 순수 Java 테스트여야 합니다. Spring 의존성 절대 금지!**
+
+```java
+// ❌ 잘못된 예 - Spring Context 사용
+@Component  // 금지!
+public class OrderFixtures {
+    @Autowired
+    private FixtureMonkey fixtureMonkey;  // 금지!
+}
+
+@SpringBootTest  // Domain Layer에서 금지!
+class OrderTest {
+    @Autowired
+    private OrderFixtures fixtures;
+}
+
+// ✅ 올바른 예 - 순수 Java
+public class OrderFixtures {
+    private final FixtureMonkey fixtureMonkey;
+    
+    public OrderFixtures(FixtureMonkey fixtureMonkey) {
+        this.fixtureMonkey = fixtureMonkey;
+    }
+}
+
+class OrderTest {
+    private OrderFixtures orderFixtures;
+    
+    @BeforeEach
+    void setUp() {
+        FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
+            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
+            .defaultNotNull(true)
+            .build();
+        
+        orderFixtures = new OrderFixtures(fixtureMonkey);
+    }
+}
+```
+
+**왜 중요한가?**
+- Domain Layer는 Infrastructure에 의존하지 않음
+- 빠른 테스트 실행 (Spring Context 로딩 없음)
+- 순수한 비즈니스 로직 검증
+
+---
+
+#### 2. 생성자 vs 팩토리 메서드 패턴 ⭐⭐⭐
+
+**생성자에서 필수 값 체크, create()는 비즈니스 규칙용**
+
+```java
+public class Order {
+    
+    // 생성자 - 필수 값 체크 (항상 실행)
+    public Order(
+        Long id,
+        String orderNumber,
+        OrderStatus status,
+        List<OrderItem> items,
+        Origin origin,
+        Destination destination,
+        DeliveryPolicy deliveryPolicy,
+        Instant orderedAt,
+        Instant deliveredAt,
+        Instant cancelledAt
+    ) {
+        // 필수 값 체크
+        if (orderNumber == null || orderNumber.isBlank()) {
+            throw new IllegalArgumentException("주문번호는 필수입니다");
+        }
+        if (items == null || items.isEmpty()) {
+            throw new IllegalArgumentException("주문 아이템은 최소 1개 이상이어야 합니다");
+        }
+        if (origin == null) {
+            throw new IllegalArgumentException("출발지는 필수입니다");
+        }
+        if (destination == null) {
+            throw new IllegalArgumentException("도착지는 필수입니다");
+        }
+        
+        // 할당
+        this.id = id;
+        this.orderNumber = orderNumber;
+        this.status = status;
+        this.items = new ArrayList<>(items);
+        this.origin = origin;
+        this.destination = destination;
+        this.deliveryPolicy = deliveryPolicy;
+        this.orderedAt = orderedAt;
+        this.deliveredAt = deliveredAt;
+        this.cancelledAt = cancelledAt;
+    }
+    
+    // create() - 비즈니스 규칙 + 초기 상태로 생성
+    public static Order create(
+        String orderNumber,
+        List<OrderItem> items,
+        Origin origin,
+        Destination destination,
+        DeliveryPolicy deliveryPolicy
+    ) {
+        // 추가 비즈니스 검증 (선택적)
+        validateBusinessRules(items, origin, destination);
+        
+        // 초기 상태로 생성
+        return new Order(
+            null,                  // id는 나중에 할당
+            orderNumber,
+            OrderStatus.CREATED,   // 초기 상태
+            items,
+            origin,
+            destination,
+            deliveryPolicy,
+            Instant.now(),         // 현재 시간
+            null,                  // deliveredAt
+            null                   // cancelledAt
+        );
+    }
+}
+```
+
+**사용 구분:**
+
+| 방법 | 용도 | 검증 | 사용처 |
+|------|------|------|--------|
+| **`create()`** | 새 주문 생성 | 비즈니스 규칙 ✅ | 프로덕션 (UseCase) |
+| **생성자** | 객체 복원/테스트 | 필수 값만 ✅ | 테스트, Infrastructure |
+
+```java
+// 프로덕션 - create() 사용
+Order order = Order.create(
+    "ORD-001", items, origin, destination, policy
+);
+
+// 테스트 - 생성자 직접 사용 (다양한 상태)
+Order deliveredOrder = new Order(
+    1L, "ORD-001", OrderStatus.DELIVERED, items, 
+    origin, destination, policy,
+    Instant.now().minusSeconds(3600),
+    Instant.now(),  // deliveredAt
+    null
+);
+
+// Infrastructure - 생성자 사용 (DB → Domain)
+public Order toDomain() {
+    return new Order(
+        this.id, this.orderNumber, this.status,
+        this.items.stream()...
+    );
+}
+```
+
+---
+
+#### 3. ConstructorPropertiesArbitraryIntrospector 필수 ⭐⭐⭐
+
+**record, 불변 객체를 위해 반드시 설정!**
+
+```java
+// ✅ 필수 설정
+FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
+    .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)  // ⭐
+    .defaultNotNull(true)  // null 방지
+    .build();
+
+// record에서 작동
+public record Contact(String name, String phoneNumber) { }
+
+Contact contact = fixtureMonkey.giveMeOne(Contact.class);  // ✅ 작동!
+
+// 불변 객체에서 작동
+@Getter
+@AllArgsConstructor
+public class Order {
+    private final String orderNumber;
+    // ...
+}
+
+Order order = fixtureMonkey.giveMeOne(Order.class);  // ✅ 작동!
+```
+
+**없으면?**
+```java
+// ❌ ConstructorPropertiesArbitraryIntrospector 없이
+FixtureMonkey fixtureMonkey = FixtureMonkey.builder().build();
+
+Contact contact = fixtureMonkey.giveMeOne(Contact.class);
+// → 에러! record는 기본 생성자가 없음
+```
+
+---
+
+#### 4. Arbitraries와 FixtureMonkey 조합 ⭐⭐
+
+**범위가 있는 랜덤 값 생성**
+
+```java
+import net.jqwik.api.Arbitraries;
+
+public class OrderFixtures {
+    
+    private final FixtureMonkey fixtureMonkey;
+    
+    // Arbitraries로 범위 지정
+    public OrderItem randomOrderItem() {
+        String itemName = "상품" + fixtureMonkey.giveMeOne(Integer.class);
+        int quantity = Arbitraries.integers().between(1, 10).sample();
+        Money price = new Money(
+            BigDecimal.valueOf(Arbitraries.longs().between(1000L, 100000L).sample())
+        );
+        String category = Arbitraries.of("식품", "생활용품", "의류", "전자제품").sample();
+        
+        return new OrderItem(itemName, quantity, price, category, null, null);
+    }
+    
+    // FixtureMonkey.giveMeBuilder()와 Arbitraries 조합
+    public Contact randomContact() {
+        return fixtureMonkey.giveMeBuilder(Contact.class)
+            .set("name", "테스터" + fixtureMonkey.giveMeOne(Integer.class))
+            .set("phoneNumber", 
+                "010-" + 
+                Arbitraries.strings().numeric().ofLength(4).sample() + 
+                "-" + 
+                Arbitraries.strings().numeric().ofLength(4).sample())
+            .sample();
+    }
+    
+    public LatLng randomLatLng() {
+        return fixtureMonkey.giveMeBuilder(LatLng.class)
+            .set("latitude", 
+                Arbitraries.doubles().between(37.0, 38.0)
+                    .map(BigDecimal::valueOf))
+            .set("longitude", 
+                Arbitraries.doubles().between(126.0, 127.0)
+                    .map(BigDecimal::valueOf))
+            .sample();
+    }
+}
+```
+
+**주요 Arbitraries 메서드:**
+
+```java
+// 정수 범위
+Arbitraries.integers().between(1, 10).sample()
+
+// Long 범위
+Arbitraries.longs().between(1000L, 100000L).sample()
+
+// Double 범위
+Arbitraries.doubles().between(37.0, 38.0).sample()
+
+// 목록에서 선택
+Arbitraries.of("A", "B", "C", "D").sample()
+
+// 숫자 문자열
+Arbitraries.strings().numeric().ofLength(4).sample()  // "1234"
+
+// 알파벳 문자열
+Arbitraries.strings().alpha().ofLength(10).sample()  // "abcdEFGHij"
+```
+
+---
+
+#### 5. 실전 Fixture 패턴 ⭐⭐
+
+**상태별 Fixture 메서드 제공**
+
+```java
+public class OrderFixtures {
+    
+    private final FixtureMonkey fixtureMonkey;
+    
+    public OrderFixtures(FixtureMonkey fixtureMonkey) {
+        this.fixtureMonkey = fixtureMonkey;
+    }
+    
+    // 기본 주문 (CREATED 상태)
+    public Order order() {
+        return new Order(
+            null,
+            generateOrderNumber(),
+            OrderStatus.CREATED,
+            randomOrderItems(),
+            randomOrigin(),
+            randomDestination(),
+            randomDeliveryPolicy(),
+            Instant.now(),
+            null,
+            null
+        );
+    }
+    
+    // 특정 주문번호로 생성
+    public Order order(String orderNumber) {
+        return new Order(
+            null,
+            orderNumber,
+            OrderStatus.CREATED,
+            randomOrderItems(),
+            randomOrigin(),
+            randomDestination(),
+            randomDeliveryPolicy(),
+            Instant.now(),
+            null,
+            null
+        );
+    }
+    
+    // 배송완료 주문
+    public Order deliveredOrder() {
+        return new Order(
+            fixtureMonkey.giveMeOne(Long.class),
+            generateOrderNumber(),
+            OrderStatus.DELIVERED,
+            randomOrderItems(),
+            randomOrigin(),
+            randomDestination(),
+            randomDeliveryPolicy(),
+            Instant.now().minusSeconds(3600),
+            Instant.now(),  // deliveredAt
+            null
+        );
+    }
+    
+    // 취소된 주문
+    public Order cancelledOrder() {
+        return new Order(
+            fixtureMonkey.giveMeOne(Long.class),
+            generateOrderNumber(),
+            OrderStatus.CANCELLED,
+            randomOrderItems(),
+            randomOrigin(),
+            randomDestination(),
+            randomDeliveryPolicy(),
+            Instant.now().minusSeconds(3600),
+            null,
+            Instant.now()  // cancelledAt
+        );
+    }
+    
+    // 특정 ID로 생성
+    public Order orderWithId(Long id) {
+        return new Order(
+            id,
+            generateOrderNumber(),
+            OrderStatus.CREATED,
+            randomOrderItems(),
+            randomOrigin(),
+            randomDestination(),
+            randomDeliveryPolicy(),
+            Instant.now(),
+            null,
+            null
+        );
+    }
+    
+    // 특정 상태로 생성
+    public Order orderWithStatus(OrderStatus status) {
+        Instant deliveredAt = status == OrderStatus.DELIVERED ? Instant.now() : null;
+        Instant cancelledAt = status == OrderStatus.CANCELLED ? Instant.now() : null;
+        
+        return new Order(
+            null,
+            generateOrderNumber(),
+            status,
+            randomOrderItems(),
+            randomOrigin(),
+            randomDestination(),
+            randomDeliveryPolicy(),
+            Instant.now().minusSeconds(3600),
+            deliveredAt,
+            cancelledAt
+        );
+    }
+    
+    // Value Object 랜덤 생성 헬퍼
+    public List<OrderItem> randomOrderItems() {
+        int count = Math.abs(fixtureMonkey.giveMeOne(Integer.class) % 3) + 1;
+        return List.of(
+            randomOrderItem(),
+            randomOrderItem(),
+            randomOrderItem()
+        ).subList(0, count);
+    }
+    
+    public OrderItem randomOrderItem() {
+        // Arbitraries 활용
+        String itemName = "상품" + Math.abs(fixtureMonkey.giveMeOne(Integer.class) % 1000);
+        int quantity = Arbitraries.integers().between(1, 10).sample();
+        Money price = new Money(
+            BigDecimal.valueOf(Arbitraries.longs().between(1000L, 100000L).sample())
+        );
+        String category = Arbitraries.of("식품", "생활용품", "의류", "전자제품").sample();
+        
+        return new OrderItem(itemName, quantity, price, category, null, null);
+    }
+    
+    public Contact randomContact() {
+        return fixtureMonkey.giveMeBuilder(Contact.class)
+            .set("name", "테스터" + fixtureMonkey.giveMeOne(Integer.class))
+            .set("phoneNumber", 
+                "010-" + 
+                Arbitraries.strings().numeric().ofLength(4).sample() + 
+                "-" + 
+                Arbitraries.strings().numeric().ofLength(4).sample())
+            .sample();
+    }
+    
+    private String generateOrderNumber() {
+        return "ORD-" + System.currentTimeMillis();
+    }
+}
+```
+
+**테스트에서 사용:**
+
+```java
+class OrderTest {
+    
+    private OrderFixtures orderFixtures;
+    
+    @BeforeEach
+    void setUp() {
+        FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
+            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
+            .defaultNotNull(true)
+            .build();
+        
+        orderFixtures = new OrderFixtures(fixtureMonkey);
+    }
+    
+    @Test
+    void test_with_created_order() {
+        Order order = orderFixtures.order();
+        // 테스트...
+    }
+    
+    @Test
+    void test_with_delivered_order() {
+        Order order = orderFixtures.deliveredOrder();
+        // 테스트...
+    }
+    
+    @Test
+    void test_with_specific_status() {
+        Order order = orderFixtures.orderWithStatus(OrderStatus.CANCELLED);
+        // 테스트...
+    }
+}
+```
+
+---
+
+### 2. Application Layer 테스트
+
+**특징:**
+- UseCase 테스트
+- Mock으로 Port 대체
+- 흐름 검증 (Given-When-Then)
+
+**테스트 대상:**
+- UseCase
+- Command/Query
+
+**예시:**
+```java
+// core/src/test/java/vroong/laas/order/application/order/CancelOrderUseCaseTest.java
+@ExtendWith(MockitoExtension.class)
+class CancelOrderUseCaseTest {
+    
+    @InjectMocks
+    private CancelOrderUseCase sut;
+    
+    @Mock
+    private OrderStore orderStore;
+    
+    @Mock
+    private EventPublisher eventPublisher;
+    
+    private FixtureMonkey fixtureMonkey;
+    
+    @BeforeEach
+    void setUp() {
+        fixtureMonkey = FixtureMonkey.builder()
+            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
+            .build();
+    }
+    
+    @Test
+    @DisplayName("주문을 취소하고 이벤트를 발행한다")
+    void cancel_order_and_publish_event() {
+        // given
+        Long orderId = 1L;
+        String reason = "고객 요청";
+        
+        Order order = fixtureMonkey.giveMeBuilder(Order.class)
+            .set("id", orderId)
+            .set("status", OrderStatus.PENDING)
+            .sample();
+        
+        given(orderStore.findById(orderId))
+            .willReturn(Optional.of(order));
+        
+        CancelOrderCommand command = new CancelOrderCommand(orderId, reason);
+        
+        // when
+        sut.execute(command);
+        
+        // then
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        
+        verify(orderStore).save(order);
+        verify(eventPublisher).publish(any(OrderCancelledEvent.class));
+    }
+    
+    @Test
+    @DisplayName("존재하지 않는 주문은 취소할 수 없다")
+    void cannot_cancel_non_existing_order() {
+        // given
+        Long orderId = 999L;
+        
+        given(orderStore.findById(orderId))
+            .willReturn(Optional.empty());
+        
+        CancelOrderCommand command = new CancelOrderCommand(orderId, "사유");
+        
+        // when & then
+        assertThatThrownBy(() -> sut.execute(command))
+            .isInstanceOf(OrderNotFoundException.class);
+        
+        verify(orderStore, never()).save(any());
+        verify(eventPublisher, never()).publish(any());
+    }
+}
+```
+
+---
+
+### 3. Infrastructure Layer 테스트
+
+**특징:**
+- Repository 통합 테스트
+- @DataJpaTest 사용
+- 실제 DB(H2) 사용
+
+**테스트 대상:**
+- Repository Adapter
+- JPA Entity
+- Query
+
+**예시:**
+```java
+// infrastructure/src/test/java/vroong/laas/order/infrastructure/storage/db/order/OrderStoreAdapterTest.java
+@DataJpaTest
+@Import(OrderStoreAdapter.class)
+class OrderStoreAdapterTest {
+    
+    @Autowired
+    private OrderStoreAdapter orderStoreAdapter;
+    
+    @Autowired
+    private OrderJpaRepository orderJpaRepository;
+    
+    private FixtureMonkey fixtureMonkey;
+    
+    @BeforeEach
+    void setUp() {
+        fixtureMonkey = FixtureMonkey.builder()
+            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
+            .build();
+    }
+    
+    @Test
+    @DisplayName("주문을 저장하고 조회할 수 있다")
+    void save_and_find_order() {
+        // given
+        Order order = fixtureMonkey.giveMeBuilder(Order.class)
+            .set("id", null)  // 신규 주문
+            .set("status", OrderStatus.PENDING)
+            .sample();
+        
+        // when
+        Order saved = orderStoreAdapter.save(order);
+        Order found = orderStoreAdapter.findById(saved.getId()).orElseThrow();
+        
+        // then
+        assertThat(found.getId()).isEqualTo(saved.getId());
+        assertThat(found.getStatus()).isEqualTo(OrderStatus.PENDING);
+    }
+    
+    @Test
+    @DisplayName("주문과 아이템을 함께 조회할 수 있다")
+    void find_order_with_items() {
+        // given
+        OrderJpaEntity entity = fixtureMonkey.giveMeBuilder(OrderJpaEntity.class)
+            .set("id", null)
+            .size("items", 3)
+            .sample();
+        
+        OrderJpaEntity saved = orderJpaRepository.save(entity);
+        
+        // when
+        Order order = orderStoreAdapter.findByIdWithItems(saved.getId()).orElseThrow();
+        
+        // then
+        assertThat(order.getItems()).hasSize(3);
+    }
+}
+```
+
+---
+
+### 4. Interface Layer 테스트
+
+**특징:**
+- Controller 테스트
+- @WebMvcTest 사용
+- API 계약 검증
+
+**테스트 대상:**
+- Controller
+- Request/Response DTO
+- Exception Handler
+
+**예시:**
+```java
+// api/src/test/java/vroong/laas/order/api/web/order/OrderControllerTest.java
+@WebMvcTest(OrderController.class)
+class OrderControllerTest {
+    
+    @Autowired
+    private MockMvc mockMvc;
+    
+    @MockBean
+    private CancelOrderUseCase cancelOrderUseCase;
+    
+    @Autowired
+    private ObjectMapper objectMapper;
+    
+    private FixtureMonkey fixtureMonkey;
+    
+    @BeforeEach
+    void setUp() {
+        fixtureMonkey = FixtureMonkey.builder()
+            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
+            .build();
+    }
+    
+    @Test
+    @DisplayName("주문 취소 API - 성공")
+    void cancel_order_success() throws Exception {
+        // given
+        Long orderId = 1L;
+        
+        CancelOrderRequest request = fixtureMonkey.giveMeBuilder(CancelOrderRequest.class)
+            .set("reason", "고객 요청")
+            .sample();
+        
+        // when & then
+        mockMvc.perform(
+                post("/api/orders/{orderId}/cancel", orderId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request))
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+        
+        verify(cancelOrderUseCase).execute(any(CancelOrderCommand.class));
+    }
+    
+    @Test
+    @DisplayName("주문 취소 API - 유효성 검증 실패")
+    void cancel_order_validation_fail() throws Exception {
+        // given
+        Long orderId = 1L;
+        
+        CancelOrderRequest request = new CancelOrderRequest(null);  // reason 누락
+        
+        // when & then
+        mockMvc.perform(
+                post("/api/orders/{orderId}/cancel", orderId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request))
+            )
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.errorCode").value("INVALID_INPUT"));
+    }
+}
+```
+
+---
+
+## 5. REST Docs - API 문서 자동 생성 ⭐
+
+**특징:**
+- Controller 테스트와 함께 API 문서 자동 생성
+- **@WebMvcTest 사용** (Web Layer만 로드, 빠른 실행)
+- **FixtureMonkey 사용 안 함** (일관된 문서를 위해 고정 데이터 사용)
+- 커스텀 템플릿으로 Constraints 컬럼 추가
+
+### REST Docs 테스트 템플릿
+
+```java
+// api/src/test/java/vroong/laas/order/api/web/order/OrderControllerTest.java
+@WebMvcTest(
+    controllers = OrderController.class,
+    excludeFilters = @ComponentScan.Filter(
+        type = FilterType.REGEX,
+        pattern = "vroong.laas.order.api.web.common.logging.*"
+    )
+)
+@AutoConfigureRestDocs
+@Import({RestDocsConfiguration.class, WebApiControllerAdvice.class})
+class OrderControllerTest {
+    
+    @Autowired
+    private MockMvc mockMvc;
+    
+    @MockBean
+    private OrderFacade orderFacade;
+    
+    @Autowired
+    private ObjectMapper objectMapper;
+    
+    @Autowired
+    private RestDocumentationResultHandler restDocs;
+    
+    @Test
+    @DisplayName("주문 생성 API")
+    void createOrder_success() throws Exception {
+        // given - 고정된 테스트 데이터 사용 (FixtureMonkey 사용 안 함)
+        CreateOrderRequest request = CreateOrderRequest.builder()
+            .items(List.of(
+                OrderItemDto.builder()
+                    .itemName("상품A")
+                    .quantity(2)
+                    .price(new BigDecimal("10000"))
+                    .category("식품")
+                    .build()
+            ))
+            .origin(OriginDto.builder()
+                .contact(ContactDto.builder()
+                    .name("발송자")
+                    .phoneNumber("010-1234-5678")
+                    .build())
+                .address(AddressDto.builder()
+                    .jibnunAddress("서울시 강남구 역삼동 123")
+                    .roadAddress("서울시 강남구 테헤란로 123")
+                    .detailAddress("1층")
+                    .build())
+                .latLng(LatLngDto.builder()
+                    .latitude(new BigDecimal("37.123456"))
+                    .longitude(new BigDecimal("127.123456"))
+                    .build())
+                .build())
+            .destination(DestinationDto.builder()
+                .contact(ContactDto.builder()
+                    .name("수령자")
+                    .phoneNumber("010-9876-5432")
+                    .build())
+                .address(AddressDto.builder()
+                    .jibnunAddress("서울시 서초구 서초동 456")
+                    .roadAddress("서울시 서초구 서초대로 456")
+                    .detailAddress("2층")
+                    .build())
+                .latLng(LatLngDto.builder()
+                    .latitude(new BigDecimal("37.234567"))
+                    .longitude(new BigDecimal("127.234567"))
+                    .build())
+                .entranceInfo(EntranceInfoDto.builder()
+                    .entrancePassword("1234")
+                    .entranceNote("현관 비밀번호는 1234입니다")
+                    .build())
+                .build())
+            .deliveryPolicy(DeliveryPolicyDto.builder()
+                .pickupDueAt(Instant.now().plusSeconds(3600))
+                .deliveryDueAt(Instant.now().plusSeconds(7200))
+                .build())
+            .build();
+        
+        Order mockOrder = Order.builder()
+            .id(1L)
+            .orderNumber(OrderNumber.of("ORD-20250112-001"))
+            .status(OrderStatus.CREATED)
+            .items(request.toItems())
+            .origin(request.toOrigin())
+            .destination(request.toDestination())
+            .deliveryPolicy(request.toDeliveryPolicy())
+            .orderedAt(Instant.now())
+            .build();
+        
+        given(orderFacade.createOrder(any(CreateOrderCommand.class)))
+            .willReturn(mockOrder);
+        
+        // when & then
+        mockMvc.perform(post("/api/v1/orders")
+                .contentType(APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.id").value(1))
+            .andExpect(jsonPath("$.orderNumber").value("ORD-20250112-001"))
+            .andExpect(jsonPath("$.status").value("CREATED"))
+            .andDo(restDocs.document(
+                requestFields(
+                    fieldWithPath("items[]").description("주문 아이템 목록")
+                        .attributes(key("constraints").value("최소 1개")),
+                    fieldWithPath("items[].itemName").description("상품명"),
+                    fieldWithPath("items[].quantity").description("수량")
+                        .attributes(key("constraints").value("1 이상")),
+                    fieldWithPath("items[].price").description("가격"),
+                    fieldWithPath("items[].category").description("카테고리"),
+                    fieldWithPath("origin.contact.name").description("발송자 이름"),
+                    fieldWithPath("origin.contact.phoneNumber").description("발송자 전화번호"),
+                    // ... 기타 필드
+                ),
+                responseFields(
+                    fieldWithPath("id").description("주문 ID"),
+                    fieldWithPath("orderNumber").description("주문 번호"),
+                    fieldWithPath("status").description("주문 상태")
+                        .attributes(key("constraints").value("CREATED, DELIVERED, CANCELLED")),
+                    // ... 기타 필드
+                )
+            ));
+    }
+}
+```
+
+### RestDocsConfiguration (공통 설정)
+
+```java
+// api/src/test/java/vroong/laas/order/api/config/RestDocsConfiguration.java
+@TestConfiguration
+public class RestDocsConfiguration {
+    
+    @Bean
+    public RestDocumentationResultHandler write() {
+        return MockMvcRestDocumentation.document(
+            "{class-name}/{method-name}",
+            preprocessRequest(prettyPrint()),
+            preprocessResponse(prettyPrint())
+        );
+    }
+}
+```
+
+### 커스텀 템플릿 (Constraints 컬럼 추가)
+
+**중요:** 템플릿 경로는 반드시 `src/test/resources/org/springframework/restdocs/templates/asciidoctor/`이어야 합니다. (Spring REST Docs 고정 규칙)
+
+```
+// api/src/test/resources/org/springframework/restdocs/templates/asciidoctor/request-fields.snippet
+|===
+|Path|Type|Description|Constraints
+
+{{#fields}}
+|{{#tableCellContent}}`+{{path}}+`{{/tableCellContent}}
+|{{#tableCellContent}}`+{{type}}+`{{/tableCellContent}}
+|{{#tableCellContent}}{{description}}{{/tableCellContent}}
+|{{#tableCellContent}}{{#constraints}}{{.}}{{/constraints}}{{^constraints}}-{{/constraints}}{{/tableCellContent}}
+
+{{/fields}}
+|===
+```
+
+```
+// api/src/test/resources/org/springframework/restdocs/templates/asciidoctor/response-fields.snippet
+|===
+|Path|Type|Description|Constraints
+
+{{#fields}}
+|{{#tableCellContent}}`+{{path}}+`{{/tableCellContent}}
+|{{#tableCellContent}}`+{{type}}+`{{/tableCellContent}}
+|{{#tableCellContent}}{{description}}{{/tableCellContent}}
+|{{#tableCellContent}}{{#constraints}}{{.}}{{/constraints}}{{^constraints}}-{{/constraints}}{{/tableCellContent}}
+
+{{/fields}}
+|===
+```
+
+### 주요 규칙
+
+1. **@WebMvcTest 사용 (필수)**
+   - `@SpringBootTest` 대신 `@WebMvcTest` 사용
+   - Web Layer만 로드하여 빠른 테스트 실행
+   - 필요한 Bean은 `@Import`로 명시적 추가
+
+2. **FixtureMonkey 사용 안 함 (필수)**
+   - REST Docs는 일관된 문서가 필요
+   - 고정된 테스트 데이터 사용
+   - 빌더 패턴으로 가독성 있게 작성
+
+3. **WebApiControllerAdvice Import (필수)**
+   - `@WebMvcTest`는 `@ControllerAdvice`를 자동으로 로드하지 않음
+   - `@Import({WebApiControllerAdvice.class})`로 명시적 추가
+
+4. **RequestResponseLoggingFilter 제외 (필수)**
+   - `@WebMvcTest`는 `LoggingProperties` Bean을 로드하지 않음
+   - `excludeFilters`로 로깅 필터 제외
+
+5. **커스텀 템플릿 경로 (고정)**
+   - 반드시 `src/test/resources/org/springframework/restdocs/templates/asciidoctor/`
+   - 다른 경로는 Spring REST Docs가 인식하지 못함
+
+### 체크리스트
+
+- [ ] `@WebMvcTest` 사용 (not `@SpringBootTest`)
+- [ ] `@AutoConfigureRestDocs` 추가
+- [ ] `@Import({RestDocsConfiguration.class, WebApiControllerAdvice.class})` 추가
+- [ ] `excludeFilters`로 `RequestResponseLoggingFilter` 제외
+- [ ] FixtureMonkey 제거, 고정 데이터 사용
+- [ ] 커스텀 템플릿 경로 확인 (`org/springframework/restdocs/templates/asciidoctor/`)
+- [ ] Constraints 추가 (`.attributes(key("constraints").value(...))`)
+
+### 자주하는 실수
+
+**❌ 잘못된 템플릿 경로**
+```
+src/test/resources/restdocs/templates/asciidoctor/  ← 인식 안 됨!
+```
+
+**✅ 올바른 템플릿 경로**
+```
+src/test/resources/org/springframework/restdocs/templates/asciidoctor/  ← 필수!
+```
+
+**❌ FixtureMonkey 사용**
+```java
+Order order = fixtureMonkey.giveMeOne(Order.class);  // 랜덤 데이터 → 문서가 매번 달라짐
+```
+
+**✅ 고정 데이터 사용**
+```java
+Order order = Order.builder()
+    .id(1L)
+    .orderNumber(OrderNumber.of("ORD-20250112-001"))
+    .build();  // 고정 데이터 → 일관된 문서
+```
+
+**❌ @SpringBootTest 사용**
+```java
+@SpringBootTest  // 전체 Context 로드 → 느림
+@AutoConfigureMockMvc
+class OrderControllerTest { }
+```
+
+**✅ @WebMvcTest 사용**
+```java
+@WebMvcTest(OrderController.class)  // Web Layer만 로드 → 빠름
+@AutoConfigureRestDocs
+class OrderControllerTest { }
+```
+
+---
+
+## 🎯 Fixture Monkey 사용 규칙
+
+### 1. 설정
+
+**공통 Fixture 설정 클래스 작성:**
+
+```java
+// src/test/java/vroong/laas/order/fixtures/FixtureConfig.java
+@TestConfiguration
+public class FixtureConfig {
+    
+    @Bean
+    public FixtureMonkey fixtureMonkey() {
+        return FixtureMonkey.builder()
+            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
+            .defaultNotNull(true)
+            .build();
+    }
+}
+```
+
+---
+
+### 2. 기본 사용법
+
+#### 단일 객체 생성
+```java
+// 랜덤 객체
+Order order = fixtureMonkey.giveMeOne(Order.class);
+
+// 여러 객체
+List<Order> orders = fixtureMonkey.giveMe(Order.class, 10);
+```
+
+#### 커스터마이징
+```java
+// Builder 패턴
+Order order = fixtureMonkey.giveMeBuilder(Order.class)
+    .set("status", OrderStatus.CONFIRMED)
+    .set("totalAmount", Money.of(10000))
+    .set("items[0].quantity", 5)
+    .sample();
+
+// 필드 제외
+Order order = fixtureMonkey.giveMeBuilder(Order.class)
+    .setNull("cancelReason")
+    .sample();
+
+// 범위 지정
+Order order = fixtureMonkey.giveMeBuilder(Order.class)
+    .size("items", 3, 5)  // 3~5개
+    .sample();
+```
+
+---
+
+### 3. 재사용 가능한 Fixture 클래스
+
+**위치:** `src/test/java/.../fixtures/`
+
+**네이밍:** `{Entity}Fixtures.java`
+
+**예시:**
+```java
+// src/test/java/vroong/laas/order/fixtures/OrderFixtures.java
+@Component
+public class OrderFixtures {
+    
+    private final FixtureMonkey fixtureMonkey;
+    
+    public OrderFixtures(FixtureMonkey fixtureMonkey) {
+        this.fixtureMonkey = fixtureMonkey;
+    }
+    
+    // 기본 주문
+    public ArbitraryBuilder<Order> order() {
+        return fixtureMonkey.giveMeBuilder(Order.class)
+            .set("status", OrderStatus.PENDING);
+    }
+    
+    // 확정된 주문
+    public ArbitraryBuilder<Order> confirmedOrder() {
+        return order()
+            .set("status", OrderStatus.CONFIRMED)
+            .set("confirmedAt", LocalDateTime.now());
+    }
+    
+    // 취소된 주문
+    public ArbitraryBuilder<Order> cancelledOrder() {
+        return order()
+            .set("status", OrderStatus.CANCELLED)
+            .set("cancelReason", "고객 요청");
+    }
+    
+    // 특정 금액의 주문
+    public ArbitraryBuilder<Order> orderWithAmount(Money amount) {
+        return order()
+            .set("totalAmount", amount);
+    }
+}
+```
+
+**사용:**
+```java
+@SpringBootTest
+class OrderServiceTest {
+    
+    @Autowired
+    private OrderFixtures orderFixtures;
+    
+    @Test
+    void test() {
+        // 확정된 주문 생성
+        Order order = orderFixtures.confirmedOrder().sample();
+        
+        // 추가 커스터마이징
+        Order customOrder = orderFixtures.confirmedOrder()
+            .set("totalAmount", Money.of(50000))
+            .sample();
+    }
+}
+```
+
+---
+
+### 4. 계층별 Fixture 구성
+
+```
+src/test/java/vroong/laas/order/fixtures/
+├── domain/
+│   ├── OrderFixtures.java          # Domain Entity
+│   ├── OrderItemFixtures.java
+│   └── MoneyFixtures.java          # Value Object
+├── application/
+│   ├── CreateOrderCommandFixtures.java   # Command
+│   └── CancelOrderCommandFixtures.java
+├── infrastructure/
+│   └── OrderJpaEntityFixtures.java       # JPA Entity
+└── api/
+    ├── CreateOrderRequestFixtures.java   # Request DTO
+    └── OrderResponseFixtures.java        # Response DTO
+```
+
+---
+
+## 📝 테스트 작성 가이드
+
+### 1. Given-When-Then 패턴
+
+모든 테스트는 Given-When-Then 구조를 따릅니다.
+
+```java
+@Test
+void test_example() {
+    // given (준비)
+    // - 테스트 데이터 생성
+    // - Mock 동작 정의
+    Order order = fixtureMonkey.giveMeOne(Order.class);
+    given(orderStore.findById(1L)).willReturn(Optional.of(order));
+    
+    // when (실행)
+    // - 테스트할 메서드 호출
+    Order result = orderService.getOrder(1L);
+    
+    // then (검증)
+    // - 결과 검증
+    // - 상태 변경 검증
+    // - Mock 호출 검증
+    assertThat(result).isEqualTo(order);
+    verify(orderStore).findById(1L);
+}
+```
+
+---
+
+### 2. 테스트 네이밍 규칙
+
+**형식:** `{테스트_대상}_{조건}_{예상_결과}`
+
+```java
+// ✅ 좋은 예
+@Test
+void cancel_order_with_pending_status_changes_to_cancelled() { }
+
+@Test
+void cancel_already_cancelled_order_throws_exception() { }
+
+// ❌ 나쁜 예
+@Test
+void test1() { }
+
+@Test
+void cancelTest() { }
+```
+
+---
+
+### 3. @DisplayName 활용
+
+```java
+@Test
+@DisplayName("대기 중인 주문을 취소하면 상태가 CANCELLED로 변경된다")
+void cancel_order_with_pending_status_changes_to_cancelled() {
+    // ...
+}
+```
+
+---
+
+### 4. 예외 케이스 테스트
+
+**필수 테스트 케이스:**
+- ✅ 정상 케이스 (Happy Path)
+- ✅ 예외 케이스 (Exception)
+- ✅ 경계값 케이스 (Boundary)
+- ✅ Null 케이스
+
+**예시:**
+```java
+@Test
+@DisplayName("주문 취소 - 정상 케이스")
+void cancel_order_success() { }
+
+@Test
+@DisplayName("주문 취소 - 존재하지 않는 주문")
+void cancel_order_not_found() {
+    assertThatThrownBy(() -> orderService.cancel(999L))
+        .isInstanceOf(OrderNotFoundException.class);
+}
+
+@Test
+@DisplayName("주문 취소 - 이미 취소된 주문")
+void cancel_order_already_cancelled() {
+    assertThatThrownBy(() -> order.cancel("reason"))
+        .isInstanceOf(OrderAlreadyCancelledException.class);
+}
+
+@Test
+@DisplayName("주문 취소 - null reason")
+void cancel_order_with_null_reason() {
+    assertThatThrownBy(() -> order.cancel(null))
+        .isInstanceOf(IllegalArgumentException.class);
+}
+```
+
+---
+
+### 5. AssertJ 활용
+
+```java
+// 기본 검증
+assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+
+// 컬렉션 검증
+assertThat(orders)
+    .hasSize(3)
+    .extracting("status")
+    .containsOnly(OrderStatus.PENDING);
+
+// 예외 검증
+assertThatThrownBy(() -> order.cancel("reason"))
+    .isInstanceOf(OrderAlreadyCancelledException.class)
+    .hasMessage("이미 취소된 주문입니다");
+
+// 객체 검증
+assertThat(order)
+    .extracting("id", "status", "totalAmount")
+    .containsExactly(1L, OrderStatus.PENDING, Money.of(10000));
+```
+
+---
+
+### 6. Mockito 활용
+
+```java
+// Mock 동작 정의
+given(orderStore.findById(1L)).willReturn(Optional.of(order));
+
+// void 메서드 Mock
+willDoNothing().given(eventPublisher).publish(any());
+
+// 예외 던지기
+given(orderStore.findById(999L))
+    .willThrow(new OrderNotFoundException());
+
+// 호출 검증
+verify(orderStore).save(order);
+verify(eventPublisher).publish(any(OrderCancelledEvent.class));
+
+// 호출 횟수 검증
+verify(orderStore, times(1)).save(order);
+verify(eventPublisher, never()).publish(any());
+
+// 인자 캡처
+ArgumentCaptor<Order> captor = ArgumentCaptor.forClass(Order.class);
+verify(orderStore).save(captor.capture());
+assertThat(captor.getValue().getStatus()).isEqualTo(OrderStatus.CANCELLED);
+```
+
+---
+
+## ✅ 테스트 체크리스트
+
+매 작업마다 다음을 확인하세요:
+
+### Domain Layer
+- [ ] Entity 생성 테스트
+- [ ] 비즈니스 로직 테스트
+- [ ] 예외 케이스 테스트
+- [ ] Value Object 불변성 테스트
+
+### Application Layer
+- [ ] UseCase 정상 흐름 테스트
+- [ ] UseCase 예외 케이스 테스트
+- [ ] Mock 호출 검증
+- [ ] Command/Query 유효성 테스트
+
+### Infrastructure Layer
+- [ ] Repository 저장/조회 테스트
+- [ ] Query 성능 테스트 (N+1 체크)
+- [ ] 트랜잭션 격리 테스트
+
+### Interface Layer
+- [ ] API 정상 응답 테스트
+- [ ] API 예외 응답 테스트
+- [ ] 유효성 검증 테스트
+- [ ] 인증/인가 테스트
+- [ ] REST Docs 문서 생성 확인 (snippets 파일)
+- [ ] Constraints 컬럼 추가 확인
+- [ ] 커스텀 템플릿 경로 확인 (`org/springframework/restdocs/templates/asciidoctor/`)
+
+---
+
+## 🚫 금지 사항
+
+### 1. 테스트 없이 코드 작성 금지
+```java
+// ❌ 이렇게 하지 마세요
+// 프로덕션 코드만 작성하고 "나중에 테스트 추가"
+```
+
+### 2. Thread.sleep() 사용 금지
+```java
+// ❌ 나쁜 예
+@Test
+void async_test() throws Exception {
+    asyncService.process();
+    Thread.sleep(1000);  // 금지!
+    verify(repository).save(any());
+}
+
+// ✅ 좋은 예 - Awaitility 사용
+@Test
+void async_test() {
+    asyncService.process();
+    
+    await().atMost(Duration.ofSeconds(5))
+        .untilAsserted(() -> {
+            verify(repository).save(any());
+        });
+}
+```
+
+### 3. 테스트 간 의존성 금지
+```java
+// ❌ 나쁜 예 - 테스트 순서에 의존
+private static Order sharedOrder;
+
+@Test
+@Order(1)
+void create_order() {
+    sharedOrder = orderService.create(...);  // 금지!
+}
+
+@Test
+@Order(2)
+void cancel_order() {
+    orderService.cancel(sharedOrder.getId());  // 금지!
+}
+
+// ✅ 좋은 예 - 각 테스트가 독립적
+@Test
+void cancel_order() {
+    Order order = fixtureMonkey.giveMeOne(Order.class);
+    orderService.cancel(order.getId());
+}
+```
+
+### 4. 과도한 Mock 사용 금지
+```java
+// ❌ 나쁜 예 - 너무 많은 Mock
+@Mock private Service1 service1;
+@Mock private Service2 service2;
+@Mock private Service3 service3;
+// ... 10개 이상의 Mock
+
+// 💡 힌트: Mock이 너무 많다면 설계를 다시 검토하세요
+```
+
+---
+
+## 📚 참고 자료
+
+- [JUnit 5 User Guide](https://junit.org/junit5/docs/current/user-guide/)
+- [AssertJ Documentation](https://assertj.github.io/doc/)
+- [Fixture Monkey Documentation](https://naver.github.io/fixture-monkey/)
+- [Mockito Documentation](https://javadoc.io/doc/org.mockito/mockito-core/latest/org/mockito/Mockito.html)
+- [Spring REST Docs](https://docs.spring.io/spring-restdocs/docs/current/reference/htmlsingle/)
+- [Spring REST Docs - Custom Templates](https://docs.spring.io/spring-restdocs/docs/current/reference/htmlsingle/#documenting-your-api-customizing-including-snippets)
+
+---
+
+이 규칙을 따라 견고하고 유지보수 가능한 테스트 코드를 작성하세요! 🚀
+
+---
+alwaysApply: true
+---
+
+# Job Layer 규칙
+
+## 위치
+`job/`
+
+## 저장소 구조
+
+```
+job/
+├── src/main/java/vroong/laas/order/job/
+│   ├── JobApplication.java          # Main Application
+│   ├── common/
+│   │   ├── aspect/
+│   │   │   └── ScheduledJobLoggingAspect.java  # AOP (로깅, 예외처리)
+│   │   └── config/
+│   │       ├── SchedulingConfig.java        # Thread Pool 설정
+│   │       ├── SchedulingProperties.java    # Thread Pool 설정 Properties
+│   │       └── *Properties.java             # 기타 설정 클래스
+│   ├── scheduled/
+│   │   └── BaseScheduledJob.java    # 기본 인터페이스
+│   └── outbox/                       # ⭐ 기능별 패키지
+│       └── OutboxEventPublishJob.java     # Outbox Event Publish Job
+└── src/main/resources/
+    └── application.yml
+```
+
+## 책임
+- Scheduled Job 실행
+- Outbox Polling (Outbox → Kafka 전송)
+- 주기적인 통계 집계
+- 데이터 정리 작업
+
+---
+
+## 필수 규칙 ⭐
+
+### 1. BaseScheduledJob 구현
+
+**모든 Scheduled Job은 BaseScheduledJob 인터페이스를 구현해야 합니다.**
+
+#### ✅ 올바른 예
+
+```java
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class OutboxEventPublishJob implements BaseScheduledJob {
+    
+    private final OutboxEventService outboxEventService;
+    private final OutboxEventPublishProperties properties;
+    
+    @Scheduled(fixedDelay = 10000)
+    @Override
+    public void execute() {
+        // 비즈니스 로직
+        int count = outboxEventService.publishPendingEvents(properties.getBatchSize());
+        
+        if (count > 0) {
+            log.info("Published {} events from outbox to Kafka", count);
+        }
+    }
+}
+```
+
+**AOP가 자동으로 제공하는 기능:**
+- ✅ 실행 시작/종료 로깅 (`[JobName] Job started/completed`)
+- ✅ 실행 시간 자동 측정
+- ✅ 예외 자동 처리 (다음 실행 보장)
+- ✅ 일관된 로깅 포맷
+
+**로그 출력 예시:**
+```
+2025-01-12 10:00:00.123 DEBUG [OutboxEventPublishJob] Job started
+2025-01-12 10:00:00.456 INFO  Published 3 events from outbox to Kafka
+2025-01-12 10:00:00.789 INFO  [OutboxEventPublishJob] Job completed successfully in 666ms
+```
+
+---
+
+### 2. 1개 클래스 = 1개 작업
+
+**한 클래스에는 하나의 @Scheduled 메서드만 존재해야 합니다.**
+
+#### ❌ 나쁜 예 - 여러 작업을 한 클래스에
+
+```java
+@Component
+public class OrderJob implements BaseScheduledJob {
+    
+    @Scheduled(fixedDelay = 10000)
+    @Override
+    public void execute() {
+        pollOutbox();
+    }
+    
+    @Scheduled(cron = "0 0 1 * * *")  // ❌ 금지! 다른 작업
+    public void calculateStatistics() {
+        // ...
+    }
+}
+```
+
+#### ✅ 좋은 예 - 작업별로 클래스 분리
+
+```java
+// OutboxEventPublishJob.java
+@Component
+public class OutboxEventPublishJob implements BaseScheduledJob {
+    
+    @Scheduled(fixedDelay = 10000)
+    @Override
+    public void execute() {
+        // Outbox Polling 로직
+    }
+}
+
+// OrderStatisticsJob.java
+@Component
+public class OrderStatisticsJob implements BaseScheduledJob {
+    
+    @Scheduled(cron = "0 0 1 * * *")
+    @Override
+    public void execute() {
+        // 통계 집계 로직
+    }
+}
+```
+
+**이유:**
+- ✅ 단일 책임 원칙 (SRP)
+- ✅ 테스트 용이
+- ✅ 독립적인 활성화/비활성화 가능
+- ✅ 독립적인 실행 주기 관리
+
+---
+
+### 3. 클래스 이름은 *Job으로 끝나야 함
+
+**모든 Scheduled Job 클래스는 "Job" 접미사로 끝나야 합니다.**
+
+#### ✅ 올바른 이름
+
+```java
+OutboxEventPublishJob
+OrderStatisticsJob
+DataCleanupJob
+OrderNotificationJob
+```
+
+#### ❌ 잘못된 이름
+
+```java
+OutboxPoller          // Job 접미사 없음
+OrderStatistics       // Job 접미사 없음
+CleanupScheduler      // Scheduler는 사용 안 함
+OrderTask             // Task는 사용 안 함
+```
+
+**이유:**
+- ✅ 명확한 식별 (Job임을 즉시 알 수 있음)
+- ✅ 일관된 네이밍 규칙
+- ✅ AOP 로깅에서 클래스명 사용
+
+---
+
+## Scheduled 애노테이션 규칙
+
+### Scheduling 옵션
+
+| 방법 | 용도 | 예시 |
+|---|---|-----|
+| `fixedDelay` | 이전 실행 완료 후 N ms 대기 | Outbox Polling (10초) |
+| `fixedRate` | N ms마다 실행 (이전 실행 무관) | Health Check (1분) |
+| `cron` | Cron 표현식 | 일일 통계 (새벽 1시) |
+
+```java
+// fixedDelay - 권장 (중복 실행 방지)
+@Scheduled(fixedDelayString = "${job.outbox.publish.fixed-delay:10000}")
+@Override
+public void execute() {
+    // 비즈니스 로직
+}
+
+// cron - 정해진 시간에 실행
+@Scheduled(cron = "0 0 1 * * *")  // 매일 새벽 1시
+@Override
+public void execute() {
+    // 비즈니스 로직
+}
+
+// fixedRate - 주의 (이전 실행과 무관하게 실행)
+@Scheduled(fixedRate = 60000)  // 1분마다
+@Override
+public void execute() {
+    // 비즈니스 로직
+}
+```
+
+---
+
+## Multi-Thread 설정 ⭐
+
+### 기본 동작
+
+**Spring @Scheduled는 기본적으로 단일 스레드로 동작합니다.**
+
+```
+OutboxEventPublishJob (10초마다)
+  ↓ 실행 완료 대기
+OrderStatisticsJob (1시간마다)
+  ↓ 실행 완료 대기
+DataCleanupJob (2시간마다)
+```
+
+**문제:**
+- ❌ Job이 순차적으로 실행됨
+- ❌ 긴 실행 시간의 Job이 다른 Job을 블로킹
+- ❌ 동시에 실행되어야 할 Job들이 대기
+
+### Thread Pool 설정
+
+**SchedulingConfig.java**로 Thread Pool을 설정합니다.
+
+```java
+// job/common/config/SchedulingConfig.java
+@Configuration
+@RequiredArgsConstructor
+public class SchedulingConfig {
+
+  private final SchedulingProperties properties;
+
+  @Bean
+  public ThreadPoolTaskScheduler taskScheduler() {
+    ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+    
+    // Thread Pool Size: 동시에 실행 가능한 Job 수
+    scheduler.setPoolSize(properties.getPoolSize());
+    
+    // Thread 이름 Prefix (로깅, 디버깅 시 유용)
+    scheduler.setThreadNamePrefix(properties.getThreadNamePrefix());
+    
+    // Daemon Thread 여부 (false: 애플리케이션 종료 시 작업 완료 대기)
+    scheduler.setDaemon(false);
+    
+    // Graceful Shutdown: 종료 시 실행 중인 Job 완료 대기
+    scheduler.setWaitForTasksToCompleteOnShutdown(true);
+    
+    // Shutdown 대기 시간 (초)
+    scheduler.setAwaitTerminationSeconds(properties.getAwaitTerminationSeconds());
+    
+    scheduler.initialize();
+    
+    return scheduler;
+  }
+}
+```
+
+```java
+// job/common/config/SchedulingProperties.java
+@Component
+@ConfigurationProperties(prefix = "job.scheduling")
+@Getter
+@Setter
+public class SchedulingProperties {
+    
+    private int poolSize = 10;
+    private String threadNamePrefix = "scheduled-job-";
+    private int awaitTerminationSeconds = 60;
+}
+```
+
+```yaml
+# application.yml
+job:
+  scheduling:
+    pool-size: 10
+    thread-name-prefix: "scheduled-job-"
+    await-termination-seconds: 60
+```
+
+### Thread Pool 적용 후
+
+**여러 Job이 동시에 실행됩니다.**
+
+```
+OutboxEventPublishJob (10초마다) ──┐
+OrderStatisticsJob (1시간마다) ├─→ Thread Pool (동시 실행)
+DataCleanupJob (2시간마다) ────┘
+```
+
+**장점:**
+- ✅ Job이 병렬로 실행
+- ✅ 긴 실행 시간의 Job이 다른 Job을 블로킹하지 않음
+- ✅ 더 높은 처리량
+
+### Pool Size 결정
+
+**권장:**
+- **일반적인 경우**: 10-20
+- **Job이 많은 경우**: Job 개수 × 1.5
+- **CPU 집약적**: CPU 코어 수
+- **I/O 집약적**: CPU 코어 수 × 2
+
+**예시:**
+```java
+// Job 개수: 5개, I/O 집약적 (DB, Kafka)
+scheduler.setPoolSize(10);  // 5 × 2
+```
+
+### Graceful Shutdown
+
+**setWaitForTasksToCompleteOnShutdown(true)**
+- 애플리케이션 종료 시 실행 중인 Job 완료 대기
+- 데이터 유실 방지
+
+**setAwaitTerminationSeconds(60)**
+- 최대 60초 대기
+- 초과 시 강제 종료
+
+### Thread 이름 확인
+
+**로그에서 Thread 이름 확인 가능:**
+```
+2025-01-12 10:00:00.123 INFO [scheduled-job-1] [OutboxEventPublishJob] Job started
+2025-01-12 10:00:00.456 INFO [scheduled-job-2] [OrderStatisticsJob] Job started
+2025-01-12 10:00:00.789 INFO [scheduled-job-3] [DataCleanupJob] Job started
+```
+
+### 주의사항
+
+**1. Thread-Safe 필요**
+```java
+// ❌ 위험: 여러 Thread에서 공유되는 mutable 상태
+@Component
+public class UnsafeJob implements BaseScheduledJob {
+    private int counter = 0;  // ❌ Thread-Safe 하지 않음
+    
+    @Scheduled(fixedDelay = 1000)
+    @Override
+    public void execute() {
+        counter++;  // Race condition 발생 가능
+    }
+}
+
+// ✅ 안전: Stateless 또는 Thread-Safe
+@Component
+public class SafeJob implements BaseScheduledJob {
+    private final AtomicInteger counter = new AtomicInteger(0);  // ✅ Thread-Safe
+    
+    @Scheduled(fixedDelay = 1000)
+    @Override
+    public void execute() {
+        counter.incrementAndGet();
+    }
+}
+```
+
+**2. 동시 실행 방지가 필요한 경우**
+
+같은 Job이 중복 실행되면 안 되는 경우:
+
+```java
+@Component
+public class CriticalJob implements BaseScheduledJob {
+    
+    private final AtomicBoolean running = new AtomicBoolean(false);
+    
+    @Scheduled(fixedDelay = 1000)
+    @Override
+    public void execute() {
+        // 이미 실행 중이면 스킵
+        if (!running.compareAndSet(false, true)) {
+            log.warn("Job is already running, skipping this execution");
+            return;
+        }
+        
+        try {
+            // 비즈니스 로직
+        } finally {
+            running.set(false);
+        }
+    }
+}
+```
+
+**3. 분산 환경에서 중복 실행 방지**
+
+여러 서버에서 동일한 Job이 실행되는 경우:
+- ShedLock 라이브러리 사용 권장
+- Redis, DB 등으로 분산 락 구현
+
+---
+
+## 설정 관리
+
+### Properties 클래스 사용
+
+**application.yml 설정은 @ConfigurationProperties로 매핑합니다.**
+
+```java
+// job/common/config/OutboxEventPublishProperties.java
+@Component
+@ConfigurationProperties(prefix = "job.outbox.publish")
+@Getter
+@Setter
+public class OutboxEventPublishProperties {
+    
+    private boolean enabled = true;
+    private long fixedDelay = 10000;
+    private int batchSize = 100;
+}
+```
+
+```yaml
+# application.yml
+job:
+  outbox:
+    polling:
+      enabled: true
+      fixed-delay: 10000
+      batch-size: 100
+```
+
+### @ConditionalOnProperty로 활성화 제어
+
+```java
+@Component
+@ConditionalOnProperty(
+    prefix = "job.outbox.publish",
+    name = "enabled",
+    havingValue = "true",
+    matchIfMissing = false
+)
+public class OutboxEventPublishJob implements BaseScheduledJob {
+    // ...
+}
+```
+
+**장점:**
+- ✅ 환경별 Job 활성화/비활성화 가능
+- ✅ 테스트 환경에서 Job 제외 가능
+- ✅ `matchIfMissing = false`로 명시적 설정 강제 (안전)
+
+---
+
+## 비즈니스 로직 호출 규칙
+
+### Domain Service 호출 (필수)
+
+**Job은 Domain Service를 통해 비즈니스 로직을 호출해야 합니다.**
+
+#### ✅ 좋은 예 - Domain Service 호출
+
+```java
+@Component
+@RequiredArgsConstructor
+public class OrderStatisticsJob implements BaseScheduledJob {
+    
+    private final OrderReader orderReader;  // Domain Service
+    
+    @Scheduled(cron = "0 0 1 * * *")
+    @Override
+    public void execute() {
+        LocalDate yesterday = LocalDate.now().minusDays(1);
+        
+        // Domain Service 호출
+        var statistics = orderReader.calculateStatistics(yesterday);
+        
+        log.info("Daily statistics calculated: {}", statistics);
+    }
+}
+
+// Outbox Polling도 동일한 패턴
+@Component
+@RequiredArgsConstructor
+public class OutboxEventPublishJob implements BaseScheduledJob {
+    
+    private final OutboxEventPublisher outboxEventPublisher;  // Domain Service
+    
+    @Scheduled(fixedDelay = 10000)
+    @Override
+    public void execute() {
+        // Domain Service 호출
+        int count = outboxEventPublisher.publishPendingEvents(100);
+        
+        if (count > 0) {
+            log.info("Published {} events", count);
+        }
+    }
+}
+```
+
+#### ❌ 나쁜 예 - Infrastructure 직접 호출
+
+```java
+// ❌ 나쁜 예 1: Repository 직접 호출
+@Component
+@RequiredArgsConstructor
+public class OrderStatisticsJob implements BaseScheduledJob {
+    
+    private final OrderRepository orderRepository;  // ❌ 금지!
+    
+    @Scheduled(cron = "0 0 1 * * *")
+    @Override
+    public void execute() {
+        // Repository 직접 호출 금지!
+        List<Order> orders = orderRepository.findAll();
+        
+        // 비즈니스 로직 직접 구현 금지!
+        long count = orders.stream()
+            .filter(o -> o.getStatus() == OrderStatus.COMPLETED)
+            .count();
+    }
+}
+
+// ❌ 나쁜 예 2: Infrastructure 클래스 직접 의존
+@Component
+@RequiredArgsConstructor
+public class OutboxEventPublishJob implements BaseScheduledJob {
+    
+    private final OutboxEventService outboxEventService;  // ❌ 금지! (Infrastructure)
+    
+    @Scheduled(fixedDelay = 10000)
+    @Override
+    public void execute() {
+        // Infrastructure 직접 호출 금지!
+        outboxEventService.publishPendingEvents(100);
+    }
+}
+```
+
+**규칙:**
+- ✅ Domain Service만 호출
+- ❌ Repository 직접 호출 금지
+- ❌ Infrastructure 클래스 직접 의존 금지
+- ❌ 비즈니스 로직 직접 구현 금지
+- ❌ 트랜잭션 관리 금지 (Domain Service에서)
+
+---
+
+## 예외 처리
+
+### AOP가 자동으로 처리
+
+**ScheduledJobLoggingAspect가 자동으로 예외를 처리합니다.**
+
+```java
+@Component
+public class OutboxEventPublishJob implements BaseScheduledJob {
+    
+    @Scheduled(fixedDelay = 10000)
+    @Override
+    public void execute() {
+        // 예외 발생 시 AOP가 자동으로:
+        // 1. 에러 로그 기록
+        // 2. 예외 삼킴 (다음 실행 보장)
+        outboxEventService.publishPendingEvents(batchSize);
+    }
+}
+```
+
+**자동 처리:**
+```
+2025-01-12 10:00:00.123 DEBUG [OutboxEventPublishJob] Job started
+2025-01-12 10:00:00.456 ERROR [OutboxEventPublishJob] Job failed after 333ms: Connection timeout
+  ... stack trace ...
+```
+
+### 특수한 예외 처리가 필요한 경우
+
+```java
+@Component
+public class CustomJob implements BaseScheduledJob {
+    
+    @Scheduled(fixedDelay = 10000)
+    @Override
+    public void execute() {
+        try {
+            // 비즈니스 로직
+        } catch (SpecificException e) {
+            // 특수 처리
+            log.warn("Specific error handled", e);
+            // 예외를 다시 던지지 않으면 성공으로 간주
+        }
+    }
+}
+```
+
+---
+
+## 테스트 규칙
+
+### Job 단위 테스트
+
+```java
+@ExtendWith(MockitoExtension.class)
+class OutboxEventPublishJobTest {
+    
+    @InjectMocks
+    private OutboxEventPublishJob job;
+    
+    @Mock
+    private OutboxEventService outboxEventService;
+    
+    @Mock
+    private OutboxEventPublishProperties properties;
+    
+    @Test
+    void execute_publishesEvents_whenPendingEventsExist() {
+        // given
+        given(properties.getBatchSize()).willReturn(100);
+        given(outboxEventService.publishPendingEvents(100)).willReturn(3);
+        
+        // when
+        job.execute();
+        
+        // then
+        verify(outboxEventService).publishPendingEvents(100);
+    }
+}
+```
+
+### 통합 테스트에서 Job 비활성화
+
+```yaml
+# src/test/resources/application.yml
+job:
+  outbox:
+    polling:
+      enabled: false  # 테스트에서 Job 비활성화
+```
+
+---
+
+## 실전 예시: OutboxEventPublishJob
+
+```java
+package vroong.laas.order.job.outbox;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+import vroong.laas.order.core.domain.outbox.OutboxEventPublisher;
+import vroong.laas.order.job.common.config.OutboxEventPublishProperties;
+
+/**
+ * Outbox Polling Job
+ *
+ * <p>Outbox 테이블에서 미전송 이벤트를 Kafka로 전송합니다.
+ *
+ * <p>실행 주기: 10초 (job.outbox.publish.fixed-delay)
+ *
+ * <p>AOP가 자동으로 로깅, 실행 시간 측정, 예외 처리를 수행합니다.
+ *
+ * <p>아키텍처:
+ * <pre>
+ * OutboxEventPublishJob (Job Layer)
+ *   → OutboxEventPublisher (Domain Service)
+ *     → OutboxEventClient (Port)
+ *       → KafkaOutboxEventClient (Infrastructure Adapter)
+ * </pre>
+ */
+@Component
+@RequiredArgsConstructor
+@Slf4j
+@ConditionalOnProperty(
+    prefix = "job.outbox.publish",
+    name = "enabled",
+    havingValue = "true",
+    matchIfMissing = false
+)
+public class OutboxEventPublishJob implements BaseScheduledJob {
+    
+    private final OutboxEventPublisher outboxEventPublisher;  // Domain Service
+    private final OutboxEventPublishProperties properties;
+    
+    /**
+     * Outbox Polling 실행
+     *
+     * <p>ScheduledJobLoggingAspect가 자동으로 로깅 및 예외 처리를 수행합니다.
+     */
+    @Scheduled(fixedDelayString = "${job.outbox.publish.fixed-delay:10000}")
+    @Override
+    public void execute() {
+        int publishedCount = outboxEventPublisher.publishPendingEvents(
+            properties.getBatchSize()
+        );
+        
+        if (publishedCount > 0) {
+            log.info("Published {} events from outbox to Kafka", publishedCount);
+        }
+    }
+}
+```
+
+---
+
+## 체크리스트
+
+매 Job 작성 시 확인:
+
+- [ ] BaseScheduledJob 인터페이스 구현?
+- [ ] 1개 클래스에 1개 @Scheduled 메서드만?
+- [ ] 클래스 이름이 *Job으로 끝나는가?
+- [ ] execute() 메서드에 @Scheduled 애노테이션?
+- [ ] Domain Service만 호출?
+- [ ] Repository 직접 호출 안 함?
+- [ ] @ConditionalOnProperty로 활성화 제어?
+- [ ] Properties 클래스로 설정 관리?
+
+---
+
+## 금지 사항
+
+### ❌ 절대 하지 말 것
+
+1. **여러 @Scheduled 메서드를 한 클래스에**
+   ```java
+   // ❌ 금지!
+   @Component
+   public class MultiJob implements BaseScheduledJob {
+       @Scheduled(fixedDelay = 10000)
+       @Override
+       public void execute() { }
+       
+       @Scheduled(cron = "0 0 * * * *")
+       public void anotherJob() { }
+   }
+   ```
+
+2. **Repository 직접 호출**
+   ```java
+   // ❌ 금지!
+   private final OrderRepository orderRepository;
+   ```
+
+3. **비즈니스 로직 직접 구현**
+   ```java
+   // ❌ 금지! Domain Service에서 구현
+   @Override
+   public void execute() {
+       Order order = orderRepository.findById(1L).orElseThrow();
+       order.calculateTotalAmount();  // 비즈니스 로직
+   }
+   ```
+
+4. **트랜잭션 직접 관리**
+   ```java
+   // ❌ 금지! Domain Service에서 관리
+   @Override
+   @Transactional
+   public void execute() { }
+   ```
+
+5. **Job 접미사 없는 이름**
+   ```java
+   // ❌ 금지!
+   public class OutboxPoller implements BaseScheduledJob { }
+   public class OrderStatistics implements BaseScheduledJob { }
+   ```
+
+---
+
+## 중요 원칙
+
+1. **BaseScheduledJob 인터페이스 구현** (필수)
+2. **1개 클래스 = 1개 작업** (필수)
+3. **클래스 이름은 *Job** (필수)
+4. **기능별 패키지 구성** (outbox/, statistics/, cleanup/ 등)
+5. **AOP가 자동 로깅/예외처리** (ScheduledJobLoggingAspect)
+6. **Domain Service만 호출** (비즈니스 로직 금지)
+7. **@ConditionalOnProperty로 활성화 제어**
+8. **Properties 클래스로 설정 관리**
