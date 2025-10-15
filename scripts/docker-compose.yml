@@ -40,7 +40,7 @@ services:
     ports:
       - "9092:9092"
     volumes:
-      - ./kafka-init.sh:/usr/local/bin/kafka-init.sh:ro
+      - ./kafka-init.sh:/usr/local/bin/kafka-init.sh
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
